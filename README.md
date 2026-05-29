@@ -1,2 +1,3599 @@
 # Jogun
 Filo
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B0B0C" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Filo" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- SEO / OG -->
+  <title>FILO SYSTEM — Intelligent Premium Salon Automation</title>
+  <meta name="description" content="살롱 약제 재고와 거래처별 발주를 자동화하는 프리미엄 시스템. 월말 재고조사 한 번으로 거래처별 발주 문자가 완성됩니다." />
+  <meta property="og:title" content="FILO SYSTEM" />
+  <meta property="og:description" content="Intelligent Premium Salon Automation — 거래처별 자동 발주 시스템" />
+  <meta property="og:type" content="website" />
+
+  <!-- Fonts: Pretendard (한글) + Cormorant (디스플레이) + JetBrains Mono (모노) -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=JetBrains+Mono:wght@300;400&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Pretendard Variable"', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            display: ['"Cormorant Garamond"', 'serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- React 18 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel Standalone (JSX 트랜스파일) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* ============================================
+       FILO — Quiet Luxury Base Styles
+       ============================================ */
+    *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      overscroll-behavior: none;
+    }
+
+    /* iOS safe area */
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* 0.5px hairline borders (Quiet Luxury 시그니처) */
+    @media (min-resolution: 2dppx) {
+      .border, .border-t, .border-b, .border-l, .border-r {
+        border-width: 0.5px;
+      }
+    }
+
+    /* Input number — 스피너 제거 (현장 미용실 깔끔함) */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] { -moz-appearance: textfield; }
+
+    /* 로딩 페이드인 */
+    #root {
+      animation: filoFadeIn 0.5s ease-out;
+    }
+    @keyframes filoFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 초기 로딩 스크린 (React 마운트 전) */
+    .filo-loader {
+      position: fixed;
+      inset: 0;
+      background: #0B0B0C;
+      color: #E5E5E0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      z-index: 9999;
+      font-family: 'Cormorant Garamond', serif;
+      letter-spacing: 0.3em;
+      transition: opacity 0.4s ease;
+    }
+    .filo-loader.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .filo-loader-line {
+      width: 32px;
+      height: 1px;
+      background: #E5E5E0;
+      opacity: 0.4;
+      animation: filoLine 1.6s ease-in-out infinite;
+    }
+    @keyframes filoLine {
+      0%, 100% { width: 16px; opacity: 0.3; }
+      50% { width: 48px; opacity: 0.8; }
+    }
+
+    /* 스크롤바 미니멀 */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.3); border-radius: 2px; }
+
+    /* 가로 스크롤바 숨기기 (탭 메뉴) */
+    .overflow-x-auto::-webkit-scrollbar { display: none; }
+
+    /* 토스트 애니메이션 */
+    @keyframes filoToast {
+      0%   { opacity: 0; transform: translate(-50%, 10px); }
+      10%  { opacity: 1; transform: translate(-50%, 0); }
+      90%  { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -4px); }
+    }
+
+    /* 인라인 편집 펼침 애니메이션 */
+    @keyframes filoExpand {
+      from {
+        opacity: 0;
+        max-height: 0;
+        transform: translateY(-4px);
+      }
+      to {
+        opacity: 1;
+        max-height: 600px;
+        transform: translateY(0);
+      }
+    }
+
+    /* 모달 페이드인 */
+    @keyframes filoModalIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* 발주 경고 펄스 */
+    @keyframes filoPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.0); }
+      50%      { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15); }
+    }
+
+    /* 업로드 중 펄스 */
+    @keyframes filoPulse {
+      0%, 100% { opacity: 0.6; }
+      50%      { opacity: 1; }
+    }
+    .filo-uploading { animation: filoPulse 1s ease-in-out infinite; }
+
+    /* 편집 중인 카드 강조 (시각적 hairline glow) */
+    .filo-editing {
+      box-shadow: inset 0 0 0 1px currentColor;
+      opacity: 1 !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- 초기 로딩 스크린 -->
+  <div id="filo-loader" class="filo-loader">
+    <div style="font-size: 22px; font-weight: 300;">FILO</div>
+    <div class="filo-loader-line"></div>
+    <div style="font-size: 10px; opacity: 0.5; letter-spacing: 0.4em; font-family: 'JetBrains Mono', monospace;">LOADING SYSTEM</div>
+  </div>
+
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react" data-type="module">
+    const { useState, useEffect, useMemo } = React;
+
+    // ============================================
+    // 0. CONSTANTS — 카테고리 / 컬러 / 헬퍼
+    // ============================================
+
+    // 카테고리 시스템 (4가지 고정 대분류)
+    const CATEGORIES = [
+      {
+        key: '펌제',
+        color: { hex: '#E63329', bg: 'bg-red-500/25', border: 'border-red-500', text: 'text-red-300', dot: 'bg-red-500', solid: 'bg-red-500' }
+      },
+      {
+        key: '염색',
+        color: { hex: '#3B82F6', bg: 'bg-blue-500/25', border: 'border-blue-500', text: 'text-blue-300', dot: 'bg-blue-500', solid: 'bg-blue-500' }
+      },
+      {
+        key: '헤어케어',
+        color: { hex: '#10B981', bg: 'bg-emerald-500/25', border: 'border-emerald-500', text: 'text-emerald-300', dot: 'bg-emerald-500', solid: 'bg-emerald-500' }
+      },
+      {
+        key: '스타일링',
+        color: { hex: '#A855F7', bg: 'bg-purple-500/25', border: 'border-purple-500', text: 'text-purple-300', dot: 'bg-purple-500', solid: 'bg-purple-500' }
+      }
+    ];
+
+    const getCategoryStyle = (cat) => CATEGORIES.find(c => c.key === cat) || null;
+
+    // 전화번호 자동 포맷팅 (010-1234-5678 / 02-123-4567)
+    const formatPhone = (raw) => {
+      const digits = String(raw || '').replace(/[^0-9]/g, '');
+      if (digits.length === 0) return '';
+      if (digits.length <= 3) return digits;
+      // 휴대폰 11자리
+      if (digits.length === 11) {
+        return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+      }
+      // 서울 02
+      if (digits.startsWith('02') && digits.length === 10) {
+        return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+      }
+      if (digits.startsWith('02') && digits.length === 9) {
+        return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+      }
+      // 일반 지역번호 10자리
+      if (digits.length === 10) {
+        return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+      }
+      // 짧은 경우 중간 하이픈만
+      if (digits.length > 3 && digits.length <= 7) {
+        return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+      }
+      return `${digits.slice(0, digits.length - 4)}-${digits.slice(-4)}`;
+    };
+
+    // ============================================
+    // 1. THEME PRESETS — Quiet Luxury Palette
+    // ============================================
+    const themes = {
+      cream: {
+        name: "Warm Cream",
+        bg: "bg-[#F4E9D9]",
+        surface: "bg-[#FBF4E9] border-[#E0CDB3]",
+        text: "text-[#3C2F2F]",
+        subText: "text-[#7A6655]",
+        inputBg: "bg-[#FBF4E9] border-[#D6BF9F] text-[#3C2F2F]",
+        pointBtn: "bg-[#C17F4F] text-[#FBF4E9] hover:bg-[#A86B40] font-semibold",
+        badge: "text-[#C17F4F]",
+        activeTab: "bg-[#5C4033] text-[#F4E9D9] font-semibold",
+        border: "border-[#E0CDB3]"
+      },
+      forest: {
+        name: "Forest Green",
+        bg: "bg-[#F5F1E8]",
+        surface: "bg-[#FFFFFF] border-[#E5E0D2]",
+        text: "text-[#1F2D26]",
+        subText: "text-[#6B7670]",
+        inputBg: "bg-[#FAFAF5] border-[#D6D2C4] text-[#1F2D26]",
+        pointBtn: "bg-[#2D4A3E] text-[#F5F1E8] hover:bg-[#1F352B] font-semibold",
+        badge: "text-[#2D4A3E]",
+        activeTab: "bg-[#2D4A3E] text-[#F5F1E8] font-semibold",
+        border: "border-[#E5E0D2]"
+      }
+    };
+
+    // ============================================
+    // 2. SEED DATA — 살롱 현장 실제 제품군
+    // ============================================
+    const defaultProducts = [
+      { id: 1, name: "프리미엄 아이롱 펌제 1제 (건강모)", company: "동양상사", phone: "01012345678", currentStock: 12, safeStock: 20, image: "https://images.unsplash.com/photo-1527735095040-1e7d66a654fd?q=80&w=200&auto=format&fit=crop" },
+      { id: 2, name: "멀티 아이롱 치오 프리미엄 크림", company: "동양상사", phone: "01012345678", currentStock: 4, safeStock: 10, image: "https://images.unsplash.com/photo-1608248597481-496100c80836?q=80&w=200&auto=format&fit=crop" },
+      { id: 3, name: "pH 밸런서 케라틴 버퍼 크림", company: "미래헤어랩", phone: "01098765432", currentStock: 1, safeStock: 5, image: "https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?q=80&w=200&auto=format&fit=crop" },
+    ];
+
+    const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?q=80&w=200&auto=format&fit=crop";
+
+    // ============================================
+    // 3. 안전한 localStorage 래퍼 (사파리 시크릿모드 + 용량 초과 대응)
+    // ============================================
+    const safeStorage = {
+      get(key, fallback) {
+        try {
+          const v = localStorage.getItem(key);
+          return v ? JSON.parse(v) : fallback;
+        } catch (e) {
+          return fallback;
+        }
+      },
+      set(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+          return { ok: true };
+        } catch (e) {
+          // QuotaExceededError 등
+          console.warn('Storage error:', e);
+          return { ok: false, error: e };
+        }
+      },
+      // 사용량 추정 (KB 단위)
+      usageKB() {
+        let total = 0;
+        try {
+          for (const key in localStorage) {
+            if (localStorage.hasOwnProperty(key) && key.startsWith('filo_')) {
+              total += (localStorage.getItem(key) || '').length;
+              total += key.length;
+            }
+          }
+        } catch (e) {}
+        return Math.round(total / 1024);
+      }
+    };
+
+    // ============================================
+    // ============================================
+    // 4. SUB COMPONENTS — 인라인 편집 에디터들
+    // ============================================
+
+    // 제품 정보 인라인 편집기
+    function ProductEditor({ theme, product, onSave, onCancel, onImageUpload, companyList = [], categoryList = [] }) {
+      const [draft, setDraft] = useState({
+        name: product.name,
+        company: product.company,
+        phone: product.phone,
+        category: product.category || '',
+        currentStock: product.currentStock,
+        safeStock: product.safeStock,
+        image: product.image
+      });
+      const [uploading, setUploading] = useState(false);
+
+      // 부모에서 이미지가 업데이트되면 draft에도 즉시 반영 (미리보기 동기화)
+      useEffect(() => {
+        setDraft(prev => ({ ...prev, image: product.image }));
+      }, [product.image]);
+
+      const handleImg = async (file) => {
+        if (!file) return;
+        setUploading(true);
+        try {
+          await onImageUpload(file);
+        } finally {
+          setUploading(false);
+        }
+      };
+
+      const handleSubmit = () => {
+        if (!draft.name.trim() || !draft.company.trim() || !draft.phone.trim()) {
+          alert('필수 항목을 비울 수 없습니다 (이름/거래처/전화번호)');
+          return;
+        }
+        onSave({
+          name: draft.name.trim(),
+          company: draft.company.trim(),
+          phone: draft.phone.replace(/[^0-9]/g, ''),
+          category: (draft.category || '').trim(),
+          currentStock: Math.max(0, Number(draft.currentStock) || 0),
+          safeStock: Math.max(1, Number(draft.safeStock) || 1),
+          image: draft.image
+        });
+      };
+
+      return (
+        <div className={`px-4 pb-4 border-t ${theme.border} space-y-3`} style={{animation: 'filoExpand 0.25s ease-out'}}>
+          <div className="pt-3 grid grid-cols-1 gap-3">
+            {/* 이미지 + 업로드 */}
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <img
+                  src={draft.image}
+                  alt=""
+                  className={`w-16 h-16 object-cover border border-current opacity-90 flex-shrink-0 ${uploading ? 'filo-uploading' : ''}`}
+                />
+                {uploading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs tracking-widest font-mono uppercase">
+                    압축중
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 grid grid-cols-2 gap-2">
+                <label className={`p-2 text-xs text-center tracking-wider border border-current opacity-70 hover:opacity-100 transition-all cursor-pointer ${uploading ? 'pointer-events-none opacity-40' : ''}`}>
+                  📷 촬영
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => handleImg(e.target.files?.[0])}
+                  />
+                </label>
+                <label className={`p-2 text-xs text-center tracking-wider border border-current opacity-70 hover:opacity-100 transition-all cursor-pointer ${uploading ? 'pointer-events-none opacity-40' : ''}`}>
+                  🖼 갤러리
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => handleImg(e.target.files?.[0])}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">제품 이름</label>
+              <input
+                type="text"
+                value={draft.name}
+                onChange={e => setDraft({...draft, name: e.target.value})}
+                className={`w-full p-2 text-sm focus:outline-none border ${theme.inputBg}`}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">거래처</label>
+                <input
+                  type="text"
+                  list="filo-company-list-editor"
+                  value={draft.company}
+                  onChange={e => setDraft({...draft, company: e.target.value})}
+                  className={`w-full p-2 text-sm focus:outline-none border ${theme.inputBg}`}
+                />
+                <datalist id="filo-company-list-editor">
+                  {companyList.map(c => <option key={c} value={c} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">전화번호</label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={formatPhone(draft.phone)}
+                  onChange={e => setDraft({...draft, phone: e.target.value.replace(/[^0-9]/g, '')})}
+                  className={`w-full p-2 text-sm focus:outline-none border ${theme.inputBg}`}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">카테고리 (선택)</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {CATEGORIES.map(c => {
+                  const active = draft.category === c.key;
+                  return (
+                    <button
+                      type="button"
+                      key={c.key}
+                      onClick={() => setDraft({...draft, category: active ? '' : c.key})}
+                      className={`py-2.5 text-sm tracking-wide transition-all border-2 ${
+                        active
+                          ? `${c.color.bg} ${c.color.text} font-semibold`
+                          : 'border-current opacity-30 hover:opacity-70'
+                      }`}
+                      style={active ? { borderColor: c.color.hex } : {}}
+                    >
+                      {c.key}
+                    </button>
+                  );
+                })}
+              </div>
+              {draft.category && (
+                <p className={`text-xs ${theme.subText} mt-1.5`}>
+                  선택 해제하려면 같은 카테고리를 다시 누르세요
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">현재고</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  value={draft.currentStock}
+                  onChange={e => setDraft({...draft, currentStock: e.target.value})}
+                  className={`w-full p-2 text-sm text-center focus:outline-none border ${theme.inputBg}`}
+                />
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">적정선</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  value={draft.safeStock}
+                  onChange={e => setDraft({...draft, safeStock: e.target.value})}
+                  className={`w-full p-2 text-sm text-center focus:outline-none border ${theme.inputBg}`}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={onCancel}
+                className="flex-1 py-2 text-sm tracking-wider border border-current opacity-60 hover:opacity-100 transition-all"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSubmit}
+                className={`flex-1 py-2 text-sm tracking-wider font-medium ${theme.pointBtn}`}
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 거래처 정보 인라인 편집기 (같은 거래처의 모든 제품에 일괄 적용)
+    function CompanyEditor({ theme, originalName, originalPhone, onSave, onCancel }) {
+      const [name, setName] = useState(originalName);
+      const [phone, setPhone] = useState(originalPhone);
+
+      return (
+        <div className={`border-b ${theme.border} pb-4 mb-4`} style={{animation: 'filoExpand 0.25s ease-out'}}>
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">거래처명</label>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className={`w-full p-2 text-sm focus:outline-none border ${theme.inputBg}`}
+              />
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">전화번호</label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                className={`w-full p-2 text-sm focus:outline-none border ${theme.inputBg}`}
+              />
+            </div>
+            <p className={`text-xs ${theme.subText} font-light pt-1`}>
+              이 거래처에 속한 모든 제품에 일괄 적용됩니다
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={onCancel}
+                className="flex-1 py-2 text-sm tracking-wider border border-current opacity-60 hover:opacity-100 transition-all"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => onSave(name, phone)}
+                className={`flex-1 py-2 text-sm tracking-wider font-medium ${theme.pointBtn}`}
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 직접 수량 입력 모달 (빠른 차감 탭에서 숫자 탭하면)
+    function QuickInputModal({ theme, product, onSave, onCancel }) {
+      const [value, setValue] = useState(String(product.currentStock));
+
+      const handleSubmit = () => {
+        const num = parseInt(value);
+        if (isNaN(num)) {
+          alert('숫자를 입력해주세요');
+          return;
+        }
+        onSave(num);
+      };
+
+      // 입력시 엔터키로 저장
+      const handleKey = (e) => {
+        if (e.key === 'Enter') handleSubmit();
+      };
+
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+          onClick={onCancel}
+        >
+          <div
+            className={`${theme.surface} border max-w-xs w-full`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono mb-2`}>수량 직접 설정</p>
+              <h4 className="text-base font-medium mb-1 truncate">{product.name}</h4>
+              <p className={`text-xs ${theme.subText} mb-4`}>
+                적정선 {product.safeStock}개 · 현재 {product.currentStock}개
+              </p>
+
+              <input
+                type="number"
+                inputMode="numeric"
+                autoFocus
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                onKeyDown={handleKey}
+                onFocus={e => e.target.select()}
+                className={`w-full p-3 text-center text-2xl font-mono font-semibold focus:outline-none border ${theme.inputBg}`}
+              />
+
+              {/* 일괄 차감/증가 빠른 버튼 */}
+              <div className="grid grid-cols-6 gap-1 mt-3">
+                {[-10, -5, -1, +1, +5, +10].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      const cur = parseInt(value) || 0;
+                      setValue(String(Math.max(0, cur + d)));
+                    }}
+                    className={`py-1.5 text-xs font-mono border border-current opacity-60 hover:opacity-100 active:scale-95 transition-all ${d < 0 ? theme.badge : ''}`}
+                  >
+                    {d > 0 ? '+' : ''}{d}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={onCancel}
+                  className="flex-1 py-2 text-sm tracking-wider border border-current opacity-60 hover:opacity-100 transition-all"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  className={`flex-1 py-2 text-sm tracking-wider font-medium ${theme.pointBtn}`}
+                >
+                  저장
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 발주서 미리보기 + 편집 모달
+    // ============================================
+    function OrderPreviewModal({ theme, preview, branding, onSend, onCopy, onClose }) {
+      const { company, info } = preview;
+      const defaultText = `[${branding.appName} 살롱 발주 요청]\n\n안녕하세요 사장님,\n아래 제품 발주 요청드립니다.\n\n${info.items.map(it => `- ${it.name}: ${it.qty}개`).join('\n')}\n\n확인 후 배송 부탁드립니다. 감사합니다.`;
+      const [text, setText] = useState(defaultText);
+
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+          onClick={onClose}
+        >
+          <div
+            className={`${theme.surface} border max-w-md w-full max-h-[85vh] overflow-y-auto`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={`p-5 border-b ${theme.border} flex items-center justify-between`}>
+              <div>
+                <h3 className="text-base font-light tracking-wide">발주서 미리보기</h3>
+                <p className={`text-xs ${theme.subText} mt-1 font-mono tracking-widest uppercase`}>
+                  {company} · {info.items.length}개 품목
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-lg opacity-50 hover:opacity-100 w-8 h-8 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs uppercase tracking-wider mb-1.5 opacity-60">
+                  메시지 내용 (편집 가능)
+                </label>
+                <textarea
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  rows="10"
+                  maxLength="500"
+                  className={`w-full p-3 text-sm focus:outline-none border resize-none leading-relaxed font-mono ${theme.inputBg}`}
+                />
+                <div className={`text-[11px] ${theme.subText} text-right mt-1 font-mono`}>
+                  {text.length} / 500
+                </div>
+              </div>
+
+              <div className={`text-xs ${theme.subText} p-3 border ${theme.border} leading-relaxed`}>
+                <p>💡 인사말이나 요청사항을 추가하면 더 좋습니다</p>
+                <p className="mt-1 opacity-80">예: "이번 주에 빨리 부탁드려요" / "오후 3시 이후 전화드립니다"</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { onCopy(text); onClose(); }}
+                  className="py-3 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 active:scale-95 transition-all"
+                >
+                  📋 복사
+                </button>
+                <button
+                  onClick={() => { onSend(text); onClose(); }}
+                  className={`py-3 text-sm tracking-wider font-medium uppercase ${theme.pointBtn}`}
+                >
+                  ✉ 문자 전송
+                </button>
+              </div>
+
+              <button
+                onClick={() => setText(defaultText)}
+                className={`w-full py-1.5 text-xs tracking-widest uppercase opacity-50 hover:opacity-100 transition-all`}
+              >
+                ↺ 기본 메시지로 초기화
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 발주 이력 모달
+    // ============================================
+    function OrderHistoryModal({ theme, history, onClose, onClear }) {
+      // 날짜별 그룹핑
+      const grouped = useMemo(() => {
+        const groups = {};
+        history.forEach(entry => {
+          const d = new Date(entry.t);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(entry);
+        });
+        return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+      }, [history]);
+
+      const channelLabel = {
+        sms: '📱 문자',
+        copy: '📋 복사',
+        preview: '👁 미리보기'
+      };
+
+      const fmtDate = (key) => {
+        const [y, m, d] = key.split('-');
+        const dt = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        const days = ['일', '월', '화', '수', '목', '금', '토'];
+        return `${parseInt(m)}월 ${parseInt(d)}일 (${days[dt.getDay()]})`;
+      };
+
+      const fmtTime = (t) => {
+        const d = new Date(t);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      };
+
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+          onClick={onClose}
+        >
+          <div
+            className={`${theme.surface} border max-w-lg w-full max-h-[85vh] overflow-y-auto`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={`p-5 border-b ${theme.border} flex items-center justify-between sticky top-0 ${theme.surface} z-10`}>
+              <div>
+                <h3 className="text-base font-light tracking-wide">📜 발주 이력</h3>
+                <p className={`text-xs ${theme.subText} mt-1 font-mono tracking-widest uppercase`}>
+                  총 {history.length}건
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-lg opacity-50 hover:opacity-100 w-8 h-8 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5">
+              {history.length === 0 ? (
+                <div className={`text-center py-12 border ${theme.border} ${theme.subText} text-sm`}>
+                  아직 발주 이력이 없습니다.<br/>
+                  문자 발주 또는 복사 버튼을 누르면 자동 기록됩니다.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {grouped.map(([dateKey, entries]) => (
+                    <div key={dateKey}>
+                      <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono mb-2`}>
+                        {fmtDate(dateKey)} · {entries.length}건
+                      </p>
+                      <div className="space-y-2">
+                        {entries.map(entry => (
+                          <div key={entry.id} className={`p-3 border ${theme.border}`}>
+                            <div className="flex items-start justify-between gap-2 mb-1.5">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{entry.company}</p>
+                                <p className={`text-xs ${theme.subText} font-mono`}>
+                                  {fmtTime(entry.t)} · {channelLabel[entry.channel] || entry.channel}
+                                </p>
+                              </div>
+                              <span className={`text-xs ${theme.subText} font-mono whitespace-nowrap`}>
+                                {entry.totalQty}개
+                              </span>
+                            </div>
+                            <div className="space-y-0.5">
+                              {entry.items.map((it, i) => (
+                                <p key={i} className={`text-xs ${theme.subText} truncate`}>
+                                  · {it.name}: {it.qty}개
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {history.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`발주 이력 ${history.length}건을 모두 삭제하시겠습니까?`)) {
+                      onClear();
+                      onClose();
+                    }
+                  }}
+                  className="w-full mt-4 py-1.5 text-xs tracking-widest uppercase opacity-40 hover:opacity-100 transition-all"
+                >
+                  이력 전체 삭제
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 거래처 단독 추가 모달
+    // ============================================
+    function AddCompanyModal({ theme, onAdd, onClose }) {
+      const [name, setName] = useState('');
+      const [phone, setPhone] = useState('');
+      const [memo, setMemo] = useState('');
+
+      const handleSubmit = () => {
+        if (!name.trim() || !phone.trim()) {
+          alert('거래처명과 전화번호는 필수입니다');
+          return;
+        }
+        const ok = onAdd(name, phone, memo);
+        if (ok) onClose();
+      };
+
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+          onClick={onClose}
+        >
+          <div
+            className={`${theme.surface} border max-w-sm w-full`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={`p-5 border-b ${theme.border} flex items-center justify-between`}>
+              <div>
+                <h3 className="text-base font-light tracking-wide">+ 거래처 추가</h3>
+                <p className={`text-xs ${theme.subText} mt-1 font-mono tracking-widest uppercase`}>
+                  제품 없이도 등록 가능
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-lg opacity-50 hover:opacity-100 w-8 h-8 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">거래처명 *</label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="예: 동양재료상사"
+                  className={`w-full p-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">전화번호 *</label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={formatPhone(phone)}
+                  onChange={e => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="예: 010-1234-5678"
+                  className={`w-full p-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">메모 (선택)</label>
+                <input
+                  type="text"
+                  value={memo}
+                  onChange={e => setMemo(e.target.value)}
+                  placeholder="예: 박 사장님 / 토요일 휴무"
+                  maxLength="100"
+                  className={`w-full p-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  onClick={onClose}
+                  className="py-2.5 text-sm tracking-wider border border-current opacity-60 hover:opacity-100 transition-all"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!name.trim() || !phone.trim()}
+                  className={`py-2.5 text-sm tracking-wider font-medium uppercase transition-all ${
+                    name.trim() && phone.trim() ? theme.pointBtn : 'opacity-30 cursor-not-allowed border border-current'
+                  }`}
+                >
+                  등록
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 오늘 사용 히스토리 모달
+    // ============================================
+    function TodayUsageModal({ theme, usage, onClose }) {
+      // 제품별 집계
+      const summary = useMemo(() => {
+        const byProduct = {};
+        usage.forEach(u => {
+          if (!byProduct[u.productName]) {
+            byProduct[u.productName] = { name: u.productName, qty: 0, count: 0, firstT: u.t, lastT: u.t };
+          }
+          byProduct[u.productName].qty += Math.abs(u.delta);
+          byProduct[u.productName].count += 1;
+          if (u.t < byProduct[u.productName].firstT) byProduct[u.productName].firstT = u.t;
+          if (u.t > byProduct[u.productName].lastT) byProduct[u.productName].lastT = u.t;
+        });
+        return Object.values(byProduct).sort((a, b) => b.qty - a.qty);
+      }, [usage]);
+
+      const totalQty = usage.reduce((s, u) => s + Math.abs(u.delta), 0);
+
+      const fmtTime = (t) => {
+        const d = new Date(t);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      };
+
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+          onClick={onClose}
+        >
+          <div
+            className={`${theme.surface} border max-w-md w-full max-h-[85vh] overflow-y-auto`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={`p-5 border-b ${theme.border} flex items-center justify-between sticky top-0 ${theme.surface} z-10`}>
+              <div>
+                <h3 className="text-base font-bold tracking-tight">📋 오늘 사용 내역</h3>
+                <p className={`text-xs ${theme.subText} mt-1 font-mono tracking-widest uppercase`}>
+                  {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })} · 차감(−)만 집계
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-lg opacity-50 hover:opacity-100 w-8 h-8 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5">
+              {usage.length === 0 ? (
+                <div className={`text-center py-12 border ${theme.border} ${theme.subText} text-sm`}>
+                  오늘 아직 차감한 약품이 없습니다.<br/>
+                  빠른 차감 탭에서 <span className="font-bold">−</span> 버튼을 눌러보세요.<br/>
+                  <span className="text-xs opacity-70">※ 재입고(+)는 사용으로 집계되지 않습니다</span>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* 합계 */}
+                  <div className={`p-4 border ${theme.border} flex items-center justify-between`}>
+                    <div>
+                      <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono`}>오늘 차감 총합</p>
+                      <p className="text-2xl font-light mt-1 font-mono">{totalQty}<span className="text-sm ml-1 opacity-60">개</span></p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono`}>제품 종류</p>
+                      <p className="text-2xl font-light mt-1 font-mono">{summary.length}</p>
+                    </div>
+                  </div>
+
+                  {/* 제품별 집계 */}
+                  <div>
+                    <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono mb-2`}>제품별 사용량</p>
+                    <div className="space-y-1.5">
+                      {summary.map((s, i) => (
+                        <div key={s.name} className={`flex items-center justify-between p-2.5 border ${theme.border}`}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm truncate">{s.name}</p>
+                            <p className={`text-xs ${theme.subText} font-mono`}>
+                              {s.count}회 · {fmtTime(s.firstT)}{s.count > 1 && ` ~ ${fmtTime(s.lastT)}`}
+                            </p>
+                          </div>
+                          <span className="font-mono font-medium ml-3">{s.qty}<span className="text-xs opacity-60 ml-0.5">개</span></span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 시간순 상세 */}
+                  <div>
+                    <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono mb-2`}>시간순 상세 ({usage.length}건)</p>
+                    <div className={`p-3 border ${theme.border} space-y-1 max-h-48 overflow-y-auto`}>
+                      {usage.map((u, idx) => (
+                        <div key={`${u.id}-${u.t}-${idx}`} className="flex justify-between text-sm">
+                          <span className="truncate flex-1 mr-2">{u.productName}</span>
+                          <span className={`font-mono ${theme.subText} flex-shrink-0`}>{fmtTime(u.t)} · {Math.abs(u.delta)}개</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 월별 통계 모달
+    // ============================================
+    function StatsModal({ theme, stats, cycleLabel, onClose }) {
+      const { thisMonthQty, lastMonthQty, diffPct, topProducts, thisMonthOrders, lastMonthOrders, totalRecords } = stats;
+      const cl = cycleLabel || { this: '이번 달', last: '지난 달' };
+      const thisMonthLabel = cl.this;
+      const lastMonthLabel = cl.last;
+
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+          onClick={onClose}
+        >
+          <div
+            className={`${theme.surface} border max-w-md w-full max-h-[85vh] overflow-y-auto`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={`p-5 border-b ${theme.border} flex items-center justify-between sticky top-0 ${theme.surface} z-10`}>
+              <div>
+                <h3 className="text-base font-light tracking-wide">📊 사용 통계</h3>
+                <p className={`text-xs ${theme.subText} mt-1 font-mono tracking-widest uppercase`}>
+                  Monthly Summary
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-lg opacity-50 hover:opacity-100 w-8 h-8 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {totalRecords === 0 ? (
+                <div className={`text-center py-12 border ${theme.border} ${theme.subText} text-sm`}>
+                  아직 사용 기록이 없습니다.<br/>
+                  빠른 차감 탭에서 약을 사용하면 자동 기록됩니다.
+                </div>
+              ) : (
+                <>
+                  {/* 이번 달 vs 지난 달 */}
+                  <div>
+                    <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono mb-2`}>주기별 사용량</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className={`p-4 border ${theme.border}`}>
+                        <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono`}>{thisMonthLabel}</p>
+                        <p className="text-2xl font-light mt-1 font-mono">{thisMonthQty}<span className="text-sm ml-1 opacity-60">개</span></p>
+                      </div>
+                      <div className={`p-4 border ${theme.border} opacity-70`}>
+                        <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono`}>{lastMonthLabel}</p>
+                        <p className="text-2xl font-light mt-1 font-mono">{lastMonthQty}<span className="text-sm ml-1 opacity-60">개</span></p>
+                      </div>
+                    </div>
+                    {diffPct !== null && (
+                      <p className={`text-xs mt-2 text-center font-mono tracking-widest ${diffPct > 0 ? 'opacity-90' : 'opacity-60'}`}>
+                        {diffPct > 0 ? '▲' : diffPct < 0 ? '▼' : '−'} 지난 달 대비 {Math.abs(diffPct)}%
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 발주 횟수 */}
+                  <div className={`p-3 border ${theme.border}`}>
+                    <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono mb-2`}>발주 횟수</p>
+                    <div className="grid grid-cols-2 gap-2 text-center">
+                      <div>
+                        <p className="text-lg font-light font-mono">{thisMonthOrders}</p>
+                        <p className={`text-xs ${theme.subText}`}>{thisMonthLabel}</p>
+                      </div>
+                      <div className="opacity-70">
+                        <p className="text-lg font-light font-mono">{lastMonthOrders}</p>
+                        <p className={`text-xs ${theme.subText}`}>{lastMonthLabel}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 제품별 사용량 랭킹 TOP 10 */}
+                  {topProducts.length > 0 && (
+                    <div>
+                      <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono mb-2`}>
+                        제품별 사용량 TOP 10 ({thisMonthLabel})
+                      </p>
+                      <div className="space-y-1.5">
+                        {topProducts.map(([name, qty], i) => {
+                          const max = topProducts[0][1];
+                          const widthPct = max > 0 ? (qty / max * 100) : 0;
+                          return (
+                            <div key={name} className={`p-2.5 border ${theme.border} relative overflow-hidden`}>
+                              <div
+                                className={`absolute inset-0 ${theme.activeTab} opacity-10`}
+                                style={{ width: `${widthPct}%` }}
+                              />
+                              <div className="relative flex items-center justify-between">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <span className={`text-xs ${theme.subText} font-mono w-4`}>{i + 1}</span>
+                                  <span className="text-sm truncate">{name}</span>
+                                </div>
+                                <span className="font-mono text-sm font-medium ml-2">{qty}<span className="text-xs opacity-60 ml-0.5">개</span></span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={`text-xs ${theme.subText} text-center font-mono tracking-widest pt-2 border-t ${theme.border}`}>
+                    총 누적 기록: {totalRecords}건
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 사용 가이드 모달 (첫 방문 + 수동 열기)
+    // ============================================
+    function GuideModal({ theme, onClose, stockCycle, setStockCycle, onStartEmpty, onStartSample }) {
+      const [step, setStep] = useState(0);
+
+      const steps = [
+        { type: 'welcome' },
+        { type: 'cycle' },
+        {
+          type: 'info',
+          title: '약품 등록',
+          body: '[마스터 관리] 탭에서 약품을 등록합니다.',
+          detail: '제품명, 거래처, 전화번호, 안전 재고량을 입력하고\n카테고리(펌제·염색·헤어케어·스타일링)로 분류하세요.\n\n자주 쓰는 약 20~30개부터 시작하면 충분합니다.'
+        },
+        {
+          type: 'info',
+          title: '매일 차감',
+          body: '약을 꺼낼 때마다 [빠른 차감] 탭에서 − 버튼.',
+          detail: '카테고리 칩으로 빠르게 필터링하고\n잘못 눌러도 되돌리기로 복구할 수 있습니다.\n\n여러 개를 한 번에 차감하려면 숫자를 눌러 −5, −10 버튼을 사용하세요.'
+        },
+        {
+          type: 'info',
+          title: '자동 발주',
+          body: '안전 재고선 아래로 떨어지면 [발주 대시보드]에 자동 표시.',
+          detail: '거래처별로 자동 분류되어\n문자 발주·텍스트 복사·미리보기로 보낼 수 있습니다.\n\n발주 후 완료 버튼을 누르면 깔끔하게 정리됩니다.'
+        },
+        { type: 'start' }
+      ];
+
+      const current = steps[step];
+      const isLast = step === steps.length - 1;
+
+      const handleClose = () => {
+        safeStorage.set('filo_guide_seen', true);
+        onClose();
+      };
+
+      const handleNext = () => {
+        if (isLast) handleClose();
+        else setStep(step + 1);
+      };
+
+      const handleStartEmpty = () => {
+        onStartEmpty();
+        handleClose();
+      };
+
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+          onClick={current.type === 'start' ? undefined : handleClose}
+        >
+          <div
+            className={`${theme.surface} border max-w-md w-full`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={`p-5 border-b ${theme.border} flex items-center justify-between`}>
+              <span className={`text-sm ${theme.subText} font-mono tracking-[0.2em] uppercase`}>
+                Setup · {step + 1} / {steps.length}
+              </span>
+              <button
+                onClick={handleClose}
+                className="text-lg opacity-40 hover:opacity-100 w-8 h-8 flex items-center justify-center"
+                title="건너뛰기"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-8">
+              {/* 환영 */}
+              {current.type === 'welcome' && (
+                <div className="text-center space-y-5">
+                  <h2 className="text-3xl font-light tracking-[0.15em] font-display">FILO</h2>
+                  <div className={`w-12 h-px mx-auto ${theme.border} border-t`}></div>
+                  <h3 className="text-xl font-medium tracking-tight">환영합니다</h3>
+                  <p className={`text-base ${theme.subText} leading-relaxed`}>
+                    1인 살롱 사장님을 위한<br/>재고 · 발주 관리 시스템입니다.
+                  </p>
+                  <p className={`text-sm ${theme.subText} opacity-70 leading-relaxed`}>
+                    약품 재고를 한 번에 관리하고<br/>발주 시점을 자동으로 알려드립니다.
+                  </p>
+                </div>
+              )}
+
+              {/* 재고 주기 선택 */}
+              {current.type === 'cycle' && (
+                <div className="space-y-5">
+                  <div className="text-center">
+                    <h3 className="text-xl font-medium tracking-tight mb-2">재고 파악 주기</h3>
+                    <p className={`text-base ${theme.subText} leading-relaxed`}>
+                      살롱에서 재고를 확인하는 주기를 선택하세요.<br/>
+                      <span className="opacity-70 text-sm">통계와 발주 분석이 이 주기에 맞춰집니다.</span>
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setStockCycle('weekly')}
+                      className={`p-5 border-2 transition-all ${
+                        stockCycle === 'weekly'
+                          ? `${theme.pointBtn} border-transparent`
+                          : `${theme.border} opacity-60 hover:opacity-100`
+                      }`}
+                    >
+                      <div className="text-2xl font-light mb-1">주</div>
+                      <div className="text-sm tracking-wide font-medium">주 단위</div>
+                      <div className={`text-xs mt-1 ${stockCycle === 'weekly' ? 'opacity-80' : theme.subText}`}>
+                        매주 재고 확인
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setStockCycle('monthly')}
+                      className={`p-5 border-2 transition-all ${
+                        stockCycle === 'monthly'
+                          ? `${theme.pointBtn} border-transparent`
+                          : `${theme.border} opacity-60 hover:opacity-100`
+                      }`}
+                    >
+                      <div className="text-2xl font-light mb-1">월</div>
+                      <div className="text-sm tracking-wide font-medium">월 단위</div>
+                      <div className={`text-xs mt-1 ${stockCycle === 'monthly' ? 'opacity-80' : theme.subText}`}>
+                        매월 재고 확인
+                      </div>
+                    </button>
+                  </div>
+
+                  <p className={`text-sm ${theme.subText} text-center opacity-70`}>
+                    나중에 설정에서 언제든 변경할 수 있습니다.
+                  </p>
+                </div>
+              )}
+
+              {/* 정보 단계 */}
+              {current.type === 'info' && (
+                <div className="space-y-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-2xl font-light ${theme.badge}`}>{String(step - 1).padStart(2, '0')}</span>
+                    <h3 className="text-xl font-medium tracking-tight">{current.title}</h3>
+                  </div>
+                  <p className="text-base leading-relaxed">{current.body}</p>
+                  <div className={`text-sm ${theme.subText} p-4 border ${theme.border} leading-relaxed whitespace-pre-line`}>
+                    {current.detail}
+                  </div>
+                </div>
+              )}
+
+              {/* 시작 방식 선택 */}
+              {current.type === 'start' && (
+                <div className="space-y-5">
+                  <div className="text-center">
+                    <h3 className="text-xl font-medium tracking-tight mb-2">시작 방법</h3>
+                    <p className={`text-base ${theme.subText} leading-relaxed`}>
+                      어떻게 시작하시겠어요?
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleStartEmpty}
+                      className={`w-full p-4 border-2 text-left transition-all ${theme.border} hover:opacity-100 opacity-80`}
+                      style={{ borderColor: 'currentColor' }}
+                    >
+                      <div className="text-base font-semibold mb-1">빈 상태로 시작</div>
+                      <div className={`text-sm ${theme.subText} leading-relaxed`}>
+                        샘플 데이터 없이 처음부터. 내 살롱 약품을 직접 등록합니다. (신규 추천)
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => { if (onStartSample) onStartSample(); handleClose(); }}
+                      className={`w-full p-4 border text-left transition-all ${theme.border} opacity-60 hover:opacity-100`}
+                    >
+                      <div className="text-base font-medium mb-1">샘플로 둘러보기</div>
+                      <div className={`text-sm ${theme.subText} leading-relaxed`}>
+                        예시 약품으로 먼저 기능을 체험. 나중에 설정에서 초기화 가능.
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 진행 도트 */}
+              <div className="flex justify-center gap-1.5 mt-6">
+                {steps.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setStep(i)}
+                    className={`h-1 transition-all ${
+                      i === step ? 'w-6 opacity-100' : 'w-1 opacity-30 hover:opacity-60'
+                    } bg-current rounded-full`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* 하단 버튼: 시작 단계에서는 숨김 (위에서 선택) */}
+            {current.type !== 'start' && (
+              <div className={`p-4 border-t ${theme.border} grid grid-cols-2 gap-2`}>
+                {step > 0 ? (
+                  <button
+                    onClick={() => setStep(step - 1)}
+                    className="py-2.5 text-sm tracking-widest uppercase border border-current opacity-60 hover:opacity-100 transition-all"
+                  >
+                    ← 이전
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleClose}
+                    className="py-2.5 text-sm tracking-widest uppercase opacity-50 hover:opacity-100 transition-all"
+                  >
+                    건너뛰기
+                  </button>
+                )}
+                <button
+                  onClick={handleNext}
+                  className={`py-2.5 text-sm tracking-widest font-medium uppercase ${theme.pointBtn}`}
+                >
+                  다음 →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 5. MAIN APP
+    // ============================================
+    function App() {
+      const [products, setProducts] = useState(() => safeStorage.get('filo_products', []));
+
+      // 재고 파악 주기 (weekly / monthly)
+      const [stockCycle, setStockCycle] = useState(() => safeStorage.get('filo_stock_cycle', 'monthly'));
+      useEffect(() => { safeStorage.set('filo_stock_cycle', stockCycle); }, [stockCycle]);
+
+      // 주기 라벨 헬퍼
+      const cycleLabel = stockCycle === 'weekly'
+        ? { this: '이번 주', last: '지난 주', unit: '주' }
+        : { this: '이번 달', last: '지난 달', unit: '월' };
+
+      const [currentThemeKey, setCurrentThemeKey] = useState(() => {
+        const saved = safeStorage.get('filo_theme', 'cream');
+        // 구 키 마이그레이션 (ivory→cream, noir/bottega→cream, 구 cream(chrome)→forest)
+        const migrated = saved === 'ivory' ? 'cream'
+                       : saved === 'noir' || saved === 'bottega' ? 'cream'
+                       : saved;
+        return themes[migrated] ? migrated : 'cream';
+      });
+
+      const [viewMode, setViewMode] = useState('quick');
+      const [sidebarOpen, setSidebarOpen] = useState(false);
+      const [searchQuery, setSearchQuery] = useState('');
+      const [stockSearch, setStockSearch] = useState('');         // 재고조사 탭 검색
+      const [masterSearch, setMasterSearch] = useState('');       // 마스터 관리 탭 검색
+      const [toast, setToast] = useState(null);
+      const [csvPreview, setCsvPreview] = useState(null);
+      const [editingId, setEditingId] = useState(null);
+      const [quickInputId, setQuickInputId] = useState(null);
+      const [showSettings, setShowSettings] = useState(false);
+      const [undoStack, setUndoStack] = useState([]);
+
+      // 신규: 발주서 미리보기 모달 ({ company, info, customMessage } 또는 null)
+      const [orderPreview, setOrderPreview] = useState(null);
+
+      // 신규: 발주 이력 보기 모달
+      const [showOrderHistory, setShowOrderHistory] = useState(false);
+
+      // 신규: 거래처 단독 추가 모달
+      const [showAddCompany, setShowAddCompany] = useState(false);
+
+      // 신규: 빠른 차감 탭 카테고리 필터
+      const [categoryFilter, setCategoryFilter] = useState('all');
+
+      // 신규: 오늘 사용 히스토리 모달
+      const [showTodayUsage, setShowTodayUsage] = useState(false);
+
+      // 신규: 월별 통계 모달
+      const [showStats, setShowStats] = useState(false);
+
+      // 신규: 사용 가이드 모달 (첫 진입 자동 표시 + 설정에서 수동 열기)
+      const [showGuide, setShowGuide] = useState(false);
+
+      // 첫 방문 시 자동으로 가이드 표시
+      useEffect(() => {
+        const seen = safeStorage.get('filo_guide_seen', false);
+        if (!seen) {
+          // 0.6초 후 표시 (앱 마운트 안정화 후)
+          const timer = setTimeout(() => setShowGuide(true), 600);
+          return () => clearTimeout(timer);
+        }
+      }, []);
+
+      // 신규: 발주 이력 (localStorage 영속화)
+      const [orderHistory, setOrderHistory] = useState(() => safeStorage.get('filo_order_history', []));
+      useEffect(() => { safeStorage.set('filo_order_history', orderHistory); }, [orderHistory]);
+
+      // 신규: 거래처 마스터 (제품과 별개로 관리)
+      const [companies, setCompanies] = useState(() => safeStorage.get('filo_companies', []));
+      useEffect(() => { safeStorage.set('filo_companies', companies); }, [companies]);             // 되돌리기 스택
+
+      // 발주 완료 처리 — 거래처 + 발주항목 해시로 식별
+      const [completedOrders, setCompletedOrders] = useState(() =>
+        safeStorage.get('filo_completed_orders', {}));
+      useEffect(() => { safeStorage.set('filo_completed_orders', completedOrders); }, [completedOrders]);
+
+      // 브랜딩 (사용자 커스터마이즈)
+      const [branding, setBranding] = useState(() => safeStorage.get('filo_branding', {
+        appName: 'FILO SYSTEM',
+        tagline: 'Intelligent Premium Salon Automation',
+        logoImage: ''
+      }));
+      useEffect(() => { safeStorage.set('filo_branding', branding); }, [branding]);
+
+      // 페이지 타이틀 동기화
+      useEffect(() => {
+        document.title = `${branding.appName} — Salon Automation`;
+      }, [branding.appName]);
+
+      // ESC 키로 모든 편집/모달 닫기
+      useEffect(() => {
+        const handler = (e) => {
+          if (e.key === 'Escape') {
+            setEditingId(null);
+            setQuickInputId(null);
+            setCsvPreview(null);
+            setShowSettings(false);
+            setOrderPreview(null);
+            setShowOrderHistory(false);
+            setShowAddCompany(false);
+            setShowTodayUsage(false);
+            setShowStats(false);
+            setShowGuide(false);
+          }
+        };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+      }, []);
+
+      const [newProd, setNewProd] = useState({
+        name: '', company: '', phone: '', category: '', safeStock: 0, currentStock: 0, image: ''
+      });
+
+      // 영속화 + 용량 초과 감지
+      useEffect(() => {
+        const result = safeStorage.set('filo_products', products);
+        if (result && result.ok === false) {
+          alert(
+            '저장 공간이 부족합니다.\n\n' +
+            '이미지가 너무 많거나 큽니다. 일부 제품의 이미지를 제거하거나 CSV로 백업 후 정리해주세요.\n\n' +
+            `현재 사용량: 약 ${safeStorage.usageKB()}KB`
+          );
+        }
+      }, [products]);
+      useEffect(() => { safeStorage.set('filo_theme', currentThemeKey); }, [currentThemeKey]);
+
+      // 테마 메타컬러 동기화 (iOS 상태바)
+      useEffect(() => {
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) {
+          const colorMap = { noir: '#0B0B0C', bottega: '#0F1411', ivory: '#F7F6F3' };
+          meta.setAttribute('content', colorMap[currentThemeKey] || '#0B0B0C');
+        }
+      }, [currentThemeKey]);
+
+      const theme = themes[currentThemeKey];
+
+      // ----- 토스트 (사용자 액션 피드백) -----
+      const showToast = (message, type = 'info') => {
+        setToast({ message, type, id: Date.now() });
+        setTimeout(() => setToast(null), 1800);
+      };
+      // ----- 히스토리 로깅 (예측 기능 원료) -----
+      const logHistory = (productId, productName, delta, source) => {
+        try {
+          const history = safeStorage.get('filo_history', []);
+          history.push({
+            t: Date.now(),
+            id: productId,
+            name: productName,
+            productName: productName,
+            delta,
+            source
+          });
+          // 최근 1000건만 유지
+          if (history.length > 1000) history.splice(0, history.length - 1000);
+          safeStorage.set('filo_history', history);
+        } catch (e) { /* ignore */ }
+      };
+
+      // ----- 햅틱 피드백 (모바일 지원시) -----
+      const haptic = (ms = 10) => {
+        try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
+      };
+
+      // ----- 핸들러들 -----
+      const handleStockChange = (id, value) => {
+        const num = value === '' ? 0 : Math.max(0, Number(value));
+        setProducts(prev => prev.map(p => p.id === id ? { ...p, currentStock: num } : p));
+      };
+
+      // 빠른 차감/증가 (일일 사용용) + Undo 스택 적재
+      const handleQuickAdjust = (id, delta) => {
+        const product = products.find(p => p.id === id);
+        if (!product) return;
+        const newStock = Math.max(0, product.currentStock + delta);
+        if (newStock === product.currentStock) return;
+
+        const previousStock = product.currentStock;
+        setProducts(prev => prev.map(p =>
+          p.id === id ? { ...p, currentStock: newStock } : p
+        ));
+        logHistory(id, product.name, delta, 'quick');
+        haptic(delta < 0 ? 8 : 15);
+
+        // Undo 스택 — 최근 10개만 유지
+        setUndoStack(prev => {
+          const next = [...prev, { id, previousStock, productName: product.name, t: Date.now() }];
+          if (next.length > 10) next.shift();
+          return next;
+        });
+
+        // 알림 강화: 적정선 진입 (이전엔 충분 → 이제 부족)
+        if (delta < 0 && newStock < product.safeStock && previousStock >= product.safeStock) {
+          haptic(40); // 강한 진동
+          showToast(`🔔 ${product.name.slice(0, 16)} — 발주 대상 진입`, 'warn');
+        }
+        // 알림 강화: 재고 0 도달 (품절)
+        else if (delta < 0 && newStock === 0 && previousStock > 0) {
+          haptic(60); // 가장 강한 진동
+          showToast(`⚠ ${product.name.slice(0, 16)} — 품절! 즉시 발주 필요`, 'error');
+        }
+      };
+
+      // ----- Undo 마지막 차감 액션 -----
+      const handleUndo = () => {
+        if (undoStack.length === 0) {
+          showToast('되돌릴 작업이 없습니다', 'info');
+          return;
+        }
+        const last = undoStack[undoStack.length - 1];
+        setProducts(prev => prev.map(p =>
+          p.id === last.id ? { ...p, currentStock: last.previousStock } : p
+        ));
+        setUndoStack(prev => prev.slice(0, -1));
+        logHistory(last.id, last.productName, 0, 'undo');
+        haptic(20);
+        showToast(`되돌리기: ${last.productName.slice(0, 14)}`, 'success');
+      };
+
+      // ----- 이미지 압축 (Base64, max 400px, 평균 30KB) -----
+      const compressImage = (file, maxSize = 400, quality = 0.72) => {
+        return new Promise((resolve, reject) => {
+          if (!file.type.startsWith('image/')) {
+            reject(new Error('이미지 파일이 아닙니다'));
+            return;
+          }
+          // 파일 자체가 너무 크면 거부 (10MB 초과)
+          if (file.size > 10 * 1024 * 1024) {
+            reject(new Error('파일이 너무 큽니다 (10MB 이하)'));
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error('파일 읽기 실패'));
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('이미지 로드 실패'));
+            img.onload = () => {
+              let { width, height } = img;
+              // 비율 유지하며 max 안에 들어가도록
+              if (width > height) {
+                if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+              } else {
+                if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+              }
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.round(width);
+              canvas.height = Math.round(height);
+              const ctx = canvas.getContext('2d');
+              // 부드러운 리사이즈
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              const dataUrl = canvas.toDataURL('image/jpeg', quality);
+              resolve(dataUrl);
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      };
+
+      // ----- 제품 정보 일괄 수정 (모든 필드) -----
+      const handleUpdateProduct = (id, patch) => {
+        setProducts(prev => prev.map(p =>
+          p.id === id ? { ...p, ...patch } : p
+        ));
+        showToast('수정 완료', 'success');
+      };
+
+      // ----- 거래처 일괄 수정 (같은 거래처의 모든 제품 동기화) -----
+      const handleUpdateCompany = (oldName, newName, newPhone) => {
+        setProducts(prev => prev.map(p =>
+          p.company === oldName
+            ? { ...p, company: newName.trim() || oldName, phone: (newPhone || p.phone).replace(/[^0-9]/g, '') }
+            : p
+        ));
+        showToast(`거래처 정보 수정 (${oldName})`, 'success');
+      };
+
+      // ----- 제품 이미지 업로드 핸들러 -----
+      const handleProductImageUpload = async (id, file) => {
+        try {
+          const dataUrl = await compressImage(file);
+          handleUpdateProduct(id, { image: dataUrl });
+        } catch (err) {
+          showToast('이미지 업로드 실패: ' + err.message, 'error');
+        }
+      };
+
+      // ----- 신규 제품 등록시 이미지 업로드 -----
+      const handleNewImageUpload = async (file) => {
+        try {
+          const dataUrl = await compressImage(file);
+          setNewProd(prev => ({ ...prev, image: dataUrl }));
+          showToast('이미지 첨부됨', 'success');
+        } catch (err) {
+          showToast('이미지 처리 실패: ' + err.message, 'error');
+        }
+      };
+
+      // ----- 로고 이미지 업로드 -----
+      const handleLogoUpload = async (file) => {
+        try {
+          // 로고는 더 크게 (max 200px)
+          const dataUrl = await compressImage(file, 200, 0.85);
+          setBranding(prev => ({ ...prev, logoImage: dataUrl }));
+          showToast('로고가 업데이트되었습니다', 'success');
+        } catch (err) {
+          showToast('로고 업로드 실패: ' + err.message, 'error');
+        }
+      };
+
+      // ----- 브랜딩 초기화 -----
+      const resetBranding = () => {
+        if (window.confirm('앱 이름, 태그라인, 로고를 모두 기본값으로 되돌리시겠습니까?')) {
+          setBranding({
+            appName: 'FILO SYSTEM',
+            tagline: 'Intelligent Premium Salon Automation',
+            logoImage: ''
+          });
+          showToast('브랜딩 초기화 완료', 'success');
+        }
+      };
+      // ----- 발주 완료 처리 -----
+      // 거래처+발주 품목 해시로 고유 키 생성 (재고가 다시 채워지면 자동으로 같은 발주가 사라짐)
+      const makeOrderKey = (company, items) => {
+        const sig = items.map(it => `${it.name}:${it.qty}`).sort().join('|');
+        return `${company}::${sig}`;
+      };
+
+      const handleMarkOrderComplete = (company, info) => {
+        const key = makeOrderKey(company, info.items);
+        setCompletedOrders(prev => ({ ...prev, [key]: Date.now() }));
+        // 이력에도 기록 (채널: complete)
+        logOrderHistory(company, info, 'complete');
+        haptic(15);
+        showToast(`${company} 발주 완료 처리`, 'success');
+      };
+
+      const handleUnmarkOrderComplete = (company, info) => {
+        const key = makeOrderKey(company, info.items);
+        setCompletedOrders(prev => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        showToast(`${company} 완료 표시 해제`, 'info');
+      };
+
+      // 오래된 완료 표시 자동 정리 (30일 이상)
+      useEffect(() => {
+        const now = Date.now();
+        const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+        const stale = Object.entries(completedOrders).filter(([k, t]) => now - t > THIRTY_DAYS);
+        if (stale.length > 0) {
+          setCompletedOrders(prev => {
+            const next = { ...prev };
+            stale.forEach(([k]) => delete next[k]);
+            return next;
+          });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+
+      // 거래처 목록 (자동완성용)
+      const companyList = useMemo(() => {
+        const set = new Set(products.map(p => p.company).filter(Boolean));
+        return Array.from(set).sort();
+      }, [products]);
+
+      // 거래처별 마지막 전화번호 (자동 매칭)
+      const companyPhoneMap = useMemo(() => {
+        const map = {};
+        products.forEach(p => { if (p.company && p.phone) map[p.company] = p.phone; });
+        return map;
+      }, [products]);
+
+      // ----- 전체 데이터 초기화 (위험 작업, 이중 확인) -----
+      const handleResetAll = () => {
+        const first = window.confirm(
+          '⚠ 모든 데이터를 영구 삭제합니다.\n\n' +
+          '· 제품 마스터 (' + products.length + '개)\n' +
+          '· 변동 히스토리\n' +
+          '· 발주 완료 표시\n' +
+          '· 브랜딩 (앱 이름/로고)\n\n' +
+          '이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?'
+        );
+        if (!first) return;
+        const second = window.confirm('정말 모든 데이터를 삭제합니다. 한 번 더 확인합니다.');
+        if (!second) return;
+
+        try {
+          ['filo_products', 'filo_history', 'filo_completed_orders', 'filo_branding', 'filo_theme']
+            .forEach(k => localStorage.removeItem(k));
+          showToast('모든 데이터가 삭제되었습니다. 새로고침합니다...', 'info');
+          setTimeout(() => window.location.reload(), 1200);
+        } catch (e) {
+          showToast('초기화 실패: ' + e.message, 'error');
+        }
+      };
+
+      // ----- CSV Export -----
+      const downloadCSV = () => {
+        const header = ['제품명', '거래처', '전화번호', '현재고', '적정선', '이미지URL'];
+        const rows = products.map(p => [
+          p.name, p.company, p.phone, p.currentStock, p.safeStock, p.image
+        ]);
+        const csv = [header, ...rows]
+          .map(row => row.map(cell => {
+            const s = String(cell ?? '');
+            // 콤마/따옴표/개행 포함시 따옴표로 감싸기
+            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+          }).join(','))
+          .join('\n');
+
+        // BOM 추가 (엑셀 한글 호환)
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const ts = new Date().toISOString().slice(0, 10);
+        a.download = `filo_inventory_${ts}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(`CSV 내보내기 완료 (${products.length}개)`, 'success');
+      };
+
+      // ----- CSV Import (간단한 파서) -----
+      const parseCSV = (text) => {
+        // BOM 제거
+        text = text.replace(/^\uFEFF/, '').trim();
+        const lines = text.split(/\r?\n/);
+        if (lines.length < 2) return [];
+
+        const parseLine = (line) => {
+          const result = [];
+          let cur = '';
+          let inQuote = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (inQuote) {
+              if (ch === '"' && line[i+1] === '"') { cur += '"'; i++; }
+              else if (ch === '"') inQuote = false;
+              else cur += ch;
+            } else {
+              if (ch === '"') inQuote = true;
+              else if (ch === ',') { result.push(cur); cur = ''; }
+              else cur += ch;
+            }
+          }
+          result.push(cur);
+          return result;
+        };
+
+        // 첫 줄은 헤더 (스킵)
+        return lines.slice(1).filter(l => l.trim()).map(line => {
+          const [name, company, phone, currentStock, safeStock, image] = parseLine(line);
+          return {
+            name: (name || '').trim(),
+            company: (company || '').trim(),
+            phone: (phone || '').replace(/[^0-9]/g, ''),
+            currentStock: Math.max(0, parseInt(currentStock) || 0),
+            safeStock: Math.max(1, parseInt(safeStock) || 5),
+            image: (image || '').trim() || FALLBACK_IMAGE
+          };
+        }).filter(p => p.name && p.company);
+      };
+
+      const handleCSVUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const parsed = parseCSV(ev.target.result);
+            if (parsed.length === 0) {
+              showToast('CSV에서 유효한 데이터를 찾을 수 없습니다', 'error');
+              return;
+            }
+            setCsvPreview(parsed);
+          } catch (err) {
+            showToast('CSV 파싱 실패: ' + err.message, 'error');
+          }
+        };
+        reader.readAsText(file, 'UTF-8');
+        e.target.value = ''; // 같은 파일 재선택 가능
+      };
+
+      const confirmCSVImport = (mode) => {
+        if (!csvPreview) return;
+        const items = csvPreview.map((p, i) => ({ ...p, id: Date.now() + i }));
+
+        if (mode === 'replace') {
+          setProducts(items);
+          showToast(`전체 교체 완료 (${items.length}개)`, 'success');
+        } else {
+          setProducts(prev => [...prev, ...items]);
+          showToast(`추가 완료 (+${items.length}개)`, 'success');
+        }
+        setCsvPreview(null);
+      };
+
+      const handleAddProduct = (e) => {
+        e.preventDefault();
+        if (!newProd.name || !newProd.company || !newProd.phone) {
+          alert('필수 항목들을 채워주세요.');
+          return;
+        }
+        const item = {
+          id: Date.now(),
+          name: newProd.name.trim(),
+          company: newProd.company.trim(),
+          phone: newProd.phone.replace(/[^0-9]/g, ''),
+          category: (newProd.category || '').trim(),
+          safeStock: Math.max(1, Number(newProd.safeStock) || 1),
+          currentStock: Math.max(0, Number(newProd.currentStock) || 0),
+          image: newProd.image.trim() || FALLBACK_IMAGE
+        };
+        setProducts(prev => [...prev, item]);
+        setNewProd({ name: '', company: '', phone: '', category: '', safeStock: 0, currentStock: 0, image: '' });
+        alert('제품 마스터 데이터가 안전하게 추가되었습니다.');
+      };
+
+      const handleDeleteProduct = (id) => {
+        if (window.confirm('선택하신 제품을 마스터 리스트에서 완전히 지우시겠습니까?')) {
+          setProducts(prev => prev.filter(p => p.id !== id));
+        }
+      };
+
+      // 거래처별 발주 분류
+      const groupedOrders = useMemo(() => {
+        const needed = products.filter(p => p.currentStock < p.safeStock);
+        const groups = {};
+        needed.forEach(p => {
+          if (!groups[p.company]) {
+            groups[p.company] = { phone: p.phone, items: [] };
+          }
+          groups[p.company].items.push({ name: p.name, qty: p.safeStock - p.currentStock });
+        });
+        return groups;
+      }, [products]);
+
+      // 발주중인 제품명 Set (발주 완료 처리된 거래처에 속한 제품들)
+      const orderingProductNames = useMemo(() => {
+        const set = new Set();
+        Object.entries(groupedOrders).forEach(([company, info]) => {
+          const key = makeOrderKey(company, info.items);
+          if (completedOrders[key]) {
+            info.items.forEach(it => set.add(it.name));
+          }
+        });
+        return set;
+      }, [groupedOrders, completedOrders]);
+
+      // 발주서 텍스트 생성 (SMS / 복사 공통)
+      const buildOrderText = (company, info) => {
+        const itemString = info.items.map(item => `- ${item.name}: ${item.qty}개`).join('\n');
+        return `[${branding.appName} 살롱 발주 요청]\n\n안녕하세요 사장님,\n아래 제품 발주 요청드립니다.\n\n${itemString}\n\n확인 후 배송 부탁드립니다. 감사합니다.`;
+      };
+
+      // SMS 딥링크 — 사용자 커스텀 앱 이름 반영 + 이력 로깅
+      const sendSmsMessage = (company, info, customText) => {
+        const textBody = customText || buildOrderText(company, info);
+        logOrderHistory(company, info, 'sms', customText);
+        window.location.href = `sms:${info.phone}?body=${encodeURIComponent(textBody)}`;
+      };
+
+      // 클립보드 복사 — 카톡/메모장/어디든 붙여넣기
+      const copyOrderText = async (company, info, customText) => {
+        const text = customText || buildOrderText(company, info);
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            haptic(15);
+            showToast(`${company} 발주서 복사됨`, 'success');
+            return true;
+          }
+          throw new Error('Clipboard API not available');
+        } catch (err) {
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.top = '0';
+            ta.style.left = '0';
+            ta.style.opacity = '0';
+            ta.style.pointerEvents = 'none';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            if (ok) {
+              haptic(15);
+              showToast(`${company} 발주서 복사됨`, 'success');
+              return true;
+            } else {
+              throw new Error('execCommand failed');
+            }
+          } catch (e2) {
+            showToast('복사 실패 — 직접 선택하여 복사해주세요', 'error');
+            return false;
+          }
+        }
+      };
+
+      // ===== 발주 이력 로깅 =====
+      const logOrderHistory = (company, info, channel, customMessage) => {
+        const entry = {
+          id: Date.now(),
+          t: Date.now(),
+          company,
+          phone: info.phone,
+          items: info.items.map(it => ({ name: it.name, qty: it.qty })),
+          totalQty: info.items.reduce((sum, it) => sum + it.qty, 0),
+          channel, // 'sms' | 'copy' | 'preview'
+          message: customMessage || null
+        };
+        setOrderHistory(prev => {
+          const next = [entry, ...prev]; // 최신순
+          // 최근 500건만 유지
+          if (next.length > 500) next.length = 500;
+          return next;
+        });
+      };
+
+      // ===== 거래처 마스터 추가 (제품 없이도 등록 가능) =====
+      const handleAddCompany = (name, phone, memo) => {
+        const cleanName = name.trim();
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        if (!cleanName || !cleanPhone) {
+          showToast('거래처명과 전화번호는 필수입니다', 'error');
+          return false;
+        }
+        // 중복 체크 (이름 기준)
+        if (companies.some(c => c.name === cleanName) || products.some(p => p.company === cleanName)) {
+          showToast(`이미 등록된 거래처입니다: ${cleanName}`, 'warn');
+          return false;
+        }
+        setCompanies(prev => [...prev, {
+          id: Date.now(),
+          name: cleanName,
+          phone: cleanPhone,
+          memo: (memo || '').trim()
+        }]);
+        showToast(`거래처 등록 완료: ${cleanName}`, 'success');
+        return true;
+      };
+
+      const handleDeleteCompany = (id) => {
+        const c = companies.find(x => x.id === id);
+        if (!c) return;
+        // 해당 거래처에 연결된 제품이 있는지 확인
+        const linkedProducts = products.filter(p => p.company === c.name);
+        const msg = linkedProducts.length > 0
+          ? `"${c.name}" 거래처를 삭제하시겠습니까?\n(연결된 제품 ${linkedProducts.length}개의 거래처 정보는 그대로 유지됩니다)`
+          : `"${c.name}" 거래처를 삭제하시겠습니까?`;
+        if (window.confirm(msg)) {
+          setCompanies(prev => prev.filter(x => x.id !== id));
+          showToast('거래처 삭제됨', 'info');
+        }
+      };
+
+      // 통합 거래처 목록 (마스터 + 제품에서 추출)
+      const allCompanyList = useMemo(() => {
+        const set = new Set();
+        companies.forEach(c => set.add(c.name));
+        products.forEach(p => { if (p.company) set.add(p.company); });
+        return Array.from(set).sort();
+      }, [companies, products]);
+
+      // 카테고리 목록 (마스터 제품에서 추출)
+      const categoryList = useMemo(() => {
+        const set = new Set();
+        products.forEach(p => { if (p.category) set.add(p.category); });
+        return Array.from(set).sort();
+      }, [products]);
+
+      // 오늘 사용 내역 (차감 기록 중 오늘 날짜만)
+      const todayUsage = useMemo(() => {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const startMs = todayStart.getTime();
+        const allHistory = safeStorage.get('filo_history', []);
+        return allHistory
+          .filter(h => h.t >= startMs && h.delta < 0) // 차감(사용)만
+          .map(h => ({ ...h, productName: h.productName || h.name || '알 수 없음' }))
+          .sort((a, b) => b.t - a.t);
+      }, [products, showTodayUsage]); // products 변경 시(차감 시) 재계산
+
+      // 월별 통계 계산
+      const monthlyStats = useMemo(() => {
+        const allHistory = safeStorage.get('filo_history', []);
+        const now = new Date();
+
+        let thisStart, lastStart, lastEnd;
+        if (stockCycle === 'weekly') {
+          // 이번 주 시작 (월요일 기준)
+          const day = now.getDay(); // 0=일
+          const diff = day === 0 ? 6 : day - 1; // 월요일까지의 일수
+          const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff);
+          monday.setHours(0, 0, 0, 0);
+          thisStart = monday.getTime();
+          lastStart = thisStart - 7 * 24 * 60 * 60 * 1000;
+          lastEnd = thisStart;
+        } else {
+          thisStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+          lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+          lastEnd = thisStart;
+        }
+
+        const thisEntries = allHistory.filter(h => h.t >= thisStart && h.delta < 0);
+        const lastEntries = allHistory.filter(h => h.t >= lastStart && h.t < lastEnd && h.delta < 0);
+
+        const thisMonthQty = thisEntries.reduce((s, h) => s + Math.abs(h.delta), 0);
+        const lastMonthQty = lastEntries.reduce((s, h) => s + Math.abs(h.delta), 0);
+
+        const productQty = {};
+        thisEntries.forEach(h => {
+          const pname = h.productName || h.name || '알 수 없음';
+          productQty[pname] = (productQty[pname] || 0) + Math.abs(h.delta);
+        });
+        const topProducts = Object.entries(productQty)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10);
+
+        const thisMonthOrders = (orderHistory || []).filter(o => o.t >= thisStart).length;
+        const lastMonthOrders = (orderHistory || []).filter(o => o.t >= lastStart && o.t < lastEnd).length;
+
+        return {
+          thisMonthQty,
+          lastMonthQty,
+          diffPct: lastMonthQty > 0 ? Math.round((thisMonthQty - lastMonthQty) / lastMonthQty * 100) : null,
+          topProducts,
+          thisMonthOrders,
+          lastMonthOrders,
+          totalRecords: allHistory.length
+        };
+      }, [products, orderHistory, showStats, stockCycle]);
+
+      // 거래처별 전화번호 통합 매핑
+      const allPhoneMap = useMemo(() => {
+        const map = {};
+        // 제품에서 추출
+        products.forEach(p => { if (p.company && p.phone) map[p.company] = p.phone; });
+        // 거래처 마스터로 덮어쓰기 (마스터가 우선)
+        companies.forEach(c => { if (c.name && c.phone) map[c.name] = c.phone; });
+        return map;
+      }, [companies, products]);
+
+      // 이미지 로드 실패 폴백
+      const handleImgError = (e) => {
+        if (e.target.src !== FALLBACK_IMAGE) e.target.src = FALLBACK_IMAGE;
+      };
+
+      return (
+        <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-300 font-sans antialiased flex flex-col md:flex-row`}>
+
+          {/* ====== 좌측 사이드바 (데스크탑: 고정, 모바일: 슬라이드) ====== */}
+          {sidebarOpen && (
+            <div
+              className="md:hidden fixed inset-0 bg-black/50 z-40"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+          <aside className={`
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            md:translate-x-0
+            fixed md:sticky top-0 left-0 z-50 md:z-auto
+            w-64 md:w-56 h-screen md:h-screen
+            ${theme.surface} border-r ${theme.border}
+            flex flex-col p-5 transition-transform duration-300
+          `}>
+            {/* 브랜드 */}
+            <div className="mb-8 flex items-center gap-3">
+              {branding.logoImage && (
+                <img src={branding.logoImage} alt="" className="w-10 h-10 object-contain flex-shrink-0" />
+              )}
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl font-light tracking-[0.15em] font-display truncate">{branding.appName}</h1>
+                <p className={`text-[10px] ${theme.subText} tracking-[0.25em] mt-0.5 font-mono uppercase truncate`}>
+                  {branding.tagline}
+                </p>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="md:hidden text-lg opacity-50 w-7 h-7 flex items-center justify-center"
+                aria-label="닫기"
+              >✕</button>
+            </div>
+
+            {/* 메뉴 */}
+            <nav className="flex flex-col gap-1 flex-1">
+              {[
+                { key: 'quick', icon: '⚡', label: '빠른 차감' },
+                { key: 'stocktake', icon: '📋', label: '재고조사' },
+                { key: 'dashboard', icon: '📨', label: '발주 대시보드' },
+                { key: 'manage', icon: '⚙', label: '마스터 관리' },
+              ].map(m => (
+                <button
+                  key={m.key}
+                  onClick={() => { setViewMode(m.key); setSidebarOpen(false); }}
+                  className={`flex items-center gap-3 px-3 py-3 text-sm tracking-wide transition-all rounded ${
+                    viewMode === m.key
+                      ? `${theme.activeTab}`
+                      : `${theme.subText} hover:opacity-100 opacity-70`
+                  }`}
+                >
+                  <span className="text-base">{m.icon}</span>
+                  <span className="font-medium">{m.label}</span>
+                </button>
+              ))}
+            </nav>
+
+            {/* 하단 설정 */}
+            <div className={`mt-4 pt-4 border-t ${theme.border}`}>
+              <button
+                onClick={() => setShowSettings(true)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm tracking-wide ${theme.subText} hover:opacity-100 opacity-70 transition-all rounded`}
+              >
+                <span>⚙</span>
+                <span>설정</span>
+              </button>
+              <p className={`text-[10px] ${theme.subText} text-center mt-3 opacity-50 font-mono tracking-widest uppercase`}>
+                FILO · Quiet Luxury
+              </p>
+            </div>
+          </aside>
+
+          {/* ====== 메인 컨텐츠 영역 ====== */}
+          <main className="flex-1 min-w-0 p-4 md:p-8 pb-24">
+
+            {/* 모바일 상단바 (햄버거 + 앱이름) */}
+            <div className="md:hidden flex items-center justify-between mb-4 pb-3 border-b border-current/20">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="w-10 h-10 flex items-center justify-center text-xl"
+                aria-label="메뉴"
+              >☰</button>
+              <h1 className="text-base font-light tracking-[0.15em] font-display truncate">{branding.appName}</h1>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="w-10 h-10 flex items-center justify-center text-base opacity-60"
+                aria-label="설정"
+              >⚙</button>
+            </div>
+
+          {/* 테마 전환 상단바 */}
+          <div className="flex justify-end gap-3 mb-6 text-xs tracking-widest opacity-80">
+            {Object.entries(themes).map(([key, value]) => (
+              <button
+                key={key}
+                onClick={() => setCurrentThemeKey(key)}
+                className={`pb-1 border-b transition-all uppercase ${currentThemeKey === key ? 'border-current font-bold opacity-100' : 'border-transparent opacity-30'}`}
+              >
+                {value.name}
+              </button>
+            ))}
+          </div>
+
+          {/* 헤더는 사이드바로 대체됨 */}
+
+          {/* TAB 0: 빠른 차감 (일일 사용) */}
+          {viewMode === 'quick' && (() => {
+            // 1단계: 검색 필터
+            let filtered = searchQuery.trim()
+              ? products.filter(p =>
+                  p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  p.company.toLowerCase().includes(searchQuery.toLowerCase()))
+              : products;
+
+            // 2단계: 카테고리 필터
+            if (categoryFilter !== 'all') {
+              if (categoryFilter === '__none__') {
+                filtered = filtered.filter(p => !p.category);
+              } else {
+                filtered = filtered.filter(p => p.category === categoryFilter);
+              }
+            }
+
+            // 정렬: 이름순 가나다 (차감해도 순서 유지)
+            // 부족분은 이미 카드의 색상/배지로 강조되므로 정렬 불필요
+            const sorted = [...filtered].sort((a, b) =>
+              a.name.localeCompare(b.name, 'ko')
+            );
+
+            // 발주 필요(아직 안 보낸 것) + 발주중(보낸 것) 분리
+            const shortageCount = products.filter(p => p.currentStock < p.safeStock && !orderingProductNames.has(p.name)).length;
+            const orderingCount = products.filter(p => p.currentStock < p.safeStock && orderingProductNames.has(p.name)).length;
+            const hasUnclassified = products.some(p => !p.category);
+
+            return (
+              <div className="max-w-3xl mx-auto">
+                <div className="mb-5">
+                  <div className="flex items-baseline justify-between mb-1 gap-3">
+                    <h2 className="text-xl font-bold tracking-tight flex-1 min-w-0 truncate">일일 사용량 차감</h2>
+                    <button
+                      onClick={() => setShowTodayUsage(true)}
+                      className={`px-2.5 py-1 text-xs tracking-widest uppercase border border-current opacity-60 hover:opacity-100 transition-all flex-shrink-0 font-mono`}
+                      title="오늘 차감한 약품 목록 보기"
+                    >
+                      📋 오늘 사용 {todayUsage.length > 0 && `(${todayUsage.length})`}
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className={`text-sm ${theme.subText}`}>약을 꺼낼 때 한 번 누르면 재고가 차감됩니다.</p>
+                    <span className={`text-xs ${theme.subText} font-mono tracking-widest whitespace-nowrap`}>
+                      {shortageCount > 0 ? `발주대상 ${shortageCount}` : (orderingCount > 0 ? `발주중 ${orderingCount}` : 'ALL OK')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 테라코타 발주 배너 (이미지 디자인) */}
+                {shortageCount > 0 && (
+                  <button
+                    onClick={() => setViewMode('dashboard')}
+                    className="w-full mb-4 p-5 rounded-lg flex items-center justify-between gap-3 transition-all hover:opacity-90 active:scale-[0.99] shadow-md"
+                    style={{ backgroundColor: '#C17F4F', color: '#FBF4E9' }}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-2xl flex-shrink-0">
+                        📦
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs opacity-80 mb-0.5">발주가 필요한 상품이 있어요!</p>
+                        <p className="text-xl font-bold tracking-tight">발주 필요 {shortageCount}건</p>
+                      </div>
+                    </div>
+                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 border border-white/40 rounded text-sm font-medium whitespace-nowrap">
+                      발주 관리 바로가기 →
+                    </div>
+                    <span className="sm:hidden text-2xl">→</span>
+                  </button>
+                )}
+
+                {/* 발주중 안내 */}
+                {orderingCount > 0 && (
+                  <div
+                    className="w-full mb-4 px-4 py-3 rounded-lg flex items-center gap-3"
+                    style={{ backgroundColor: 'rgba(193, 127, 79, 0.12)', border: '1px solid rgba(193, 127, 79, 0.4)' }}
+                  >
+                    <span className="text-lg">📨</span>
+                    <p className="text-sm" style={{ color: '#C17F4F' }}>
+                      <span className="font-bold">발주중 {orderingCount}건</span> · 입고 대기 중
+                    </p>
+                  </div>
+                )}
+
+                {/* 4개 요약 카드 (이미지 디자인) */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                  {[
+                    { icon: '🔔', label: '발주 필요', value: shortageCount, unit: '건', color: '#C17F4F' },
+                    { icon: '📨', label: '발주중', value: orderingCount, unit: '건', color: '#A88062' },
+                    { icon: '📋', label: '오늘 사용', value: todayUsage.length, unit: '건', color: '#5C4033' },
+                    { icon: '📦', label: '전체 재고', value: products.length, unit: '개', color: '#7A6655' },
+                  ].map((c, i) => (
+                    <div key={i} className={`${theme.surface} border ${theme.border} rounded-lg p-4`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"
+                          style={{ backgroundColor: `${c.color}22` }}
+                        >
+                          {c.icon}
+                        </div>
+                        <span className={`text-xs ${theme.subText} font-medium`}>{c.label}</span>
+                      </div>
+                      <p className="text-2xl font-bold tracking-tight">
+                        {c.value}<span className={`text-sm ml-1 ${theme.subText} font-normal`}>{c.unit}</span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 카테고리 필터 칩 (4개 고정 대분류) */}
+                <div className="mb-3 grid grid-cols-3 md:grid-cols-6 gap-1.5">
+                  <button
+                    onClick={() => setCategoryFilter('all')}
+                    className={`px-2 py-2 text-sm tracking-wider border transition-all ${
+                      categoryFilter === 'all' ? `${theme.activeTab} font-medium` : 'border-current opacity-40 hover:opacity-80'
+                    }`}
+                  >
+                    전체 <span className="font-mono">({products.length})</span>
+                  </button>
+                  {CATEGORIES.map(c => {
+                    const count = products.filter(p => p.category === c.key).length;
+                    const active = categoryFilter === c.key;
+                    return (
+                      <button
+                        key={c.key}
+                        onClick={() => setCategoryFilter(c.key)}
+                        className={`px-2 py-2 text-sm tracking-wide border-2 transition-all ${
+                          active
+                            ? `${c.color.bg} ${c.color.text} font-semibold`
+                            : `border-current opacity-${count > 0 ? '50' : '25'} hover:opacity-90`
+                        }`}
+                        style={active ? { borderColor: c.color.hex } : {}}
+                      >
+                        {c.key} <span className="font-mono opacity-70">({count})</span>
+                      </button>
+                    );
+                  })}
+                  {hasUnclassified && (
+                    <button
+                      onClick={() => setCategoryFilter('__none__')}
+                      className={`px-2 py-2 text-sm tracking-wider border transition-all ${
+                        categoryFilter === '__none__' ? `${theme.activeTab} font-medium` : 'border-current opacity-40 hover:opacity-80'
+                      }`}
+                    >
+                      미분류 <span className="font-mono">({products.filter(p => !p.category).length})</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* 검색바 + Undo 버튼 */}
+                <div className="mb-4 flex gap-2">
+                  <input
+                    type="search"
+                    placeholder="제품명 또는 거래처로 검색..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className={`flex-1 px-4 py-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                  />
+                  <button
+                    onClick={handleUndo}
+                    disabled={undoStack.length === 0}
+                    title={undoStack.length > 0 ? `되돌리기: ${undoStack[undoStack.length-1].productName.slice(0,12)}` : '되돌릴 작업 없음'}
+                    className={`px-3 py-2.5 text-sm tracking-wider border border-current transition-all whitespace-nowrap ${undoStack.length === 0 ? 'opacity-20 cursor-not-allowed' : 'opacity-80 hover:opacity-100'}`}
+                  >
+                    ↶ 되돌리기 {undoStack.length > 0 && <span className="font-mono">({undoStack.length})</span>}
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {sorted.length === 0 && (
+                    <div className={`text-center py-12 border ${theme.surface} ${theme.subText} text-sm`}>
+                      {searchQuery ? '검색 결과 없음' : '제품을 먼저 등록해주세요'}
+                    </div>
+                  )}
+                  {sorted.map(product => {
+                    const isShortage = product.currentStock < product.safeStock;
+                    const isCritical = product.currentStock === 0;
+                    const ratio = Math.min(100, (product.currentStock / product.safeStock) * 100);
+                    const catStyle = getCategoryStyle(product.category);
+
+                    return (
+                      <div
+                        key={product.id}
+                        className={`relative border overflow-hidden ${theme.surface} ${isCritical ? 'ring-1 ring-red-500/30' : ''}`}
+                      >
+                        {/* 좌측 카테고리 컬러 바 (4px) */}
+                        {catStyle && (
+                          <div
+                            className="absolute inset-y-0 left-0 w-1 pointer-events-none"
+                            style={{ background: catStyle.color.hex }}
+                          />
+                        )}
+
+                        {/* 백그라운드 게이지 (재고 비율 시각화) */}
+                        <div
+                          className="absolute inset-y-0 left-0 opacity-[0.04] pointer-events-none transition-all"
+                          style={{
+                            width: `${ratio}%`,
+                            background: isShortage ? '#E63946' : 'currentColor'
+                          }}
+                        />
+
+                        <div className="relative flex items-center p-3 gap-3">
+                          <img
+                            src={product.image}
+                            alt=""
+                            onError={handleImgError}
+                            loading="lazy"
+                            className="w-12 h-12 object-cover bg-neutral-800 flex-shrink-0 grayscale opacity-80"
+                          />
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                              <span className={`text-xs ${theme.subText} truncate`}>{product.company}</span>
+                              {catStyle && (
+                                <span
+                                  className={`text-[11px] tracking-wide px-1.5 py-0.5 font-semibold text-white flex-shrink-0`}
+                                  style={{ backgroundColor: catStyle.color.hex }}
+                                >
+                                  {catStyle.key}
+                                </span>
+                              )}
+                              {isShortage && (
+                                orderingProductNames.has(product.name) ? (
+                                  <span className="text-[11px] tracking-wider uppercase font-bold px-1.5 py-0.5 text-white bg-amber-600">
+                                    📨 발주중
+                                  </span>
+                                ) : (
+                                  <span className={`text-[11px] tracking-wider uppercase font-bold px-1.5 py-0.5 text-white ${isCritical ? 'bg-red-600' : 'bg-orange-500'}`}>
+                                    {isCritical ? '⚠ 품절' : '발주'}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                            <h3 className="text-base font-bold truncate tracking-tight leading-snug">{product.name}</h3>
+                            <div className={`text-xs ${theme.subText} font-mono mt-0.5`}>
+                              {product.currentStock} / {product.safeStock}
+                            </div>
+                          </div>
+
+                          {/* − / 숫자 / + 컨트롤 (큰 터치 영역) */}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => handleQuickAdjust(product.id, -1)}
+                              disabled={product.currentStock === 0}
+                              className="w-10 h-10 text-lg font-light border border-current opacity-80 hover:opacity-100 active:scale-95 transition-all disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center"
+                              aria-label="차감"
+                            >
+                              −
+                            </button>
+                            <button
+                              onClick={() => setQuickInputId(product.id)}
+                              className="w-12 h-10 text-center font-mono text-base font-semibold hover:opacity-70 active:scale-95 transition-all"
+                              aria-label="직접 입력"
+                              title="탭하여 직접 입력"
+                            >
+                              {product.currentStock}
+                            </button>
+                            <button
+                              onClick={() => handleQuickAdjust(product.id, 1)}
+                              className="w-10 h-10 text-lg font-light border border-current opacity-80 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center"
+                              aria-label="추가"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* TAB 1: 재고조사 */}
+          {viewMode === 'stocktake' && (() => {
+            const stockFiltered = stockSearch.trim()
+              ? products.filter(p =>
+                  p.name.toLowerCase().includes(stockSearch.toLowerCase()) ||
+                  p.company.toLowerCase().includes(stockSearch.toLowerCase()))
+              : products;
+
+            return (
+            <div className="max-w-4xl mx-auto">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold tracking-tight">실사 수량 기입 모드</h2>
+                <p className={`text-sm ${theme.subText} mt-1`}>매장 창고 및 약장을 대조하며 실제 남아있는 약제의 수량을 정밀하게 입력해 주세요.</p>
+              </div>
+
+              {/* 검색바 */}
+              <div className="mb-4">
+                <input
+                  type="search"
+                  placeholder="제품명 또는 거래처로 검색..."
+                  value={stockSearch}
+                  onChange={e => setStockSearch(e.target.value)}
+                  className={`w-full px-4 py-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                />
+              </div>
+
+              <div className="space-y-3">
+                {stockFiltered.length === 0 && (
+                  <div className={`text-center py-12 border ${theme.surface} ${theme.subText} text-sm`}>
+                    {stockSearch ? '검색 결과 없음' : '제품을 먼저 등록해주세요'}
+                  </div>
+                )}
+                {stockFiltered.map(product => {
+                  const isShortage = product.currentStock < product.safeStock;
+                  return (
+                    <div key={product.id} className={`flex items-center justify-between p-4 border transition-all ${theme.surface}`}>
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <img
+                          src={product.image}
+                          alt=""
+                          onError={handleImgError}
+                          loading="lazy"
+                          className="w-14 h-14 object-cover bg-neutral-800 flex-shrink-0 grayscale opacity-80"
+                        />
+                        <div className="min-w-0">
+                          <span className={`text-sm ${theme.subText} block`}>{product.company}</span>
+                          <h3 className="text-base font-medium truncate tracking-wide">{product.name}</h3>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className={`text-sm ${theme.subText}`}>적정선: {product.safeStock}개</span>
+                            {isShortage && (
+                              orderingProductNames.has(product.name) ? (
+                                <span className="text-xs tracking-wider uppercase font-bold px-1.5 py-0.5 bg-amber-600 text-white">
+                                  📨 발주중
+                                </span>
+                              ) : (
+                                <span className={`text-xs tracking-widest uppercase font-bold px-1.5 py-0.5 bg-red-900/10 ${theme.badge}`}>
+                                  발주 대상
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 ml-4 flex-shrink-0">
+                        <button
+                          onClick={() => handleQuickAdjust(product.id, -1)}
+                          disabled={product.currentStock === 0}
+                          className="w-9 h-9 text-base font-light border border-current opacity-70 hover:opacity-100 active:scale-95 transition-all disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center"
+                          aria-label="차감"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          value={product.currentStock}
+                          onChange={(e) => handleStockChange(product.id, e.target.value)}
+                          className={`w-14 text-center py-2 text-base focus:outline-none font-medium border ${theme.inputBg}`}
+                        />
+                        <button
+                          onClick={() => handleQuickAdjust(product.id, 1)}
+                          className="w-9 h-9 text-base font-light border border-current opacity-70 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center"
+                          aria-label="추가"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            );
+          })()}
+
+          {/* TAB 2: 발주 대시보드 */}
+          {viewMode === 'dashboard' && (() => {
+            const allEntries = Object.entries(groupedOrders);
+            const pending = allEntries.filter(([c, info]) => !completedOrders[makeOrderKey(c, info.items)]);
+            const completed = allEntries.filter(([c, info]) => completedOrders[makeOrderKey(c, info.items)]);
+
+            return (
+            <div className="max-w-3xl mx-auto">
+              <div className="mb-6">
+                <div className="flex items-baseline justify-between mb-1 gap-3">
+                  <h2 className="text-xl font-bold tracking-tight flex-1 min-w-0 truncate">거래처 자동 분류 발주 시스템</h2>
+                  <button
+                    onClick={() => setShowOrderHistory(true)}
+                    className={`px-2.5 py-1 text-xs tracking-widest uppercase border border-current opacity-60 hover:opacity-100 transition-all flex-shrink-0 font-mono`}
+                    title="과거 발주 이력 보기"
+                  >
+                    📜 이력 {orderHistory.length > 0 && `(${orderHistory.length})`}
+                  </button>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className={`text-sm ${theme.subText}`}>발주 후 "완료" 버튼을 누르면 같은 발주가 반복 노출되지 않습니다.</p>
+                  <span className={`text-xs ${theme.subText} font-mono tracking-widest whitespace-nowrap`}>
+                    대기 {pending.length} · 완료 {completed.length}
+                  </span>
+                </div>
+              </div>
+
+              {allEntries.length === 0 ? (
+                <div className={`text-center py-16 border font-light text-base ${theme.surface} ${theme.subText}`}>
+                  현재 모든 살롱 약제 및 헤어 스튜디오 전용 제품의 재고가 충분합니다.
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* 대기 중인 발주 */}
+                  {pending.map(([company, info]) => {
+                    const editKey = `company:${company}`;
+                    const isEditing = editingId === editKey;
+
+                    return (
+                      <div key={company} className={`border p-5 transition-all ${theme.surface}`}>
+                        {!isEditing ? (
+                          <div className={`flex justify-between items-center border-b ${theme.border} pb-3 mb-4 gap-3`}>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-base font-normal tracking-wide truncate">{company}</h3>
+                              <p className={`text-sm ${theme.subText} mt-0.5 font-mono`}>연락처: {formatPhone(info.phone)}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <button
+                                onClick={() => setEditingId(editKey)}
+                                className="px-2.5 py-1.5 text-sm border border-current opacity-50 hover:opacity-100 transition-all"
+                                aria-label="거래처 정보 수정"
+                                title="거래처 정보 수정"
+                              >
+                                ✎
+                              </button>
+                              <a
+                                href={`tel:${info.phone}`}
+                                className="px-3 py-1.5 text-sm border border-current opacity-80 tracking-wider hover:bg-neutral-500/10 transition-all"
+                              >
+                                전화
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <CompanyEditor
+                            theme={theme}
+                            originalName={company}
+                            originalPhone={info.phone}
+                            onSave={(newName, newPhone) => {
+                              handleUpdateCompany(company, newName, newPhone);
+                              setEditingId(null);
+                            }}
+                            onCancel={() => setEditingId(null)}
+                          />
+                        )}
+
+                        <div className="space-y-2.5 mb-4">
+                          {info.items.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-start text-base gap-3">
+                              <span className="opacity-90 font-light flex-1">{item.name}</span>
+                              <span className={`${theme.badge} font-medium whitespace-nowrap`}>부족분 +{item.qty}개</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          {/* 메인 액션: 문자 발주 (전체 너비) */}
+                          <button
+                            onClick={() => sendSmsMessage(company, info)}
+                            className={`w-full text-sm py-3 tracking-widest font-medium transition-all uppercase ${theme.pointBtn}`}
+                          >
+                            문자 발주 전송
+                          </button>
+
+                          {/* 보조 액션: 미리보기 + 복사 + 완료 */}
+                          <div className="grid grid-cols-3 gap-2">
+                            <button
+                              onClick={() => setOrderPreview({ company, info })}
+                              className="py-2.5 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center gap-1"
+                              title="발주서 미리보기 및 메시지 편집"
+                            >
+                              👁 미리보기
+                            </button>
+                            <button
+                              onClick={() => {
+                                copyOrderText(company, info);
+                                logOrderHistory(company, info, 'copy');
+                              }}
+                              className="py-2.5 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center gap-1"
+                              title="발주서 텍스트 복사"
+                            >
+                              📋 복사
+                            </button>
+                            <button
+                              onClick={() => handleMarkOrderComplete(company, info)}
+                              className="py-2.5 text-sm tracking-wider border border-current opacity-70 hover:opacity-100 transition-all"
+                              title="발주를 보냈음을 표시"
+                            >
+                              ✓ 완료
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* 완료된 발주 (시각적으로 약하게) */}
+                  {completed.length > 0 && (
+                    <div className="pt-4">
+                      <h3 className={`text-xs ${theme.subText} tracking-[0.3em] uppercase font-mono mb-3`}>
+                        완료 처리됨 ({completed.length})
+                      </h3>
+                      <div className="space-y-2">
+                        {completed.map(([company, info]) => (
+                          <div key={company} className={`flex items-center justify-between p-3 border ${theme.surface} opacity-50 hover:opacity-100 transition-all`}>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-light truncate">{company}</p>
+                              <p className={`text-xs ${theme.subText} font-mono`}>
+                                {info.items.length}개 품목 · {info.items.reduce((a, b) => a + b.qty, 0)}개 발주
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleUnmarkOrderComplete(company, info)}
+                              className="ml-3 px-3 py-1.5 text-xs tracking-wider border border-current opacity-60 hover:opacity-100 transition-all whitespace-nowrap"
+                            >
+                              완료 해제
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            );
+          })()}
+
+          {/* TAB 3: 마스터 관리 */}
+          {viewMode === 'manage' && (
+            <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+
+              {/* 등록 폼 */}
+              <div className="md:col-span-1">
+                <div className="mb-4">
+                  <div className="flex items-baseline justify-between mb-1 gap-2">
+                    <h2 className="text-xl font-bold tracking-tight">신규 약제 마스터 등록</h2>
+                    <button
+                      onClick={() => setShowAddCompany(true)}
+                      className={`px-2.5 py-1 text-xs tracking-widest uppercase border border-current opacity-60 hover:opacity-100 transition-all flex-shrink-0 font-mono whitespace-nowrap`}
+                      title="제품 없이 거래처만 추가"
+                    >
+                      + 거래처
+                    </button>
+                  </div>
+                  <p className={`text-sm ${theme.subText} mt-1`}>살롱에서 새로 도입한 아이롱 펌제나 염색약, 클리닉 제품군을 등록합니다.</p>
+                </div>
+
+                <form onSubmit={handleAddProduct} className={`border p-4 space-y-4 ${theme.surface}`}>
+                  <div>
+                    <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">제품 이름 *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="예: 프리미엄 치오 오일"
+                      value={newProd.name}
+                      onChange={e => setNewProd({...newProd, name: e.target.value})}
+                      className={`w-full p-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">거래처 및 제조사명 *</label>
+                    <input
+                      type="text"
+                      required
+                      list="filo-company-list"
+                      placeholder="예: 동양재료상사"
+                      value={newProd.company}
+                      onChange={e => {
+                        const v = e.target.value;
+                        // 통합 목록에서 전화번호 자동 채우기 (거래처 마스터 우선)
+                        const matched = allPhoneMap[v];
+                        setNewProd(prev => ({
+                          ...prev,
+                          company: v,
+                          phone: matched || prev.phone
+                        }));
+                      }}
+                      className={`w-full p-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                    />
+                    <datalist id="filo-company-list">
+                      {allCompanyList.map(c => <option key={c} value={c} />)}
+                    </datalist>
+                    {allCompanyList.length > 0 && (
+                      <p className={`text-xs ${theme.subText} mt-1`}>
+                        기존 거래처 선택 시 전화번호 자동 입력 ({allCompanyList.length}개 등록됨)
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">거래처 전화번호 *</label>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      required
+                      placeholder="예: 010-1234-5678"
+                      value={formatPhone(newProd.phone)}
+                      onChange={e => setNewProd({...newProd, phone: e.target.value.replace(/[^0-9]/g, '')})}
+                      className={`w-full p-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">카테고리 (선택)</label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {CATEGORIES.map(c => {
+                        const active = newProd.category === c.key;
+                        return (
+                          <button
+                            type="button"
+                            key={c.key}
+                            onClick={() => setNewProd({...newProd, category: active ? '' : c.key})}
+                            className={`py-3 text-sm tracking-wide transition-all border-2 ${
+                              active
+                                ? `${c.color.bg} ${c.color.text} font-semibold`
+                                : 'border-current opacity-30 hover:opacity-70'
+                            }`}
+                            style={active ? { borderColor: c.color.hex } : {}}
+                          >
+                            {c.key}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">안전 적정선</label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        value={newProd.safeStock}
+                        onChange={e => setNewProd({...newProd, safeStock: e.target.value})}
+                        className={`w-full p-2.5 text-sm text-center focus:outline-none border ${theme.inputBg}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">초기 현재고</label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        value={newProd.currentStock}
+                        onChange={e => setNewProd({...newProd, currentStock: e.target.value})}
+                        className={`w-full p-2.5 text-sm text-center focus:outline-none border ${theme.inputBg}`}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">제품 이미지 (선택)</label>
+                    <div className="space-y-2">
+                      {newProd.image && (
+                        <div className="flex items-center gap-2">
+                          <img src={newProd.image} alt="" className="w-14 h-14 object-cover border border-current opacity-90" />
+                          <button
+                            type="button"
+                            onClick={() => setNewProd({...newProd, image: ''})}
+                            className="text-xs opacity-50 hover:opacity-100 underline"
+                          >
+                            제거
+                          </button>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className={`p-2.5 text-xs text-center tracking-wider border border-current opacity-70 hover:opacity-100 transition-all cursor-pointer`}>
+                          📷 촬영
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => e.target.files?.[0] && handleNewImageUpload(e.target.files[0])}
+                          />
+                        </label>
+                        <label className={`p-2.5 text-xs text-center tracking-wider border border-current opacity-70 hover:opacity-100 transition-all cursor-pointer`}>
+                          🖼 갤러리
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => e.target.files?.[0] && handleNewImageUpload(e.target.files[0])}
+                          />
+                        </label>
+                      </div>
+                      <input
+                        type="url"
+                        placeholder="또는 이미지 URL 직접 입력"
+                        value={newProd.image.startsWith('data:') ? '' : newProd.image}
+                        onChange={e => setNewProd({...newProd, image: e.target.value})}
+                        className={`w-full p-2 text-xs focus:outline-none border ${theme.inputBg}`}
+                      />
+                    </div>
+                  </div>
+                  <button type="submit" className={`w-full text-sm py-2.5 tracking-wider font-medium ${theme.pointBtn}`}>
+                    마스터 리스트에 추가하기
+                  </button>
+                </form>
+              </div>
+
+              {/* 등록된 리스트 */}
+              <div className="md:col-span-2">
+                <div className="mb-4">
+                  <h2 className="text-xl font-bold tracking-tight">
+                    마스터 리스트 데이터 <span className="font-mono opacity-60">({products.length})</span>
+                  </h2>
+                  <p className={`text-sm ${theme.subText} mt-1`}>현재 살롱 앱 내부에 세팅되어 있는 제품 마스터 데이터입니다.</p>
+                </div>
+
+                {/* 마스터 검색바 */}
+                {products.length > 5 && (
+                  <div className="mb-3">
+                    <input
+                      type="search"
+                      placeholder="제품명 또는 거래처로 검색..."
+                      value={masterSearch}
+                      onChange={e => setMasterSearch(e.target.value)}
+                      className={`w-full px-3 py-2 text-sm focus:outline-none border ${theme.inputBg}`}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {products.length === 0 && (
+                    <div className={`text-center py-12 border ${theme.surface} ${theme.subText} text-sm`}>
+                      등록된 제품이 없습니다. 좌측 폼에서 첫 제품을 등록해주세요.
+                    </div>
+                  )}
+                  {(() => {
+                    const masterFiltered = masterSearch.trim()
+                      ? products.filter(p =>
+                          p.name.toLowerCase().includes(masterSearch.toLowerCase()) ||
+                          p.company.toLowerCase().includes(masterSearch.toLowerCase()))
+                      : products;
+
+                    if (masterSearch && masterFiltered.length === 0) {
+                      return (
+                        <div className={`text-center py-8 border ${theme.surface} ${theme.subText} text-sm`}>
+                          "{masterSearch}" 검색 결과 없음
+                        </div>
+                      );
+                    }
+
+                    return masterFiltered.map(product => {
+                    const isEditing = editingId === product.id;
+                    return (
+                      <div key={product.id} className={`border text-sm ${theme.surface} transition-all`}>
+                        {/* 기본 카드 */}
+                        <div className="flex items-center justify-between p-3">
+                          <div className="flex items-center gap-3 truncate flex-1 min-w-0">
+                            <img
+                              src={product.image}
+                              alt=""
+                              onError={handleImgError}
+                              loading="lazy"
+                              className="w-10 h-10 object-cover bg-neutral-800 grayscale flex-shrink-0"
+                            />
+                            <div className="truncate min-w-0">
+                              <p className="font-medium truncate">{product.name}</p>
+                              <p className={`text-xs ${theme.subText} font-mono truncate`}>
+                                {product.company} · {formatPhone(product.phone)} · 재고 {product.currentStock}/{product.safeStock}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0 ml-3">
+                            <button
+                              onClick={() => setEditingId(isEditing ? null : product.id)}
+                              className={`px-2.5 py-1.5 border border-current ${isEditing ? 'opacity-100' : 'opacity-50'} hover:opacity-100 text-sm transition-all`}
+                              aria-label="수정"
+                              title={isEditing ? '편집 닫기' : '수정'}
+                            >
+                              {isEditing ? '✕' : '✎'}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProduct(product.id)}
+                              className="px-2.5 py-1.5 border border-red-900/30 text-red-400 hover:bg-red-900/20 text-sm font-light transition-all"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 인라인 편집 펼침 */}
+                        {isEditing && (
+                          <ProductEditor
+                            theme={theme}
+                            product={product}
+                            companyList={allCompanyList}
+                            categoryList={categoryList}
+                            onSave={(patch) => {
+                              handleUpdateProduct(product.id, patch);
+                              setEditingId(null);
+                            }}
+                            onCancel={() => setEditingId(null)}
+                            onImageUpload={(file) => handleProductImageUpload(product.id, file)}
+                          />
+                        )}
+                      </div>
+                    );
+                  });
+                  })()}
+                </div>
+              </div>
+
+              {/* 거래처 마스터 섹션 (전체 너비) */}
+              <div className="md:col-span-3">
+                <div className={`border p-5 ${theme.surface}`}>
+                  <div className="flex items-baseline justify-between mb-4 gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-light tracking-wide">거래처 마스터</h3>
+                      <p className={`text-xs ${theme.subText} mt-1`}>
+                        제품 없이도 거래처를 미리 등록하면 신규 제품 등록시 자동완성됩니다
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowAddCompany(true)}
+                      className={`px-3 py-1.5 text-xs tracking-widest uppercase border border-current opacity-70 hover:opacity-100 transition-all flex-shrink-0 font-mono`}
+                    >
+                      + 추가
+                    </button>
+                  </div>
+
+                  {companies.length === 0 ? (
+                    <div className={`text-center py-6 border ${theme.border} ${theme.subText} text-sm`}>
+                      등록된 거래처가 없습니다. 우측 상단 "+ 추가" 버튼으로 등록하세요.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {companies.map(c => {
+                        const linkedCount = products.filter(p => p.company === c.name).length;
+                        return (
+                          <div key={c.id} className={`flex items-center justify-between p-3 border text-sm ${theme.border}`}>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{c.name}</p>
+                              <p className={`text-xs ${theme.subText} font-mono truncate`}>
+                                📞 {formatPhone(c.phone)}
+                                {linkedCount > 0 && (
+                                  <span className="ml-2 opacity-70">· 제품 {linkedCount}개</span>
+                                )}
+                              </p>
+                              {c.memo && (
+                                <p className={`text-xs ${theme.subText} italic truncate mt-0.5`}>
+                                  💬 {c.memo}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleDeleteCompany(c.id)}
+                              className="ml-2 px-2.5 py-1.5 border border-red-900/30 text-red-400 hover:bg-red-900/20 text-sm font-light transition-all flex-shrink-0"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* CSV Import / Export 섹션 (전체 너비) */}
+              <div className="md:col-span-3">
+                <div className={`border p-5 ${theme.surface}`}>
+                  <div className="flex items-baseline justify-between mb-4">
+                    <h3 className="text-base font-light tracking-wide">데이터 백업 및 이관</h3>
+                    <span className={`text-xs ${theme.subText} font-mono tracking-widest uppercase`}>CSV · Excel 호환</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Export */}
+                    <button
+                      onClick={downloadCSV}
+                      disabled={products.length === 0}
+                      className={`px-4 py-3 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 transition-all text-left disabled:opacity-20 disabled:cursor-not-allowed`}
+                    >
+                      <div className="font-medium mb-0.5">↓ CSV 내보내기</div>
+                      <div className={`text-xs ${theme.subText} font-light`}>
+                        현재 {products.length}개 제품 데이터를 엑셀 파일로 저장
+                      </div>
+                    </button>
+
+                    {/* Import */}
+                    <label className="px-4 py-3 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 transition-all text-left cursor-pointer block">
+                      <div className="font-medium mb-0.5">↑ CSV 불러오기</div>
+                      <div className={`text-xs ${theme.subText} font-light`}>
+                        엑셀에서 작성한 제품 목록을 한 번에 등록
+                      </div>
+                      <input
+                        type="file"
+                        accept=".csv,text/csv"
+                        onChange={handleCSVUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  <div className={`mt-3 text-xs ${theme.subText} font-mono`}>
+                    CSV 형식: 제품명, 거래처, 전화번호, 현재고, 적정선, 이미지URL
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* 설정 패널 — 브랜딩 커스터마이즈 */}
+          {showSettings && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+              onClick={() => setShowSettings(false)}
+            >
+              <div
+                className={`${theme.surface} border max-w-md w-full max-h-[85vh] overflow-y-auto`}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className={`p-5 border-b ${theme.border} flex items-center justify-between`}>
+                  <div>
+                    <h3 className="text-base font-light tracking-wide">앱 브랜딩</h3>
+                    <p className={`text-xs ${theme.subText} mt-1 font-mono tracking-widest uppercase`}>Custom Identity</p>
+                  </div>
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    className="text-lg opacity-50 hover:opacity-100 w-8 h-8 flex items-center justify-center"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  {/* 로고 업로드 */}
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider mb-2 opacity-60">로고 이미지</label>
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-16 border border-current opacity-90 flex items-center justify-center bg-black/10 flex-shrink-0">
+                        {branding.logoImage ? (
+                          <img src={branding.logoImage} alt="" className="w-full h-full object-contain" />
+                        ) : (
+                          <span className={`text-[11px] ${theme.subText} tracking-widest font-mono`}>NONE</span>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-1.5">
+                        <label className="block p-2 text-xs text-center tracking-wider border border-current opacity-70 hover:opacity-100 transition-all cursor-pointer">
+                          🖼 로고 이미지 선택
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => e.target.files?.[0] && handleLogoUpload(e.target.files[0])}
+                          />
+                        </label>
+                        {branding.logoImage && (
+                          <button
+                            onClick={() => setBranding({...branding, logoImage: ''})}
+                            className="block w-full p-2 text-xs tracking-wider border border-current opacity-50 hover:opacity-100 transition-all"
+                          >
+                            로고 제거
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 앱 이름 */}
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">앱 이름</label>
+                    <input
+                      type="text"
+                      value={branding.appName}
+                      onChange={e => setBranding({...branding, appName: e.target.value})}
+                      maxLength="30"
+                      className={`w-full p-2.5 text-base focus:outline-none border tracking-wider ${theme.inputBg}`}
+                    />
+                    <p className={`text-xs ${theme.subText} mt-1`}>헤더, 발주 문자, 페이지 제목에 사용</p>
+                  </div>
+
+                  {/* 태그라인 */}
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">태그라인</label>
+                    <input
+                      type="text"
+                      value={branding.tagline}
+                      onChange={e => setBranding({...branding, tagline: e.target.value})}
+                      maxLength="60"
+                      className={`w-full p-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                    />
+                  </div>
+
+                  {/* 미리보기 */}
+                  <div className={`border ${theme.border} p-4`}>
+                    <p className={`text-[11px] ${theme.subText} tracking-widest mb-2 uppercase font-mono`}>Preview</p>
+                    <div className="flex items-center gap-3">
+                      {branding.logoImage && (
+                        <img src={branding.logoImage} alt="" className="w-10 h-10 object-contain flex-shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-lg font-light tracking-[0.2em] font-display truncate">{branding.appName}</div>
+                        <div className={`text-xs ${theme.subText} tracking-[0.3em] font-mono uppercase truncate`}>{branding.tagline}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={resetBranding}
+                    className="w-full py-2 text-xs tracking-widest uppercase border border-current opacity-40 hover:opacity-100 transition-all"
+                  >
+                    모두 기본값으로 초기화
+                  </button>
+
+                  {/* 데이터 사용량 정보 */}
+                  <div className={`pt-4 mt-2 border-t ${theme.border}`}>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className={`${theme.subText} tracking-widest uppercase font-mono`}>저장 공간 사용량</span>
+                      <span className="font-mono">{safeStorage.usageKB()} KB / ~5,000 KB</span>
+                    </div>
+                    <p className={`text-xs ${theme.subText} mt-1.5 leading-relaxed`}>
+                      모든 데이터는 이 기기에만 저장됩니다.
+                      이미지 업로드가 많을 경우 용량이 늘어날 수 있으니
+                      주기적으로 CSV 백업을 권장합니다.
+                    </p>
+                  </div>
+
+                  {/* 재고 파악 주기 */}
+                  <div className={`pt-4 mt-2 border-t ${theme.border}`}>
+                    <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono mb-2`}>
+                      재고 파악 주기
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setStockCycle('weekly')}
+                        className={`py-2.5 text-sm tracking-wide border-2 transition-all ${
+                          stockCycle === 'weekly'
+                            ? `${theme.pointBtn} border-transparent`
+                            : 'border-current opacity-50 hover:opacity-100'
+                        }`}
+                      >
+                        주 단위
+                      </button>
+                      <button
+                        onClick={() => setStockCycle('monthly')}
+                        className={`py-2.5 text-sm tracking-wide border-2 transition-all ${
+                          stockCycle === 'monthly'
+                            ? `${theme.pointBtn} border-transparent`
+                            : 'border-current opacity-50 hover:opacity-100'
+                        }`}
+                      >
+                        월 단위
+                      </button>
+                    </div>
+                    <p className={`text-xs ${theme.subText} mt-1.5`}>
+                      현재: <span className="font-medium">{cycleLabel.this}</span> 기준으로 통계가 표시됩니다
+                    </p>
+                  </div>
+
+                  {/* 사용 가이드 다시 보기 */}
+                  <div className={`pt-4 mt-2 border-t ${theme.border}`}>
+                    <button
+                      onClick={() => { setShowGuide(true); setShowSettings(false); }}
+                      className={`w-full p-3 text-left border ${theme.border} hover:opacity-80 transition-all`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium tracking-wide">📖 사용 가이드 다시 보기</p>
+                          <p className={`text-xs ${theme.subText} mt-0.5`}>
+                            5단계 빠른 시작 가이드
+                          </p>
+                        </div>
+                        <span className="text-base opacity-50 flex-shrink-0">→</span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* 사용 통계 (월별) */}
+                  <div className={`pt-4 mt-2 border-t ${theme.border}`}>
+                    <button
+                      onClick={() => { setShowStats(true); setShowSettings(false); }}
+                      className={`w-full p-3 text-left border ${theme.border} hover:opacity-80 transition-all`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium tracking-wide">📊 사용 통계 (월별)</p>
+                          <p className={`text-xs ${theme.subText} mt-0.5`}>
+                            이번 달 / 지난 달 비교 · 제품별 사용량 랭킹
+                          </p>
+                        </div>
+                        <span className="text-base opacity-50 flex-shrink-0">→</span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* 위험 영역 — 전체 초기화 */}
+                  <div className={`pt-4 mt-2 border-t border-red-900/30`}>
+                    <p className={`text-xs text-red-400 tracking-widest uppercase font-mono mb-2`}>
+                      ⚠ Danger Zone
+                    </p>
+                    <p className={`text-xs ${theme.subText} mb-2.5 leading-relaxed`}>
+                      모든 제품, 히스토리, 브랜딩 설정을 영구 삭제합니다.
+                      먼저 CSV 백업을 권장합니다.
+                    </p>
+                    <button
+                      onClick={handleResetAll}
+                      className="w-full py-2 text-xs tracking-widest uppercase border border-red-900/40 text-red-400 hover:bg-red-900/10 transition-all"
+                    >
+                      전체 데이터 영구 삭제
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 직접 수량 입력 모달 (빠른 차감 탭에서 숫자 탭) */}
+          {quickInputId !== null && (() => {
+            const product = products.find(p => p.id === quickInputId);
+            if (!product) return null;
+            return (
+              <QuickInputModal
+                theme={theme}
+                product={product}
+                onSave={(newStock) => {
+                  setProducts(prev => prev.map(p =>
+                    p.id === quickInputId ? { ...p, currentStock: Math.max(0, newStock) } : p
+                  ));
+                  logHistory(product.id, product.name, newStock - product.currentStock, 'manual');
+                  setQuickInputId(null);
+                  showToast('재고가 설정되었습니다', 'success');
+                }}
+                onCancel={() => setQuickInputId(null)}
+              />
+            );
+          })()}
+
+          {/* 발주서 미리보기 + 편집 모달 */}
+          {orderPreview && (
+            <OrderPreviewModal
+              theme={theme}
+              preview={orderPreview}
+              branding={branding}
+              onSend={(text) => sendSmsMessage(orderPreview.company, orderPreview.info, text)}
+              onCopy={(text) => {
+                copyOrderText(orderPreview.company, orderPreview.info, text);
+                logOrderHistory(orderPreview.company, orderPreview.info, 'preview', text);
+              }}
+              onClose={() => setOrderPreview(null)}
+            />
+          )}
+
+          {/* 발주 이력 모달 */}
+          {showOrderHistory && (
+            <OrderHistoryModal
+              theme={theme}
+              history={orderHistory}
+              onClose={() => setShowOrderHistory(false)}
+              onClear={() => setOrderHistory([])}
+            />
+          )}
+
+          {/* 거래처 단독 추가 모달 */}
+          {showAddCompany && (
+            <AddCompanyModal
+              theme={theme}
+              onAdd={handleAddCompany}
+              onClose={() => setShowAddCompany(false)}
+            />
+          )}
+
+          {/* 오늘 사용 히스토리 모달 */}
+          {showTodayUsage && (
+            <TodayUsageModal
+              theme={theme}
+              usage={todayUsage}
+              onClose={() => setShowTodayUsage(false)}
+            />
+          )}
+
+          {/* 월별 통계 모달 */}
+          {showStats && (
+            <StatsModal
+              theme={theme}
+              stats={monthlyStats}
+              cycleLabel={cycleLabel}
+              onClose={() => setShowStats(false)}
+            />
+          )}
+
+          {/* 사용 가이드 모달 (첫 방문 자동 + 설정에서 수동) */}
+          {showGuide && (
+            <GuideModal
+              theme={theme}
+              stockCycle={stockCycle}
+              setStockCycle={setStockCycle}
+              onStartEmpty={() => {
+                setProducts([]);
+                setCompanies([]);
+                setOrderHistory([]);
+                localStorage.removeItem('filo_history');
+                showToast('빈 상태로 시작합니다', 'success');
+                setViewMode('manage');
+              }}
+              onStartSample={() => {
+                setProducts(defaultProducts);
+                showToast('샘플 데이터로 둘러봅니다', 'success');
+              }}
+              onClose={() => setShowGuide(false)}
+            />
+          )}
+
+          {/* CSV 미리보기 모달 */}
+          {csvPreview && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+              onClick={() => setCsvPreview(null)}
+            >
+              <div
+                className={`${theme.surface} border max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col`}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className={`p-5 border-b ${theme.border}`}>
+                  <h3 className="text-base font-light tracking-wide">CSV 미리보기</h3>
+                  <p className={`text-sm ${theme.subText} mt-1 font-mono`}>
+                    {csvPreview.length}개의 제품이 발견되었습니다
+                  </p>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3">
+                  <div className="space-y-1.5">
+                    {csvPreview.slice(0, 50).map((p, i) => (
+                      <div key={i} className={`flex items-center gap-3 p-2 border ${theme.border} text-sm`}>
+                        <span className={`${theme.subText} font-mono text-xs w-6`}>{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="truncate font-medium">{p.name}</div>
+                          <div className={`text-xs ${theme.subText} font-mono truncate`}>
+                            {p.company} · {p.phone} · 재고 {p.currentStock}/{p.safeStock}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {csvPreview.length > 50 && (
+                      <div className={`text-center text-sm ${theme.subText} py-2`}>
+                        ... 외 {csvPreview.length - 50}개
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className={`p-4 border-t ${theme.border} flex flex-col md:flex-row gap-2`}>
+                  <button
+                    onClick={() => setCsvPreview(null)}
+                    className="flex-1 py-2.5 text-sm tracking-wider border border-current opacity-60 hover:opacity-100 transition-all"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => confirmCSVImport('append')}
+                    className="flex-1 py-2.5 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 transition-all"
+                  >
+                    기존 데이터에 추가
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`현재 ${products.length}개 데이터가 삭제되고 ${csvPreview.length}개로 교체됩니다. 진행하시겠습니까?`)) {
+                        confirmCSVImport('replace');
+                      }
+                    }}
+                    className={`flex-1 py-2.5 text-sm tracking-wider font-medium ${theme.pointBtn}`}
+                  >
+                    전체 교체
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 토스트 알림 */}
+          {toast && (
+            <div
+              key={toast.id}
+              className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 px-5 py-3 text-sm tracking-wider font-medium border ${theme.surface} shadow-2xl`}
+              style={{ animation: 'filoToast 1.8s ease-out forwards' }}
+            >
+              {toast.message}
+            </div>
+          )}
+
+          {/* 푸터 시그니처 */}
+          <footer className={`mt-16 pt-6 border-t ${theme.border} text-center text-xs ${theme.subText} tracking-[0.3em] font-mono uppercase`}>
+            FILO · Quiet Luxury Salon System
+          </footer>
+          </main>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 5. MOUNT
+    // ============================================
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+
+    // 로딩 스크린 페이드아웃
+    setTimeout(() => {
+      const loader = document.getElementById('filo-loader');
+      if (loader) {
+        loader.classList.add('fade-out');
+        setTimeout(() => loader.remove(), 400);
+      }
+    }, 300);
+  </script>
+</body>
+</html>
