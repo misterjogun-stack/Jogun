@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#F1EFF5" />
+  <title>JOGUN — 헤어 디자이너 조군</title>
+  <meta name="description" content="헤어 디자이너 조군의 개인 브랜드 JOGUN. 커트, 펌, 컬러, 클리닉 시술과 예약 문의." />
+  <meta property="og:title" content="JOGUN — 헤어 디자이너 조군" />
+  <meta property="og:description" content="손질이 쉬운 컷, 오래 가는 컬러. 예약 문의는 여기서 바로 정리해 보낼 수 있습니다." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%232A1B3D'/%3E%3Cpath d='M38 12v28a10 10 0 0 1-20 0' fill='none' stroke='%23F3E08A' stroke-width='8'/%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+
+  <style>
+    /* ───────── Tokens ───────── */
+    :root {
+      --ink: #2A1B3D;          /* 토너 바이올렛 잉크 */
+      --ink-soft: #5B4D6E;     /* 보조 텍스트 */
+      --bleach: #F3E08A;       /* 블리치 옐로 */
+      --porcelain: #F1EFF5;    /* 샴푸볼 포슬린 */
+      --toner: #8E79C9;        /* 보라 샴푸 라일락 */
+      --silver: #B9B6C4;       /* 가위 실버 */
+      --focus: #5B3FA8;
+
+      --font-display: "Bricolage Grotesque", "Pretendard Variable", Pretendard, sans-serif;
+      --font-body: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+
+      --gutter: clamp(20px, 5vw, 72px);
+      --section-y: clamp(72px, 11vw, 150px);
+      --cut: 100%;             /* 히어로 컷 라인 가로 위치 (JS가 갱신) */
+      --cut-y: 64%;            /* 잘린 머리카락 끝선의 세로 위치 */
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--porcelain);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 1.0625rem;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+    h1, h2, h3, p { margin: 0; }
+    a { color: inherit; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .on-dark :focus-visible { outline-color: var(--bleach); }
+
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+      overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+    }
+
+    .wrap { max-width: 1280px; margin-inline: auto; padding-inline: var(--gutter); }
+
+    /* ───────── Button: 날 모양의 평행사변형 ───────── */
+    .btn {
+      position: relative; isolation: isolate;
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: .95em 2.1em;
+      font-weight: 700; font-size: 1rem; letter-spacing: -.01em;
+      text-decoration: none; border: 0; background: none; cursor: pointer;
+      color: var(--porcelain);
+    }
+    .btn::before {
+      content: ""; position: absolute; inset: 0; z-index: -1;
+      background: var(--ink);
+      transform: skewX(-14deg);
+      transition: background .2s;
+    }
+    .btn:hover::before { background: #3D2A57; }
+    .btn--bleach { color: var(--ink); }
+    .btn--bleach::before { background: var(--bleach); }
+    .btn--bleach:hover::before { background: #F8EBA8; }
+    .btn--line { color: var(--ink); }
+    .btn--line::before { background: transparent; box-shadow: inset 0 0 0 2px var(--ink); }
+    .btn--line:hover::before { background: rgba(42, 27, 61, .08); }
+    .btn[aria-disabled="true"] { cursor: default; color: var(--ink-soft); }
+    .btn[aria-disabled="true"]::before { background: transparent; box-shadow: inset 0 0 0 2px var(--silver); }
+
+    /* ───────── Header ───────── */
+    .site-header {
+      position: absolute; inset: 0 0 auto 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 22px var(--gutter);
+    }
+    .logo {
+      font-family: var(--font-display); font-weight: 800; font-size: 1.35rem;
+      font-variation-settings: "wdth" 75, "opsz" 36;
+      letter-spacing: -.02em; text-decoration: none;
+    }
+    .site-nav { display: flex; align-items: center; gap: clamp(16px, 3vw, 40px); }
+    .site-nav a { text-decoration: none; font-weight: 600; font-size: .95rem; }
+    .site-nav a:not(.btn):hover { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; }
+    .site-nav .btn { padding: .6em 1.5em; font-size: .92rem; }
+    @media (max-width: 640px) { .site-nav a:not(.btn) { display: none; } }
+
+    /* ───────── Hero: 컷 인터랙션 ───────── */
+    .hero {
+      position: relative; overflow: hidden;
+      min-height: max(100svh, 720px);
+      background: var(--porcelain);
+    }
+    .layer { position: absolute; inset: 0; pointer-events: none; }
+    .layer--after {
+      background: var(--bleach);
+      clip-path: inset(0 0 0 var(--cut));
+    }
+    .strands { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .layer--before .strands { -webkit-mask-image: linear-gradient(#000 58%, transparent 97%); mask-image: linear-gradient(#000 58%, transparent 97%); }
+
+    .wordmark {
+      position: absolute; left: var(--gutter); bottom: calc(100% - var(--cut-y));
+      font-family: var(--font-display); font-weight: 800;
+      font-variation-settings: "wdth" 75, "opsz" 96;
+      font-size: clamp(5.5rem, 27vw, 27rem);
+      line-height: .8; letter-spacing: -.035em;
+      margin: 0; user-select: none;
+    }
+    .layer--before .wordmark { color: transparent; -webkit-text-stroke: 2px var(--ink); }
+    .layer--after .wordmark { color: var(--ink); }
+
+    /* 컷 라인 아래의 기준선 */
+    .layer--after::after {
+      content: ""; position: absolute; left: 0; right: 0; top: var(--cut-y);
+      height: 2px; background: var(--ink);
+    }
+
+    .cut-input {
+      position: absolute; z-index: 6; left: 0; top: 0; width: 100%; height: var(--cut-y);
+      margin: 0; opacity: 0; cursor: ew-resize; -webkit-appearance: none; appearance: none;
+      touch-action: pan-y;
+    }
+    .cut-input::-webkit-slider-thumb { -webkit-appearance: none; width: 48px; height: 100vh; }
+    .cut-input::-moz-range-thumb { width: 48px; height: 100vh; border: 0; background: transparent; }
+
+    .handle {
+      position: absolute; z-index: 5; top: 0; bottom: 0; left: var(--cut);
+      width: 0; pointer-events: none;
+    }
+    .handle::before {
+      content: ""; position: absolute; top: 0; bottom: 0; left: -1px; width: 2px; background: var(--ink);
+    }
+    .knob {
+      position: absolute; top: var(--cut-y); left: 0; width: 60px; height: 60px;
+      transform: translate(-50%, -50%);
+      display: grid; place-items: center;
+      background: var(--ink); color: var(--bleach); border-radius: 50%;
+    }
+    .cut-input:focus-visible ~ .handle .knob { outline: 3px solid var(--focus); outline-offset: 4px; }
+
+    .hero-copy {
+      position: absolute; z-index: 7; left: var(--gutter); right: var(--gutter); bottom: clamp(28px, 5vh, 56px);
+      max-width: 32rem;
+    }
+    .hero-copy .lede {
+      font-weight: 800; font-size: clamp(1.5rem, 3.2vw, 2.1rem);
+      line-height: 1.25; letter-spacing: -.03em;
+    }
+    .hero-copy .sub { margin-top: .7em; color: var(--ink-soft); font-size: 1rem; max-width: 26rem; }
+    .hero-actions { margin-top: 1.4em; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 26px; }
+    .hint { margin-top: 1.2em; font-size: .85rem; color: var(--ink-soft); }
+    @media (max-width: 640px) {
+      :root { --cut-y: 50%; }
+      .hero { min-height: max(100svh, 780px); }
+      .wordmark { font-size: 36vw; }
+      .layer--before .wordmark { -webkit-text-stroke-width: 1.5px; }
+    }
+
+    /* ───────── Section 공통 ───────── */
+    .section { padding-block: var(--section-y); }
+    .section-head {
+      display: grid; gap: 20px 6vw; align-items: end;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+      margin-bottom: clamp(36px, 6vw, 72px);
+    }
+    .section-head h2 {
+      font-weight: 800; font-size: clamp(2.2rem, 6vw, 4.5rem);
+      line-height: 1.02; letter-spacing: -.04em;
+    }
+    .section-head p { color: var(--ink-soft); max-width: 34rem; }
+    @media (max-width: 820px) { .section-head { grid-template-columns: 1fr; } }
+
+    /* ───────── 시술 메뉴 ───────── */
+    .menu { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--ink); }
+    .menu li {
+      display: grid; gap: 8px 6vw; align-items: baseline;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 5fr) minmax(0, 1.4fr);
+      padding-block: clamp(22px, 3vw, 38px);
+      border-bottom: 1px solid var(--silver);
+    }
+    .menu h3 {
+      font-weight: 800; font-size: clamp(1.8rem, 4.2vw, 3.2rem);
+      line-height: 1.1; letter-spacing: -.04em;
+    }
+    .menu .desc { color: var(--ink-soft); max-width: 30rem; }
+    .menu .time { font-weight: 600; white-space: nowrap; }
+    .menu-note { margin-top: 22px; color: var(--ink-soft); font-size: .95rem; }
+    @media (max-width: 820px) {
+      .menu li { grid-template-columns: 1fr; }
+    }
+
+    /* ───────── 컬러 차트 ───────── */
+    .section--dark { background: var(--ink); color: var(--porcelain); }
+    .section--dark .section-head p { color: #CFC7DE; }
+    .chart {
+      display: flex; gap: 6px; height: clamp(380px, 62vh, 580px);
+    }
+    .swatch {
+      position: relative; flex: 1 1 0; min-width: 0;
+      padding: 0; border: 0; text-align: left; cursor: pointer; overflow: hidden;
+      transition: flex-grow .55s cubic-bezier(.2, .8, .2, 1);
+      background: var(--ink);
+    }
+    .swatch[aria-expanded="true"] { flex-grow: 6; cursor: default; }
+    .swatch > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .swatch .level {
+      position: absolute; left: 14px; bottom: 6px; display: block;
+      font-family: var(--font-display); font-weight: 800;
+      font-variation-settings: "wdth" 75, "opsz" 96;
+      font-size: clamp(2.6rem, 5vw, 4.4rem); line-height: 1; letter-spacing: -.04em;
+    }
+    .swatch .detail {
+      position: absolute; left: 14px; right: 14px; top: 16px; display: block;
+      opacity: 0; transform: translateY(6px);
+      transition: opacity .25s, transform .25s;
+      min-width: 15rem;
+    }
+    .swatch[aria-expanded="true"] .detail { opacity: 1; transform: none; transition-delay: .25s; }
+    .swatch .name { display: block; font-weight: 800; font-size: 1.5rem; letter-spacing: -.03em; line-height: 1.2; }
+    .swatch .note { display: block; margin-top: .4em; font-size: .95rem; line-height: 1.55; max-width: 22rem; }
+    .swatch[data-tone="dark"] { color: var(--porcelain); }
+    .swatch[data-tone="light"] { color: var(--ink); }
+    .chart-note { margin-top: 22px; color: #CFC7DE; font-size: .95rem; }
+    @media (max-width: 720px) {
+      .chart { flex-direction: column; height: auto; }
+      .swatch { flex: 0 0 60px; transition: flex-basis .5s cubic-bezier(.2, .8, .2, 1); }
+      .swatch[aria-expanded="true"] { flex: 0 0 190px; }
+      .swatch .level { font-size: 2.4rem; left: auto; right: 14px; bottom: auto; top: 8px; }
+      .swatch .detail { min-width: 0; right: 70px; top: 12px; }
+      .swatch .note { font-size: .9rem; }
+    }
+
+    /* ───────── 소개 ───────── */
+    .about {
+      display: grid; gap: 28px 6vw;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    }
+    .about h2 {
+      font-weight: 800; font-size: clamp(2.2rem, 6vw, 4.5rem);
+      line-height: 1.02; letter-spacing: -.04em;
+    }
+    .about .body { display: grid; gap: 1.2em; max-width: 34rem; }
+    .about .body strong { font-weight: 800; }
+    @media (max-width: 820px) { .about { grid-template-columns: 1fr; } }
+
+    /* ───────── 예약 문의 ───────── */
+    .section--bleach { background: var(--bleach); }
+    .booking {
+      display: grid; gap: 48px 6vw; align-items: start;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    }
+    .booking h2 {
+      font-weight: 800; font-size: clamp(2.2rem, 6vw, 4.5rem);
+      line-height: 1.02; letter-spacing: -.04em;
+    }
+    .booking .lead { margin-top: 20px; max-width: 28rem; }
+    .channels { margin-top: 32px; display: grid; gap: 12px; justify-items: start; }
+    .info { margin: 32px 0 0; display: grid; gap: 6px 20px; grid-template-columns: auto 1fr; font-size: .95rem; }
+    .info dt { font-weight: 700; }
+    .info dd { margin: 0; }
+    .pending { color: var(--ink-soft); }
+    @media (max-width: 820px) { .booking { grid-template-columns: 1fr; } }
+
+    .composer { display: grid; gap: 28px; }
+    .field { border: 0; padding: 0; margin: 0; min-width: 0; }
+    .field > legend, .field > label.lbl { display: block; padding: 0; margin-bottom: 10px; font-weight: 800; letter-spacing: -.02em; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { position: relative; }
+    .chip input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .chip span {
+      display: inline-block; padding: .55em 1.1em; cursor: pointer;
+      border: 2px solid var(--ink); font-weight: 600;
+      transition: background .15s, color .15s;
+    }
+    .chip input:checked + span { background: var(--ink); color: var(--bleach); }
+    .chip input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .input {
+      width: 100%; padding: .6em .1em; background: transparent;
+      border: 0; border-bottom: 2px solid var(--ink); border-radius: 0;
+    }
+    .input::placeholder { color: var(--ink-soft); opacity: .8; }
+    textarea.input { resize: vertical; min-height: 4.5em; }
+    select.input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%); background-position: calc(100% - 14px) 55%, calc(100% - 8px) 55%; background-size: 6px 6px; background-repeat: no-repeat; padding-right: 2em; cursor: pointer; }
+    .preview {
+      margin: 0; padding: 18px 20px; white-space: pre-wrap;
+      background: rgba(255, 255, 255, .55); border-left: 6px solid var(--ink);
+      font-size: .98rem; line-height: 1.65;
+    }
+    .composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+    .status { min-height: 1.6em; font-weight: 600; font-size: .95rem; }
+
+    /* ───────── Footer ───────── */
+    .site-footer { background: var(--ink); color: var(--porcelain); padding-block: 40px 48px; }
+    .site-footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 32px; align-items: baseline; }
+    .site-footer .logo { font-size: 1.6rem; }
+    .site-footer small { color: #CFC7DE; font-size: .85rem; }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; transition-delay: 0s !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <a class="logo" href="#top" aria-label="JOGUN 홈">JOGUN</a>
+    <nav class="site-nav" aria-label="주요 메뉴">
+      <a href="#menu">시술 메뉴</a>
+      <a href="#color">컬러 차트</a>
+      <a href="#about">소개</a>
+      <a class="btn" href="#booking">예약 문의</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- ═════ Hero ═════ -->
+    <section class="hero" id="hero" aria-labelledby="hero-title">
+      <h1 id="hero-title" class="sr-only">JOGUN — 헤어 디자이너 조군</h1>
+
+      <div class="layer layer--before" aria-hidden="true">
+        <svg class="strands" id="strands-before" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
+        <p class="wordmark">JOGUN</p>
+      </div>
+      <div class="layer layer--after" aria-hidden="true">
+        <svg class="strands" id="strands-after" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
+        <p class="wordmark">JOGUN</p>
+      </div>
+
+      <input class="cut-input" id="cut" type="range" min="4" max="96" step="0.1" value="96"
+             aria-label="시술 전후 비교 선. 좌우로 움직이면 머리 길이가 정리됩니다" />
+      <div class="handle" aria-hidden="true">
+        <span class="knob">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.7"/><circle cx="6" cy="18" r="2.7"/><path d="M8.2 7.6 21 17.4M8.2 16.4 21 6.6"/></svg>
+        </span>
+      </div>
+
+      <div class="hero-copy">
+        <p class="lede">손질이 쉬운 컷,<br />오래 가는 컬러.</p>
+        <p class="sub">머리 길이와 고민을 알려 주시면 맞는 시술부터 정리해 드립니다.</p>
+        <div class="hero-actions">
+          <a class="btn" href="#booking">예약 문의하기</a>
+          <a class="btn btn--line" href="#menu">시술 메뉴 보기</a>
+        </div>
+        <p class="hint">가운데 선을 좌우로 끌어 보세요. 왼쪽은 다듬기 전, 오른쪽은 자른 뒤입니다.</p>
+      </div>
+    </section>
+
+    <!-- ═════ 시술 메뉴 ═════ -->
+    <section class="section" id="menu" aria-labelledby="menu-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="menu-title">시술 메뉴</h2>
+          <p>시술은 상담에서 시작합니다. 현재 모발 상태와 평소 스타일링 시간을 먼저 확인하고, 할 수 있는 범위를 말씀드립니다.</p>
+        </div>
+        <ul class="menu">
+          <li>
+            <h3>커트</h3>
+            <p class="desc">얼굴선과 숱을 보고 자릅니다. 샴푸 후 말리기만 해도 모양이 잡히는 것을 기준으로 합니다.</p>
+            <p class="time">약 60분</p>
+          </li>
+          <li>
+            <h3>펌</h3>
+            <p class="desc">모량과 손상도를 먼저 확인합니다. 컬 크기는 평소 스타일링에 쓰는 시간에 맞춰 정합니다.</p>
+            <p class="time">약 150분</p>
+          </li>
+          <li>
+            <h3>컬러·탈색</h3>
+            <p class="desc">현재 모발 레벨을 보고 가능한 밝기를 말씀드립니다. 손상이 크면 나눠서 진행합니다.</p>
+            <p class="time">약 120–240분</p>
+          </li>
+          <li>
+            <h3>클리닉</h3>
+            <p class="desc">시술 후 손상 정도에 맞춰 단계를 고릅니다. 집에서 관리하는 방법도 함께 알려 드립니다.</p>
+            <p class="time">약 40분</p>
+          </li>
+        </ul>
+        <p class="menu-note">가격은 상담 후 안내합니다. 소요 시간은 머리 길이와 모량에 따라 달라집니다.</p>
+      </div>
+    </section>
+
+    <!-- ═════ 컬러 차트 ═════ -->
+    <section class="section section--dark on-dark" id="color" aria-labelledby="color-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="color-title">컬러 차트</h2>
+          <p>숫자는 모발 밝기 레벨입니다. 클수록 밝습니다. 원하는 톤을 눌러 필요한 시술 단계를 확인해 보세요.</p>
+        </div>
+        <div class="chart" id="chart" role="group" aria-label="모발 밝기 레벨 2부터 10까지"></div>
+        <p class="chart-note">화면 색은 기기마다 다르게 보입니다. 실제 톤은 상담 때 모발에 대어 보고 정합니다.</p>
+      </div>
+    </section>
+
+    <!-- ═════ 소개 ═════ -->
+    <section class="section" id="about" aria-labelledby="about-title">
+      <div class="wrap about">
+        <h2 id="about-title">조군은<br />이렇게 일합니다</h2>
+        <div class="body">
+          <p>JOGUN은 헤어 디자이너 조군의 개인 브랜드입니다. 한 번에 많이 바꾸기보다, <strong>다음 달에도 예쁜 머리</strong>를 목표로 합니다.</p>
+          <p>시술 전에 모발 상태와 생활 패턴을 먼저 묻습니다. 아침에 머리 손질에 몇 분을 쓰는지, 얼마나 자주 방문할 수 있는지에 따라 같은 스타일도 다르게 자르기 때문입니다.</p>
+          <p>시술 과정은 영상으로 기록해 인스타그램에 올립니다. 마음에 드는 영상이 있다면 문의할 때 함께 보내 주세요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════ 예약 문의 ═════ -->
+    <section class="section section--bleach" id="booking" aria-labelledby="booking-title">
+      <div class="wrap booking">
+        <div>
+          <h2 id="booking-title">예약 문의</h2>
+          <p class="lead">아래에서 고르면 문의 내용이 정리됩니다. 복사해서 카카오톡이나 인스타그램 DM으로 보내 주세요.</p>
+          <div class="channels" id="channels"></div>
+          <dl class="info" id="info"></dl>
+        </div>
+
+        <form class="composer" id="composer" onsubmit="return false">
+          <fieldset class="field">
+            <legend>원하는 시술</legend>
+            <div class="chips">
+              <label class="chip"><input type="radio" name="service" value="커트" /><span>커트</span></label>
+              <label class="chip"><input type="radio" name="service" value="펌" /><span>펌</span></label>
+              <label class="chip"><input type="radio" name="service" value="컬러·탈색" /><span>컬러·탈색</span></label>
+              <label class="chip"><input type="radio" name="service" value="클리닉" /><span>클리닉</span></label>
+              <label class="chip"><input type="radio" name="service" value="상담 먼저 받고 싶어요" /><span>상담 먼저</span></label>
+            </div>
+          </fieldset>
+
+          <div class="field">
+            <label class="lbl" for="length">현재 머리 길이</label>
+            <select class="input" id="length" name="length">
+              <option value="">선택 안 함</option>
+              <option>숏</option>
+              <option>단발</option>
+              <option>중단발</option>
+              <option>장발</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="lbl" for="when">희망 일정</label>
+            <input class="input" id="when" name="when" type="text" placeholder="예: 이번 주 토요일 오후" autocomplete="off" />
+          </div>
+
+          <div class="field">
+            <label class="lbl" for="memo">전하고 싶은 내용</label>
+            <textarea class="input" id="memo" name="memo" placeholder="예: 6개월 전에 탈색했고, 이번엔 뿌리 염색만 하고 싶어요"></textarea>
+          </div>
+
+          <div class="field">
+            <p class="lbl" style="margin-bottom:10px;font-weight:800;letter-spacing:-.02em">보낼 내용</p>
+            <p class="preview" id="preview" aria-live="polite"></p>
+          </div>
+
+          <div class="composer-actions">
+            <button class="btn" type="button" id="copy">문의 내용 복사</button>
+            <p class="status" id="status" role="status"></p>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer on-dark">
+    <div class="wrap">
+      <a class="logo" href="#top">JOGUN</a>
+      <small>© 2026 JOGUN. 헤어 디자이너 조군.</small>
+    </div>
+  </footer>
+
+  <script>
+    /* ═════════════════════════════════════════════
+       연락처 설정 — 값을 채우면 버튼과 안내가 바로 켜집니다.
+       비워 두면 "준비 중"으로 표시됩니다.
+       ═════════════════════════════════════════════ */
+    const CONTACT = {
+      kakao: "",       // 예: "https://pf.kakao.com/_xxxxx"
+      instagram: "",   // 예: "https://instagram.com/계정명"
+      phone: "",       // 예: "010-0000-0000"
+      address: "",     // 예: "서울시 ○○구 ○○로 00, 2층"
+      hours: ""        // 예: "화–일 11:00–20:00 (월 휴무)"
+    };
+
+    (() => {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const NS = "http://www.w3.org/2000/svg";
+
+      /* ───── 시드 난수 (새로고침해도 같은 머리카락) ───── */
+      function mulberry32(a) {
+        return function () {
+          a |= 0; a = (a + 0x6D2B79F5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      /* ───── Hero 머리카락 ───── */
+      const STRANDS = 84;
+      const rand = mulberry32(11);
+      const strands = Array.from({ length: STRANDS }, (_, i) => ({
+        x: (i + 0.5) * (1000 / STRANDS) + (rand() - 0.5) * 5,
+        endY: 700 + rand() * 300,
+        amp: 6 + rand() * 24,
+        wave: 55 + rand() * 70,
+        phase: rand() * Math.PI * 2,
+        drift: (rand() - 0.5) * 36,
+        tidyAmp: 0.6 + rand() * 1.6,
+        tidyPhase: rand() * Math.PI * 2
+      }));
+
+      function makePath(points, attrs) {
+        const p = document.createElementNS(NS, "path");
+        p.setAttribute("d", points.map((pt, i) => (i ? "L" : "M") + pt[0].toFixed(1) + " " + pt[1].toFixed(1)).join(" "));
+        p.setAttribute("fill", "none");
+        p.setAttribute("vector-effect", "non-scaling-stroke");
+        p.setAttribute("stroke-linejoin", "round");
+        for (const k in attrs) p.setAttribute(k, attrs[k]);
+        return p;
+      }
+
+      /* 다듬기 전: 길이가 제각각이고 엉켜 있음 */
+      const before = document.getElementById("strands-before");
+      strands.forEach((s) => {
+        const pts = [];
+        for (let y = 0; y <= s.endY; y += 14) {
+          const g = Math.pow(y / 1000, 1.25);
+          pts.push([s.x + s.amp * g * Math.sin(y / s.wave + s.phase) + s.drift * g * g, y]);
+        }
+        before.appendChild(makePath(pts, { stroke: "#2A1B3D", "stroke-opacity": 0.38, "stroke-width": 1.1 }));
+      });
+
+      /* 자른 뒤: 모두 같은 길이로 정리됨 (끝선은 CSS의 --cut-y를 따름) */
+      const after = document.getElementById("strands-after");
+      function buildAfter() {
+        const cutY = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cut-y")) * 10 || 640;
+        after.replaceChildren();
+        strands.forEach((s) => {
+          const pts = [];
+          for (let y = 0; y < cutY; y += 20) pts.push([s.x + s.tidyAmp * Math.sin(y / 150 + s.tidyPhase), y]);
+          pts.push([s.x + s.tidyAmp * Math.sin(cutY / 150 + s.tidyPhase), cutY]);
+          after.appendChild(makePath(pts, { stroke: "#8E79C9", "stroke-opacity": 0.62, "stroke-width": 1.6, "stroke-linecap": "butt" }));
+        });
+      }
+      buildAfter();
+      window.matchMedia("(max-width: 640px)").addEventListener("change", buildAfter);
+
+      /* ───── 컷 라인: 입력과 첫 진입 연출 ───── */
+      const hero = document.getElementById("hero");
+      const input = document.getElementById("cut");
+      const setCut = (v) => {
+        hero.style.setProperty("--cut", v + "%");
+        input.value = v;
+        input.setAttribute("aria-valuetext", "컷 라인 " + Math.round(v) + "퍼센트 위치");
+      };
+      input.addEventListener("input", () => { cancelIntro(); setCut(parseFloat(input.value)); });
+
+      let raf = 0;
+      function cancelIntro() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+
+      const FROM = 96, TO = 42;
+      if (reduceMotion) {
+        setCut(TO);
+      } else {
+        setCut(FROM);
+        const DURATION = 2200, DELAY = 500;
+        const start = performance.now() + DELAY;
+        const ease = (t) => 1 - Math.pow(1 - t, 3);
+        const tick = (now) => {
+          const t = Math.min(Math.max((now - start) / DURATION, 0), 1);
+          setCut(FROM + (TO - FROM) * ease(t));
+          raf = t < 1 ? requestAnimationFrame(tick) : 0;
+        };
+        raf = requestAnimationFrame(tick);
+        ["pointerdown", "keydown"].forEach((ev) => input.addEventListener(ev, cancelIntro, { once: true }));
+      }
+
+      /* ───── 컬러 차트 ───── */
+      const TONES = [
+        [2,  "블랙",         "#241A18", "탈색 없이 할 수 있는 가장 어두운 톤. 흑발로 돌아갈 때 고릅니다."],
+        [3,  "다크 초코",    "#3B2A22", "햇빛 아래에서만 갈색이 보이는 톤. 모발 손상이 거의 없습니다."],
+        [4,  "모카",         "#58392A", "차분한 중간 갈색. 첫 염색으로 부담이 적습니다."],
+        [5,  "카페 브라운",  "#765035", "피부가 밝아 보이는 갈색. 탈색 없이 가능합니다."],
+        [6,  "라떼",         "#966A44", "밝은 갈색. 모발에 따라 한 번 밝기를 올릴 수 있습니다."],
+        [7,  "카라멜 베이지","#B58852", "노란기가 도는 밝은 톤. 탈색이 필요한지는 모발 상태를 보고 정합니다."],
+        [8,  "허니 베이지",  "#D0A96C", "탈색이 필요한 구간입니다. 모발 상태를 먼저 확인합니다."],
+        [9,  "밀크 블론드",  "#E4CB93", "탈색 뒤 톤을 정리해야 하는 밝기. 시술을 나눠 진행할 수 있습니다."],
+        [10, "플래티넘",     "#F0E4BC", "가장 밝은 단계. 여러 번에 나눠 하고, 시술 후 관리가 중요합니다."]
+      ];
+
+      function luminance(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+          v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        });
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+      }
+
+      function swatchSvg(hex, seed) {
+        const r = mulberry32(seed);
+        const svg = document.createElementNS(NS, "svg");
+        svg.setAttribute("viewBox", "0 0 100 400");
+        svg.setAttribute("preserveAspectRatio", "none");
+        svg.setAttribute("aria-hidden", "true");
+        const bg = document.createElementNS(NS, "rect");
+        bg.setAttribute("width", "100"); bg.setAttribute("height", "400"); bg.setAttribute("fill", hex);
+        svg.appendChild(bg);
+        const n = 26;
+        for (let i = 0; i < n; i++) {
+          const x0 = (i + 0.5) * (100 / n);
+          const amp = 0.6 + r() * 1.8, wave = 40 + r() * 50, ph = r() * 6.28;
+          const pts = [];
+          for (let y = 0; y <= 400; y += 16) pts.push([x0 + amp * Math.sin(y / wave + ph), y]);
+          const light = r() > 0.5;
+          svg.appendChild(makePath(pts, {
+            stroke: light ? "#fff" : "#000",
+            "stroke-opacity": (light ? 0.1 + r() * 0.16 : 0.08 + r() * 0.14).toFixed(2),
+            "stroke-width": (1 + r() * 1.4).toFixed(2)
+          }));
+        }
+        return svg;
+      }
+
+      const chart = document.getElementById("chart");
+      const DEFAULT_OPEN = 5; /* 레벨 7 */
+      TONES.forEach(([level, name, hex, note], i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "swatch";
+        b.dataset.tone = luminance(hex) > 0.32 ? "light" : "dark";
+        b.setAttribute("aria-expanded", i === DEFAULT_OPEN ? "true" : "false");
+        b.setAttribute("aria-label", "레벨 " + level + " " + name);
+        b.appendChild(swatchSvg(hex, 100 + i * 13));
+        const detail = document.createElement("span");
+        detail.className = "detail";
+        detail.innerHTML = '<span class="name"></span><span class="note"></span>';
+        detail.querySelector(".name").textContent = name;
+        detail.querySelector(".note").textContent = note;
+        b.appendChild(detail);
+        const lv = document.createElement("span");
+        lv.className = "level";
+        lv.textContent = level;
+        lv.setAttribute("aria-hidden", "true");
+        b.appendChild(lv);
+        b.addEventListener("click", () => {
+          chart.querySelectorAll(".swatch").forEach((s) => s.setAttribute("aria-expanded", s === b ? "true" : "false"));
+        });
+        chart.appendChild(b);
+      });
+
+      /* ───── 연락처 렌더 ───── */
+      const channels = document.getElementById("channels");
+      const info = document.getElementById("info");
+      function channelButton(label, href, cls) {
+        const a = document.createElement("a");
+        a.className = "btn " + cls;
+        if (href) { a.href = href; a.target = "_blank"; a.rel = "noopener"; a.textContent = label + " 열기"; }
+        else { a.setAttribute("aria-disabled", "true"); a.textContent = label + " 연결 준비 중"; }
+        return a;
+      }
+      channels.appendChild(channelButton("카카오톡", CONTACT.kakao, ""));
+      channels.appendChild(channelButton("인스타그램", CONTACT.instagram, "btn--line"));
+      [["전화", CONTACT.phone], ["위치", CONTACT.address], ["운영 시간", CONTACT.hours]].forEach(([k, v]) => {
+        const dt = document.createElement("dt"); dt.textContent = k;
+        const dd = document.createElement("dd");
+        if (v) { dd.textContent = v; } else { dd.textContent = "준비 중"; dd.className = "pending"; }
+        info.append(dt, dd);
+      });
+
+      /* ───── 문의 내용 만들기 ───── */
+      const form = document.getElementById("composer");
+      const preview = document.getElementById("preview");
+      const status = document.getElementById("status");
+      function buildMessage() {
+        const service = (form.querySelector('input[name="service"]:checked') || {}).value;
+        const length = form.length.value;
+        const when = form.when.value.trim();
+        const memo = form.memo.value.trim();
+        const lines = ["안녕하세요, 예약 문의드립니다."];
+        if (service) lines.push("- 시술: " + service);
+        if (length) lines.push("- 현재 머리 길이: " + length);
+        if (when) lines.push("- 희망 일정: " + when);
+        if (memo) lines.push("- 전하고 싶은 내용: " + memo);
+        return lines.join("\n");
+      }
+      function refresh() { preview.textContent = buildMessage(); status.textContent = ""; }
+      form.addEventListener("input", refresh);
+      refresh();
+
+      document.getElementById("copy").addEventListener("click", async () => {
+        const text = buildMessage();
+        try {
+          await navigator.clipboard.writeText(text);
+          status.textContent = "복사했어요. 카카오톡이나 DM 대화창에 붙여넣어 보내 주세요.";
+        } catch (e) {
+          const range = document.createRange(); range.selectNodeContents(preview);
+          const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+          status.textContent = "자동 복사가 막혀 있어요. 선택된 내용을 직접 복사해 주세요.";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
