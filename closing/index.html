@@ -173,6 +173,11 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var
 .stat .sl{font-size:12px;color:var(--mute);font-weight:600}
 .stat .sv{font-size:18px;font-weight:800;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stat .sv small{font-size:12px;font-weight:600;color:var(--mute);margin-left:1px}
+.flow{display:flex;gap:12px;align-items:flex-start;margin:0 0 12px}
+.flow .fn{width:24px;height:24px;border-radius:50%;background:var(--pri);color:#fff;font-size:13px;font-weight:800;display:grid;place-items:center;flex:none;margin-top:1px}
+.flow b{display:block;font-size:15px}.flow span:not(.fn){display:block;font-size:13px;color:var(--mute);line-height:1.6}
+.filebtn{position:relative;overflow:hidden;cursor:pointer}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
 .sumbox span{font-size:14px;font-weight:700;color:var(--ink2)}
 .sumbox b{font-size:21px;font-weight:800;color:var(--pri);letter-spacing:-.03em}
 
@@ -417,6 +422,7 @@ const defaults=()=>({v:1,
     basicDeduction:150},
   staff:[],months:{},
   plan:{aiConsent:false,aiQ:''},
+  stamp:{},
   sample:false});
 function deepMerge(a,b){
   if(Array.isArray(b)||typeof b!=='object'||b===null) return b;
@@ -452,7 +458,7 @@ function flush(){
   askPersist();
 }
 const METAKEY='closing-meta-v1';
-function metaLoad(){try{return Object.assign({lastBackup:'',installLater:''},JSON.parse(localStorage.getItem(METAKEY)||'{}'))}catch(e){return {lastBackup:'',installLater:''}}}
+function metaLoad(){try{return Object.assign({lastBackup:'',installLater:'',lastMerge:''},JSON.parse(localStorage.getItem(METAKEY)||'{}'))}catch(e){return {lastBackup:'',installLater:''}}}
 let meta=metaLoad();
 const metaSave=()=>{try{localStorage.setItem(METAKEY,JSON.stringify(meta))}catch(e){}};
 let persistAsked=false;
@@ -502,6 +508,93 @@ function delDay(ds){
   for(const ch of Object.keys(d))if(ch!=='cnt')m.sales[ch]=Math.max(0,n(m.sales[ch])-n(d[ch]));
   delete m.days[ds];
 }
+/* ---------- 기기 맞추기 (반자동 동기화) ----------
+   기록을 '단위'로 나눠 언제 고쳤는지(stamp) 적어 둔다.
+   다른 기기에서 온 백업을 합칠 때 단위마다 더 최근에 고친 쪽을 남긴다.
+   단위: set(설정) · staff:<id> · day:<날짜> · mm:<월>(월 매출 직접 입력분·손님 수) · pur:<월> · exp:<월> · pay:<월>:<직원id>
+   기록이 없는데 stamp가 더 최근이면 '지운 것'으로 보고 지운 상태를 남긴다. */
+function stamp(u){if(!u)return;(state.stamp||(state.stamp={}))[u]=Date.now()}
+function unitOf(el){
+  const d=el.dataset,k=ui.month;
+  switch(d.scope){
+    case 'day':return 'day:'+pickDay();
+    case 'month':return 'mm:'+k;
+    case 'set':return 'set';
+    case 'staff':return 'staff:'+d.id;
+    case 'pay':return 'pay:'+k+':'+d.id;
+    case 'item':return (d.list==='purchases'?'pur:':'exp:')+k;
+  }
+  return '';
+}
+const clone=o=>JSON.parse(JSON.stringify(o));
+/* 키 순서·빈 값(0, 빈 칸)과 상관없이 내용이 같은지 비교 */
+const canon=v=>{if(Array.isArray(v))return '['+v.map(canon).join(',')+']';if(v&&typeof v==='object'){return '{'+Object.keys(v).filter(k=>v[k]!==undefined&&v[k]!==0&&v[k]!=='').sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}'}return JSON.stringify(v===undefined?null:v)};
+const same=(a,b)=>canon(a)===canon(b);
+function dayKeys(days){const s=new Set();for(const o of Object.values(days||{}))for(const c in o)if(c!=='cnt')s.add(c);return s}
+function manualOf(m){/* 월 매출 중 '오늘 마감'이 아닌, 월 화면에서 직접 넣은 몫 */
+  const out={},days=m.days||{},keys=new Set([...Object.keys(m.sales||{}),...dayKeys(days)]);
+  for(const c of keys){let s=0;for(const o of Object.values(days))s+=n(o[c]);const v=Math.max(0,n((m.sales||{})[c])-s);if(v)out[c]=v}
+  return out;
+}
+function mergeState(L0,R0){
+  const L=clone(L0),R=clone(R0),Ls=L.stamp||{},Rs=R.stamp||{},sum={newDay:0,upDay:0,delDay:0,keep:0,staff:0,lists:0,set:false};
+  const pick=(u,hasL,hasR,a,b)=>{
+    if(!hasL&&!hasR)return 'L';
+    if(hasL&&hasR&&same(a,b))return 'L';
+    const tl=n(Ls[u]),tr=n(Rs[u]);
+    if(tl>tr)return 'L';if(tr>tl)return 'R';
+    if(!hasL)return 'R';
+    if(hasR)sum.keep++;
+    return 'L';
+  };
+  const out=clone(L);out.stamp={};
+  for(const u of new Set([...Object.keys(Ls),...Object.keys(Rs)]))out.stamp[u]=Math.max(n(Ls[u]),n(Rs[u]));
+  const D=defaults().settings;
+  if(pick('set',!same(L.settings,D),!same(R.settings,D),L.settings,R.settings)==='R'){out.settings=R.settings;sum.set=true}
+  // 직원
+  const ids=[...new Set([...L.staff.map(s=>s.id),...R.staff.map(s=>s.id)])];
+  out.staff=[];
+  for(const id of ids){const a=L.staff.find(s=>s.id===id),b=R.staff.find(s=>s.id===id),w=pick('staff:'+id,!!a,!!b,a,b);
+    const v=w==='L'?a:b;if(v)out.staff.push(v);if(w==='R'&&!same(a,b))sum.staff++}
+  // 달
+  out.months={};
+  const E=()=>({sales:{},purchases:[],expenses:[],pay:{},days:{}});
+  for(const k of new Set([...Object.keys(L.months||{}),...Object.keys(R.months||{})])){
+    const a=Object.assign(E(),L.months[k]),b=Object.assign(E(),R.months[k]),m=Object.assign(E(),clone(a));
+    // 날짜별
+    m.days={};
+    for(const ds of new Set([...Object.keys(a.days),...Object.keys(b.days)])){
+      const x=a.days[ds],y=b.days[ds],w=pick('day:'+ds,!!x,!!y,x,y),v=w==='L'?x:y;
+      if(v)m.days[ds]=v;
+      if(w==='R'&&!same(x,y)){if(!x)sum.newDay++;else if(!y)sum.delDay++;else sum.upDay++}
+    }
+    // 월 화면 직접 입력분 + 손님 수
+    const ma={man:manualOf(a),custs:a.custs||0},mb={man:manualOf(b),custs:b.custs||0};
+    const has=o=>Object.keys(o.man).length>0||n(o.custs)>0;
+    const mm=pick('mm:'+k,has(ma),has(mb),ma,mb)==='L'?ma:mb;
+    m.custs=mm.custs;if(!m.custs)delete m.custs;
+    // 지출 목록 · 급여 입력
+    for(const [li,u] of [['purchases','pur:'],['expenses','exp:']]){
+      const w=pick(u+k,a[li].length>0,b[li].length>0,a[li],b[li]);m[li]=w==='L'?a[li]:b[li];if(w==='R'&&!same(a[li],b[li]))sum.lists++}
+    m.pay={};
+    for(const id of new Set([...Object.keys(a.pay),...Object.keys(b.pay)])){
+      const w=pick('pay:'+k+':'+id,id in a.pay,id in b.pay,a.pay[id],b.pay[id]),v=w==='L'?a.pay[id]:b.pay[id];if(v)m.pay[id]=v}
+    // 월 매출 = 직접 입력분 + 날짜별 합
+    m.sales={};
+    for(const c of new Set([...Object.keys(mm.man),...dayKeys(m.days)])){let s=n(mm.man[c]);for(const o of Object.values(m.days))s+=n(o[c]);if(s)m.sales[c]=s}
+    if(!Object.keys(m.days).length)delete m.days;
+    out.months[k]=m;
+  }
+  out.sample=false;out.plan=L.plan||out.plan;
+  return {state:out,sum,changed:!same(L0.months,out.months)||!same(L0.staff,out.staff)||!same(L0.settings,out.settings)};
+}
+function mergeSummary(s){
+  const a=[];
+  if(s.newDay)a.push(`새 날짜 ${s.newDay}일`);if(s.upDay)a.push(`고친 날짜 ${s.upDay}일`);if(s.delDay)a.push(`지운 날짜 ${s.delDay}일`);
+  if(s.staff)a.push(`직원 정보 ${s.staff}건`);if(s.lists)a.push(`지출 목록 ${s.lists}건`);if(s.set)a.push('설정');
+  return a;
+}
+
 /* ---------- 계산: 손님 수 · 객단가 ----------
    월 매출 화면에 '이번 달 손님 수'를 직접 넣었으면 그 값과 월 총매출로 계산.
    아니면 오늘 마감에 손님 수를 넣은 날만 모아서 (그날 매출 합 ÷ 손님 수)로 계산. */
@@ -636,14 +729,14 @@ function target(el){
 function setPath(o,path,v){const p=path.split('.');for(let i=0;i<p.length-1;i++){o=o[p[i]]||(o[p[i]]={})}o[p[p.length-1]]=v}
 function getPath(o,path){return path.split('.').reduce((a,k)=>a==null?undefined:a[k],o)}
 function commit(el){
-  if(el.dataset.scope==='day'){const ds=pickDay();setDayVal(ds,el.dataset.path,parseMoney(el.value));save();return}
+  if(el.dataset.scope==='day'){const ds=pickDay();setDayVal(ds,el.dataset.path,parseMoney(el.value));stamp('day:'+ds);save();return}
   if(el.dataset.scope==='staff'&&/^tiers\./.test(el.dataset.path||'')){const st=state.staff.find(x=>x.id===el.dataset.id);if(st&&!(Array.isArray(st.tiers)&&st.tiers.length))st.tiers=DEFAULT_TIERS.map(x=>({...x}))}
   const t=target(el);if(!t)return;
   const ty=el.dataset.t;let v=el.value;
   if(el.type==='checkbox')v=el.checked;
   else if(ty==='money')v=parseMoney(v);
   else if(ty==='num'||ty==='pct')v=parseNum(v);
-  setPath(t.obj,t.path,v);if(el.dataset.scope==='ai')aiSave();else save();
+  setPath(t.obj,t.path,v);if(el.dataset.scope==='ai')aiSave();else{stamp(unitOf(el));save()}
 }
 const attrs=(scope,path,extra)=>{extra=extra||{};return `data-scope="${scope}" data-path="${path}"`+(extra.id?` data-id="${extra.id}"`:'')+(extra.list?` data-list="${extra.list}"`:'')+(extra.rr?' data-rr="1"':'')};
 const IN={
@@ -831,19 +924,30 @@ function safetyCards(){
   return h;
 }
 function backupCard(){
-  const d=daysSince(meta.lastBackup);
+  const ago=iso=>{const d=daysSince(iso);return d===Infinity?'없음':d===0?'오늘':d+'일 전'};
   const pr=ui.pendingRestore;
-  return `<div class="card" id="backup"><div class="sec"><span>백업 · 복원</span>${I('shield')}</div>
-  <div class="row"><span class="k">마지막 백업</span><span class="v num" style="font-size:15px">${d===Infinity?'없음':(d===0?'오늘':d+'일 전')}</span></div>
-  <p class="note" style="margin:10px 0 12px">데이터는 이 ${DEV}의 브라우저 안에만 저장돼요. 2주에 한 번은 백업 파일을 카톡 나에게 보내기, 메모, 파일 앱 등에 저장해 두세요.</p>
-  <button class="btn block" data-act="backupShare">${I('send')}백업 파일 보내기 · 저장</button>
-  <div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="backupCopy">${I('copy')}백업 내용 복사</button></div>
+  let h=`<div class="card" id="backup"><div class="sec"><span>기기 맞추기 · 백업</span>${I('shield')}</div>
+  <div class="cap">폰과 매장 PC를 같이 쓸 때, 파일 하나로 서로 맞춰요</div>
+  <div class="stats" style="grid-template-columns:1fr 1fr;margin:0 0 14px"><div class="stat"><div class="sl">마지막으로 보낸 때</div><div class="sv" style="font-size:16px">${ago(meta.lastBackup)}</div></div><div class="stat"><div class="sl">마지막으로 합친 때</div><div class="sv" style="font-size:16px">${ago(meta.lastMerge)}</div></div></div>
+  <div class="flow"><span class="fn">1</span><div><b>이 ${DEV} 기록 보내기</b><span>카톡 ‘나에게 보내기’나 파일 앱에 저장해요. 백업도 같이 돼요.</span></div></div>
+  <button class="btn block" data-act="backupShare">${I('send')}이 ${DEV} 기록 보내기</button>
   <div class="hr"></div>
-  ${pr?`<div class="alert"><p class="at">${I('alert')}이 백업으로 되돌릴까요?</p><p class="note" style="margin:0 0 10px">${esc(pr.info)}<br>지금 이 ${DEV}에 있는 데이터는 이 백업 내용으로 바뀌어요.</p><div class="btns"><button class="btn sm" data-act="restoreYes">되돌리기</button><button class="btn sm ghost" data-act="restoreNo">취소</button></div></div>`:
-  `<div class="fld"><span>백업 파일로 되돌리기</span><input class="inp txt" type="file" id="restoreFile" accept=".json,.txt,application/json,text/plain"></div>
-  <div class="hr"></div>${fld('또는 복사해 둔 백업 붙여넣기','<textarea class="inp" id="restoreBox" placeholder="백업 내용을 붙여넣고 아래 버튼을 누르세요"></textarea>')}
-  <div class="btns" style="margin-top:10px"><button class="btn sm ghost" data-act="restore">붙여넣은 내용으로 되돌리기</button></div>`}
-  </div>`;
+  <div class="flow"><span class="fn">2</span><div><b>다른 기기에서 받은 파일 열기</b><span>날짜별로 비교해서 더 최근에 고친 쪽을 남기고 합쳐요. 통째로 덮어쓰지 않아요.</span></div></div>`;
+  if(pr&&!pr.full){
+    const items=mergeSummary(pr.merge.sum);
+    h+=`<div class="alert" style="background:var(--pri-soft);border-color:#D6E2FF"><p class="at" style="color:var(--ink)">${I('copy')}이 파일과 합칠까요?</p><p class="note" style="margin:0 0 10px">${esc(pr.info)}</p>
+    ${pr.merge.changed?`<p style="margin:0 0 6px;font-size:14px;font-weight:700">가져올 내용</p><p style="margin:0 0 10px;font-size:14px">${items.length?items.map(esc).join(' · '):'월 합계·손님 수 등 일부'}</p>`:`<p style="margin:0 0 10px;font-size:14px;font-weight:700">이 ${DEV}와 내용이 같아요. 합칠 게 없어요.</p>`}
+    ${pr.merge.sum.keep?`<p class="note" style="margin:0 0 10px">양쪽에서 다르게 적힌 ${pr.merge.sum.keep}건은 언제 고쳤는지 알 수 없어서 이 ${DEV} 기록을 남겨요.</p>`:''}
+    <div class="btns"><button class="btn sm" data-act="mergeYes">합치기</button><button class="btn sm ghost" data-act="restoreNo">취소</button></div>
+    <button class="toggle" style="font-size:13px;color:var(--mute)" data-act="restoreAll">합치지 않고 이 파일로 통째로 바꾸기</button></div>`;
+  }else if(pr&&pr.full){
+    h+=`<div class="alert"><p class="at">${I('alert')}이 파일로 통째로 바꿀까요?</p><p class="note" style="margin:0 0 10px">${esc(pr.info)}<br>지금 이 ${DEV}에 있는 기록은 모두 이 파일 내용으로 바뀌어요.</p><div class="btns"><button class="btn sm danger" data-act="restoreYes">통째로 바꾸기</button><button class="btn sm ghost" data-act="restoreNo">취소</button></div></div>`;
+  }else{
+    h+=`<label class="btn ghost block filebtn">${I('copy')}받은 파일 열기<input type="file" id="restoreFile" accept=".json,.txt,application/json,text/plain"></label>
+    <button class="toggle" style="font-size:13px;color:var(--mute)" data-act="pasteBox">${ui.pasteOpen?'붙여넣기 닫기':'파일이 안 열리면: 복사한 내용 붙여넣기'}</button>
+    ${ui.pasteOpen?`<div style="margin-top:10px">${fld('복사해 둔 기록 붙여넣기','<textarea class="inp" id="restoreBox" placeholder="보낸 기록 내용을 붙여넣으세요"></textarea>')}<div class="btns" style="margin-top:10px"><button class="btn sm ghost" data-act="restore">붙여넣은 내용 확인</button><button class="btn sm ghost" data-act="backupCopy">${I('copy')}이 ${DEV} 기록 복사</button></div></div>`:''}`;
+  }
+  return h+`<p class="note" style="margin:14px 0 0">폰에서 보내고 → PC에서 합치고 → PC에서 다시 보내 → 폰에서 합치면 양쪽이 똑같아져요. 같은 날짜를 양쪽에서 고쳤다면 더 나중에 고친 쪽이 남아요.</p></div>`;
 }
 
 /* 입력 (오늘 마감 · 월 매출 · 지출) */
@@ -892,7 +996,8 @@ function vMore(){
   const M_=(act,ic,cls,t,dd)=>`<button class="menu" data-act="${act}"><span class="ic ${cls}">${I(ic)}</span><span class="mt"><b>${t}</b><span class="d">${dd}</span></span>${I('chev')}</button>`;
   const Q=[
     ['데이터는 어디에 저장되나요?',`이 ${DEV}의 브라우저 안에만 저장돼요. 서버로 보내지 않아요. 그래서 2주에 한 번은 백업 파일을 카톡 나에게 보내기나 파일 앱에 저장해 두는 게 안전해요.`],
-    ['폰을 바꾸면 어떻게 하나요?','예전 기기에서 백업 파일을 보내 두고, 새 기기에서 더보기 › 백업 · 복원의 ‘백업 파일로 되돌리기’로 불러오면 그대로 이어서 쓸 수 있어요.'],
+    ['폰과 매장 PC에서 같이 쓰려면?','더보기 › 기기 맞추기에서 폰 기록을 보내고(카톡 나에게 보내기), PC에서 그 파일을 열어 합치세요. PC에서 입력한 것도 같은 방법으로 폰에 보내 합치면 양쪽이 똑같아져요. 날짜별로 더 나중에 고친 쪽이 남아요.'],
+    ['폰을 바꾸면 어떻게 하나요?','예전 기기에서 기록을 보내 두고, 새 기기의 더보기 › 기기 맞추기에서 받은 파일을 열어 합치면 그대로 이어서 쓸 수 있어요.'],
     ['오늘 마감과 월 매출은 뭐가 달라요?','오늘 마감에 넣은 금액은 월 매출에 자동으로 더해져요. 매일 넣기 어렵다면 월 매출 화면에서 한 달 합계를 한 번에 넣어도 돼요.'],
     ['세금 금액은 정확한가요?','입력한 숫자로 계산한 추정치예요. 이번 달 숫자가 1년 내내 이어진다고 가정하고, 공제는 기본공제만 반영해요. 신고 전에는 세무사와 꼭 확인하세요.'],
     ['직원들과 같이 쓸 수 있나요?','지금은 기기마다 따로 저장돼서 함께 쓰는 기능은 없어요. 직원에게는 급여 탭의 ‘정산내역 보내기’로 이미지나 문자를 보내 주세요.'],
@@ -900,7 +1005,7 @@ function vMore(){
     ['AI 상담을 쓰면 무엇이 전송되나요?','질문과 이번 달 매출·지출 합계, 직원 수만 Google Gemini로 전송돼요. 상호와 직원 이름은 보내지 않아요. 직접 발급한 Gemini API 키가 필요해요.']
   ];
   return head('더보기','도구와 도움말','자주 쓰지 않는 기능을 모아뒀어요.')+safetyCards()
-  +`<div class="card">${M_('goAid','spark','','절세 체크 · AI 상담','놓치기 쉬운 공제와 세금 줄이는 방법')}${M_('settings','gear','o','설정','상호, 과세유형, 수수료율, 4대보험 요율')}${M_('goBackup','shield','g','백업 · 복원','마지막 백업 '+(d===Infinity?'없음':d===0?'오늘':d+'일 전'))}</div>`
+  +`<div class="card">${M_('goAid','spark','','절세 체크 · AI 상담','놓치기 쉬운 공제와 세금 줄이는 방법')}${M_('settings','gear','o','설정','상호, 과세유형, 수수료율, 4대보험 요율')}${M_('goBackup','shield','g','기기 맞추기 · 백업','폰↔매장 PC 맞추기 · 마지막으로 보낸 때 '+(d===Infinity?'없음':d===0?'오늘':d+'일 전'))}</div>`
   +backupCard()
   +`<div class="eyebrow sechead">자주 묻는 질문</div><div class="ttl">궁금한 점</div><div class="faq">${Q.map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join('')}</div>`
   +`<section class="hero" style="margin-top:28px;text-align:center"><h1 style="font-size:24px;margin-top:4px">써보시고 불편한 점을<br>알려주세요</h1><p>필요한 기능, 빼도 될 기능 모두 좋아요.</p><div class="btns col"><a class="btn white pill block" href="https://www.instagram.com/soowan_jg/" target="_blank" rel="noopener">${I('insta')}인스타그램 DM 보내기</a></div></section>`
@@ -1309,6 +1414,13 @@ async function runTest(){
 }
 
 /* ---------- 백업 ---------- */
+function prepImport(txt){
+  const p=parseBackup(txt);if(!p)return null;
+  if(p.state.sample){toast('예시 데이터가 든 백업이라 합칠 수 없어요.');return null}
+  const base=state.sample?defaults():state;
+  p.merge=mergeState(base,deepMerge(defaults(),p.state));
+  return p;
+}
 function backupJSON(){return JSON.stringify({app:'CLOSING',backup:1,exportedAt:new Date().toISOString(),state})}
 function markBackup(){meta.lastBackup=new Date().toISOString();metaSave();if(ui.tab==='home'||ui.tab==='more'||ui.view==='settings')render(true)}
 function parseBackup(txt){
@@ -1349,7 +1461,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{
   const el=e.target;
   if(el.id==='dayPick'){const v=el.value;if(/^\d{4}-\d{2}-\d{2}$/.test(v)){ui.day=v;ui.month=v.slice(0,7);ui.confirmDel=null;ui.moreAll=false;render(true)}return}
-  if(el.id==='restoreFile'){const f=el.files&&el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const p=parseBackup(r.result);if(p){ui.pendingRestore=p;render(true)}else{toast('CLOSING 백업 파일이 아니거나 손상된 파일이에요.');el.value=''}};r.onerror=()=>toast('파일을 읽지 못했어요.');r.readAsText(f);return}
+  if(el.id==='restoreFile'){const f=el.files&&el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const p=prepImport(r.result);if(p){ui.pendingRestore=p;render(true)}else{toast('CLOSING 백업 파일이 아니거나 손상된 파일이에요.');el.value=''}};r.onerror=()=>toast('파일을 읽지 못했어요.');r.readAsText(f);return}
   if(!el.dataset||!el.dataset.path)return;
   if(el.type==='checkbox'||el.tagName==='SELECT'){commit(el);if(el.dataset.rr)render(true);else live()}
 });
@@ -1382,37 +1494,43 @@ document.addEventListener('click',e=>{
     case 'pickDay':ui.day=d.val;ui.confirmDel=null;ui.moreAll=false;render(true);break;
     case 'moreCh':ui.moreAll=true;render(true);break;
     case 'delDay':
-      if(ui.confirmDel==='day:'+d.val){delDay(d.val);ui.confirmDel=null;save();toast('삭제했어요. 월 합계에서도 빠졌어요.');render(true)}
+      if(ui.confirmDel==='day:'+d.val){delDay(d.val);stamp('day:'+d.val);ui.confirmDel=null;save();toast('삭제했어요. 월 합계에서도 빠졌어요.');render(true)}
       else{ui.confirmDel='day:'+d.val;render(true)}break;
     case 'installLater':meta.installLater=new Date().toISOString();metaSave();render(true);break;
     case 'backupShare':backupShare();break;
     case 'restoreYes':{const pr=ui.pendingRestore;if(pr){state=deepMerge(defaults(),pr.state);ensureLegacyCH();ui.pendingRestore=null;ui.open={};ui.day='';flush();toast('백업으로 되돌렸어요');ui.view=null;ui.tab='home';render(false)}break}
     case 'restoreNo':ui.pendingRestore=null;render(true);break;
+    case 'mergeYes':{const pr=ui.pendingRestore;if(!pr||!pr.merge)break;
+      state=deepMerge(defaults(),pr.merge.state);ensureLegacyCH();ui.pendingRestore=null;ui.day='';
+      meta.lastMerge=new Date().toISOString();metaSave();flush();
+      toast(pr.merge.changed?'합쳤어요. 이 기기에서 다시 보내면 양쪽이 똑같아져요':'이미 같은 내용이라 바뀐 게 없어요');render(true);break}
+    case 'restoreAll':if(ui.pendingRestore){ui.pendingRestore.full=true;render(true)}break;
+    case 'pasteBox':ui.pasteOpen=!ui.pasteOpen;render(true);break;
     case 'mprev':ui.month=shiftMonth(ui.month,-1);render(false);break;
     case 'mnext':ui.month=shiftMonth(ui.month,1);render(false);break;
     case 'settings':ui.view='settings';ui.confirmReset=false;render(false);break;
     case 'back':ui.view=null;render(false);break;
     case 'sub':ui.sub=d.val;render(false);break;
-    case 'seg':{const t=target(b);if(t){setPath(t.obj,t.path,d.val);if(t.path==='mode'&&d.val==='tier'&&!(Array.isArray(t.obj.tiers)&&t.obj.tiers.length))t.obj.tiers=DEFAULT_TIERS.map(x=>({...x}));if(t.path==='mat'&&d.val==='pct'&&t.obj.matPct==null)t.obj.matPct=10;save();render(true)}break}
+    case 'seg':{const t=target(b);if(t){setPath(t.obj,t.path,d.val);if(t.path==='mode'&&d.val==='tier'&&!(Array.isArray(t.obj.tiers)&&t.obj.tiers.length))t.obj.tiers=DEFAULT_TIERS.map(x=>({...x}));if(t.path==='mat'&&d.val==='pct'&&t.obj.matPct==null)t.obj.matPct=10;stamp(unitOf(b));save();render(true)}break}
     case 'addItem':{
       const m=getMonth(),id=uid();
       m[d.list].push(d.list==='purchases'?{id,name:d.name||'',amt:0,taxable:true}:{id,name:d.name||'',amt:0});
-      save();render(true);
+      stamp((d.list==='purchases'?'pur:':'exp:')+ui.month);save();render(true);
       addFocus(`[data-id="${id}"][data-path="${d.name?'amt':'name'}"]`);break}
-    case 'delItem':{const m=getMonth();m[d.list]=m[d.list].filter(i=>i.id!==d.id);save();render(true);break}
+    case 'delItem':{const m=getMonth();m[d.list]=m[d.list].filter(i=>i.id!==d.id);stamp((d.list==='purchases'?'pur:':'exp:')+ui.month);save();render(true);break}
     case 'addStaff':{
       const id=uid();
       state.staff.push(d.kind==='designer'?{id,kind:'designer',name:'',rate:40,base:0,vat:'on',feeDeduct:true,tip:false}:{id,kind:'worker',name:'',type:'monthly',rate:0,deduct:'ins'});
-      ui.open[id]=true;save();render(true);addFocus(`[data-id="${id}"][data-path="name"]`);break}
+      ui.open[id]=true;stamp('staff:'+id);save();render(true);addFocus(`[data-id="${id}"][data-path="name"]`);break}
     case 'tierAdd':case 'tierDel':{
       const st=state.staff.find(s=>s.id===d.id);if(!st)break;
       let t=(Array.isArray(st.tiers)&&st.tiers.length?st.tiers:DEFAULT_TIERS).map(x=>({upto:n(x.upto),rate:n(x.rate)}));
       if(d.act==='tierAdd'&&t.length<5){const pv=t.length>1?t[t.length-2]:{upto:0,rate:t[0].rate};const nu=(pv.upto||3000000)+2000000;t.splice(t.length-1,0,{upto:nu,rate:t[t.length-1].rate})}
       if(d.act==='tierDel'&&t.length>2){t.splice(t.length-2,1)}
-      st.tiers=t;save();render(true);break}
+      st.tiers=t;stamp('staff:'+st.id);save();render(true);break}
     case 'toggleStaff':ui.open[d.id]=!ui.open[d.id];ui.confirmDel=null;render(true);break;
     case 'delStaff':
-      if(ui.confirmDel===d.id){state.staff=state.staff.filter(s=>s.id!==d.id);ui.confirmDel=null;save();render(true)}
+      if(ui.confirmDel===d.id){state.staff=state.staff.filter(s=>s.id!==d.id);stamp('staff:'+d.id);ui.confirmDel=null;save();render(true)}
       else{ui.confirmDel=d.id;render(true)}break;
     case 'settle':ui.modal={type:'settle',id:d.id};render(true);break;
     case 'closeModal':if(b.classList.contains('over')&&e.target!==b)break;ui.modal=null;render(true);break;
@@ -1423,10 +1541,10 @@ document.addEventListener('click',e=>{
     case 'aiTest':runTest();break;
     case 'copyAi':copyText(ui.aiOut);break;
     case 'sample':if(anyData()){toast('이미 기록이 있어서 예시를 불러오지 않았어요.');break}loadSample();render(false);break;
-    case 'clearSample':state.months={};state.staff=[];state.settings.shop='';state.sample=false;save();render(false);break;
+    case 'clearSample':state.months={};state.staff=[];state.settings.shop='';state.sample=false;state.stamp={};save();render(false);break;
     case 'backupCopy':copyText(backupJSON());markBackup();break;
     case 'restore':{
-      const box=$('#restoreBox');const r=parseBackup(box?box.value:'');
+      const box=$('#restoreBox');const r=prepImport(box?box.value:'');
       if(r){ui.pendingRestore=r;render(true)}else toast('백업 내용을 읽을 수 없어요. 전체를 다시 복사해 붙여넣어 주세요.');break}
     case 'reset':
       if(ui.confirmReset){state=defaults();ui.confirmReset=false;ui.open={};ui.view=null;ui.modal=null;save();toast('모든 데이터를 지웠어요');render(false)}
@@ -1435,7 +1553,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ui.modal){ui.modal=null;render(true)}});
 
-window.__app={setDayVal,delDay,parseBackup,backupJSON,get meta(){return meta},safetyCards,pickDay,todayStr,drawSettlePng:st=>{const c=drawSettle(st);return c?c.toDataURL('image/png'):null},get state(){return state},get ai(){return ai},askGemini,aiContext,runAsk,ui,calcStaff,calcTax,laborOf,salesTotal,incomeTaxAnnual,settleData,render,loadSample,getMonth};
+window.__app={canon,mergeState,prepImport,stamp,setDayVal,delDay,parseBackup,backupJSON,get meta(){return meta},safetyCards,pickDay,todayStr,drawSettlePng:st=>{const c=drawSettle(st);return c?c.toDataURL('image/png'):null},get state(){return state},get ai(){return ai},askGemini,aiContext,runAsk,ui,calcStaff,calcTax,laborOf,salesTotal,incomeTaxAnnual,settleData,render,loadSample,getMonth};
 render(false);
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 })();
