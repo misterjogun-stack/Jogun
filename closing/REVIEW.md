@@ -1,5 +1,8 @@
 # ZeroBalance(제로밸런스) · 리디자인과 사용자 관점 검토
 
+> **배포 폴더가 `zerobalance/`로 옮겨졌어요.** 앱은 `zerobalance/app/index.html`, 소개 페이지는 `zerobalance/index.html`.
+> Vercel 프로젝트 `zerobalance`가 이 폴더를 배포해요 (이 저장소 GitHub와 연결).
+
 > 예전 이름: CLOSING. 저장 키는 그대로라 기존 기록이 유지되고, 예전 CLOSING 백업 파일도 열림
 
 레퍼런스(FILO 랜딩) 스타일을 적용했습니다: 네이비 그라데이션 히어로, 흰 둥근 카드, 블루 포인트, Pretendard, 선형 아이콘, 소제목(파란 eyebrow) + 큰 제목.
@@ -64,7 +67,14 @@
 - **2027년 카드 공제율 확정 시**: 설정 기본값 바꾸기 (지금은 1.3%·1,000만원)
 - **AI 모델 이름**(`gemini-3.8-flash`): 2026년 11월 기준 Google 문서상 최신 Flash 모델로 확인함
 
-## 배포 시 확인
+## Vercel 배포 구조
+- `/` 소개 페이지 · `/app/` 앱 · `/og-image.png` 링크 미리보기 (1200×630)
+- `/app/?sample=1`: 기록이 하나도 없을 때만 예시 데이터로 열림 (소개 페이지 '샘플로 체험하기')
+- `/app/sw.js`: 오프라인 지원 (인터넷 먼저, 끊기면 저장해 둔 화면)
+- `vercel.json`: `/app` → `/app/` 이동, 서비스 워커 캐시 끔
+- Netlify 배지용 하단 여백(`--tab-lift`)은 0으로
+
+## 배포 시 확인 (예전 Netlify 기준)
 - **아이콘·manifest 올리기**: `closing/` 안의 `manifest.webmanifest`, `icon-180.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `favicon-32.png`를 사이트에 같이 올리기 (기존 파일 교체)
 - 이미 홈 화면에 추가한 아이폰은 아이콘이 자동으로 안 바뀜 → 홈 화면에서 지우고 다시 추가 (기록은 브라우저에 남아 있지만, 지우기 전에 백업 권장)
 - 서비스 워커(`sw.js`)가 예전 화면을 캐시하고 있으면 한두 번 새로고침 후 새 버전이 보임
