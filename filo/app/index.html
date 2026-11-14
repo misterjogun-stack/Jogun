@@ -33,6 +33,52 @@
   />
 
   <script>
+    // ===== 주소 이전 (filo-salon-system.vercel.app → zerocount.vercel.app) =====
+    // 옛 주소: 이 기기에 기록이 없으면 새 주소로 바로 이동. 기록이 있으면 앱 안의 '기록 옮기기' 안내를 띄운다.
+    // 새 주소: #transfer 로 열리면 옛 주소 창이 보내는 기록을 받아 저장한다 (옛 주소에서 온 것만 받음).
+    window.ZC_NEW_ORIGIN = 'https://zerocount.vercel.app';
+    window.ZC_OLD_ORIGINS = ['https://filo-salon-system.vercel.app'];
+    (function () {
+      var isOld = window.ZC_OLD_ORIGINS.indexOf(location.origin) >= 0;
+      var hasData = false;
+      try {
+        var p = JSON.parse(localStorage.getItem('filo_products') || '[]');
+        var demo = JSON.parse(localStorage.getItem('filo_demo') || 'false');
+        hasData = Array.isArray(p) && p.length > 0 && !demo;
+      } catch (e) {}
+      if (isOld) {
+        if (!hasData) location.replace(window.ZC_NEW_ORIGIN + location.pathname + location.search);
+        return;
+      }
+      if (location.hash !== '#transfer' || !window.opener) return;
+      var got = false;
+      window.addEventListener('message', function (e) {
+        if (got || window.ZC_OLD_ORIGINS.indexOf(e.origin) < 0 || !e.data || e.data.type !== 'zc-transfer') return;
+        got = true;
+        var data = e.data.data || {};
+        var keys = Object.keys(data).filter(function (k) { return k.indexOf('filo_') === 0 && typeof data[k] === 'string'; });
+        if (!keys.length) return;
+        if (hasData && !confirm('이 주소에 이미 기록이 있습니다. 옛 주소에서 가져온 기록으로 바꿀까요?')) {
+          e.source.postMessage({ type: 'zc-transfer-done', ok: false }, e.origin);
+          return;
+        }
+        for (var i = localStorage.length - 1; i >= 0; i--) {
+          var k = localStorage.key(i);
+          if (k && k.indexOf('filo_') === 0) localStorage.removeItem(k);
+        }
+        keys.forEach(function (k) { localStorage.setItem(k, data[k]); });
+        try { sessionStorage.setItem('zc_transferred', '1'); } catch (x) {}
+        e.source.postMessage({ type: 'zc-transfer-done', ok: true }, e.origin);
+        location.replace(location.pathname);
+      });
+      var tries = 0;
+      var timer = setInterval(function () {
+        if (got || ++tries > 60) { clearInterval(timer); return; }
+        try { window.opener.postMessage({ type: 'zc-transfer-ready' }, '*'); } catch (x) {}
+      }, 500);
+    })();
+  </script>
+  <script>
     // 저장된 테마(없으면 기기 설정)를 렌더 전에 적용해 깜빡임 방지
     (function () {
       var t = null;
@@ -740,6 +786,9 @@
     .zc-cost-row { display: grid; grid-template-columns: minmax(0, 9em) minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 13px; padding: 4px 0; }
     .zc-cost-row i { display: block; height: 8px; border-radius: 99px; background: var(--f-accent); opacity: .85; }
     .zc-cost-row b { font: 600 13px var(--f-font-display); }
+    .zc-move-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 16px; padding: 14px 16px; border-radius: var(--f-radius); background: var(--f-accent-soft); border: 1px solid color-mix(in srgb, var(--f-accent) 35%, transparent); font-size: 13.5px; line-height: 1.55; }
+    .zc-move-banner p { flex: 1 1 240px; min-width: 0; }
+    .zc-move-banner b { color: var(--f-accent); }
     .zc-usage-row { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 8px; border-radius: 8px; font-size: 14px; }
     .zc-usage-row:hover { background: var(--f-surface-2); }
     .zc-usage-cancel { flex-shrink: 0; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--f-alert); background: var(--f-alert-soft); }
@@ -765,6 +814,6 @@
       window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
     }
   </script>
-  <script defer src="app.js?v=88aad3dbce"></script>
+  <script defer src="app.js?v=1d28d506f9"></script>
 </body>
 </html>

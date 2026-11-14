@@ -2,11 +2,22 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
+  <script>
+    // 옛 주소(filo-salon-system.vercel.app)로 들어오면: 기록이 있으면 옛 주소의 앱(기록 옮기기 안내)으로, 없으면 새 주소로
+    (function () {
+      if (location.hostname !== 'filo-salon-system.vercel.app') return;
+      var has = false;
+      try { var p = JSON.parse(localStorage.getItem('filo_products') || '[]'); var d = JSON.parse(localStorage.getItem('filo_demo') || 'false'); has = Array.isArray(p) && p.length > 0 && !d; } catch (e) {}
+      location.replace(has ? '/app/' : 'https://zerocount.vercel.app' + location.pathname + location.search + location.hash);
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>ZEROCOUNT</title>
   <meta name="description" content="바코드로 찍고, 실물 수량만 입력하면 전산 재고와의 차이가 자동으로 나옵니다. 미용실 약제 재고조사 · 재고 관리 · 발주." />
   <meta property="og:title" content="ZEROCOUNT" />
-  <meta property="og:image" content="https://filo-salon-system.vercel.app/images/og.jpg" />
+  <meta property="og:image" content="https://zerocount.vercel.app/images/og.jpg" />
+  <meta property="og:url" content="https://zerocount.vercel.app/" />
+  <link rel="canonical" href="https://zerocount.vercel.app/" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <link rel="preload" as="image" href="images/hero-1600.webp" imagesrcset="images/hero-900.webp 900w, images/hero-1600.webp 1600w" imagesizes="(min-width: 1232px) 1168px, 100vw" />

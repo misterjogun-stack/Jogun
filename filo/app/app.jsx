@@ -2104,6 +2104,41 @@
       const [showFinishCount, setShowFinishCount] = useState(false);
       const activeCount = counts.find(c => c.status === 'active') || null;
 
+      // ----- 주소 이전: 옛 주소에서 새 주소로 기록 보내기 -----
+      const NEW_ORIGIN = window.ZC_NEW_ORIGIN || 'https://zerocount.vercel.app';
+      const isOldOrigin = (window.ZC_OLD_ORIGINS || []).includes(window.location.origin);
+      const [transferState, setTransferState] = useState('idle'); // idle | waiting | done | declined
+      const startTransfer = () => {
+        const payload = {};
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('filo_')) payload[k] = localStorage.getItem(k);
+          }
+        } catch (e) {}
+        const w = window.open(NEW_ORIGIN + '/app/#transfer', '_blank');
+        if (!w) { showToast('팝업이 막혀 있습니다. 브라우저에서 팝업을 허용해 주세요', 'error'); return; }
+        setTransferState('waiting');
+        let sent = false;
+        const onMsg = (e) => {
+          if (e.origin !== NEW_ORIGIN || !e.data) return;
+          if (e.data.type === 'zc-transfer-ready' && !sent) { sent = true; w.postMessage({ type: 'zc-transfer', data: payload }, NEW_ORIGIN); }
+          if (e.data.type === 'zc-transfer-done') {
+            window.removeEventListener('message', onMsg);
+            setTransferState(e.data.ok ? 'done' : 'declined');
+          }
+        };
+        window.addEventListener('message', onMsg);
+      };
+      useEffect(() => {
+        try {
+          if (sessionStorage.getItem('zc_transferred')) {
+            sessionStorage.removeItem('zc_transferred');
+            setTimeout(() => showToast('옛 주소의 기록을 그대로 옮겨 왔습니다', 'success'), 600);
+          }
+        } catch (e) {}
+      }, []);
+
       // ----- 입고 처리 · 바코드 라벨 · 적정선 추천 -----
       const [receiveOrder, setReceiveOrder] = useState(null);   // { company, items }
       const [showLabels, setShowLabels] = useState(false);
@@ -3202,6 +3237,24 @@
                 </button>
               </div>
             </div>
+
+          {isOldOrigin && (
+            <div className="zc-move-banner" role="status">
+              {transferState === 'done' ? (
+                <>
+                  <p><b>기록을 옮겼습니다.</b> 앞으로는 새 주소 <b>zerocount.vercel.app</b> 을 써 주세요. 홈 화면 아이콘도 새 주소로 다시 추가해 주세요.</p>
+                  <a className="zc-btn-primary" href={NEW_ORIGIN + '/app/'}>새 주소 열기</a>
+                </>
+              ) : (
+                <>
+                  <p><b>주소가 zerocount.vercel.app 으로 바뀌었어요.</b> 이 폰에 있는 기록을 새 주소로 옮겨 주세요. 버튼 한 번이면 됩니다.</p>
+                  <button className="zc-btn-primary" onClick={startTransfer} disabled={transferState === 'waiting'}>
+                    {transferState === 'waiting' ? '옮기는 중…' : transferState === 'declined' ? '다시 시도' : '기록 가지고 새 주소로 이동'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {/* 헤더는 사이드바로 대체됨 */}
 
