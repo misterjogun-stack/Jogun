@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#F2F2EE" />
+  <meta name="theme-color" content="#F4F6FA" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="FILO" />
@@ -28,7 +28,7 @@
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
   />
   <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet"
   />
 
@@ -40,7 +40,7 @@
         extend: {
           fontFamily: {
             sans: ['"Pretendard Variable"', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-            display: ['"Space Grotesk"', '"Pretendard Variable"', 'Pretendard', 'sans-serif'],
+            display: ['Inter', '"Pretendard Variable"', 'Pretendard', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace'],
           },
         },
@@ -73,44 +73,56 @@
        적정선 눈금이 새겨진 구조. 모바일은 엄지로 닿는 하단 탭바.
        ============================================ */
     :root, :root[data-filo-theme="studio"] {
-      --f-bg: #F2F2EE;          /* 도자기 흰색 바탕 */
+      --f-bg: #F4F6FA;
       --f-surface: #FFFFFF;
-      --f-surface-2: #F7F7F3;
+      --f-surface-2: #F1F4F9;
       --f-field: #FFFFFF;
-      --f-ink: #17181B;
-      --f-sub: #696B70;
-      --f-line: #E2E2DB;
-      --f-line-strong: #CBCBC2;
-      --f-accent: #5B2C5E;      /* 보랏빛 토너 — 브랜드 포인트 */
-      --f-accent-hover: #47204A;
+      --f-ink: #0F172A;
+      --f-sub: #64748B;
+      --f-line: #E6EAF0;
+      --f-line-strong: #D6DCE6;
+      --f-accent: #2563EB;          /* 포인트 블루 */
+      --f-accent-hover: #1D4ED8;
       --f-on-accent: #FFFFFF;
-      --f-accent-soft: #F2E9F2;
-      --f-alert: #C4432B;       /* 재고 부족 */
-      --f-alert-soft: #FBEAE4;
-      --f-ok: #2D7A57;
-      --f-shadow: 0 1px 2px rgba(23, 24, 27, 0.05);
-      --f-radius: 14px;
+      --f-accent-soft: #EAF1FF;
+      --f-alert: #E5484D;           /* 품절 */
+      --f-alert-soft: #FDECEC;
+      --f-warn: #EA8A0C;            /* 발주 필요 */
+      --f-warn-soft: #FEF3E2;
+      --f-ok: #16A34A;
+      --f-ok-soft: #E7F6EC;
+      --f-side-bg: #0B1220;         /* 사이드바: 두 테마 공통 네이비 */
+      --f-side-ink: #E2E8F0;
+      --f-side-sub: #8B95A7;
+      --f-side-line: rgba(255, 255, 255, 0.07);
+      --f-side-active: rgba(59, 130, 246, 0.18);
+      --f-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px -8px rgba(15, 23, 42, 0.08);
+      --f-radius: 16px;
       --f-radius-sm: 10px;
-      --f-font-display: 'Space Grotesk', 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+      --f-font-display: 'Inter', 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
       --f-font-mono: 'JetBrains Mono', ui-monospace, monospace;
       color-scheme: light;
     }
     :root[data-filo-theme="night"] {
-      --f-bg: #111113;
-      --f-surface: #1A1A1E;
-      --f-surface-2: #222227;
-      --f-field: #16161A;
-      --f-ink: #EDEDE9;
-      --f-sub: #9D9DA4;
-      --f-line: #2B2B31;
-      --f-line-strong: #3C3C44;
-      --f-accent: #D9A8D8;
-      --f-accent-hover: #E8C3E7;
-      --f-on-accent: #26122B;
-      --f-accent-soft: #2D2030;
-      --f-alert: #FF8064;
-      --f-alert-soft: #3A1F1A;
-      --f-ok: #63C99A;
+      --f-bg: #0A0F1C;
+      --f-surface: #111827;
+      --f-surface-2: #172033;
+      --f-field: #0F1626;
+      --f-ink: #E5E7EB;
+      --f-sub: #94A3B8;
+      --f-line: #1F2A3D;
+      --f-line-strong: #2B3850;
+      --f-accent: #3B82F6;
+      --f-accent-hover: #60A5FA;
+      --f-on-accent: #FFFFFF;
+      --f-accent-soft: #15244A;
+      --f-alert: #F87171;
+      --f-alert-soft: #3A1A1E;
+      --f-warn: #FBBF24;
+      --f-warn-soft: #3A2C12;
+      --f-ok: #34D399;
+      --f-ok-soft: #0F3127;
+      --f-side-bg: #070B14;
       --f-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
       color-scheme: dark;
     }
@@ -257,12 +269,12 @@
     }
     .f-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
     .f-brand-mark {
-      width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+      width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
       display: grid; place-items: center;
-      background: var(--f-accent); color: var(--f-on-accent);
-      font: 700 15px/1 var(--f-font-display);
+      background: linear-gradient(135deg, #3B82F6, #1D4ED8); color: #fff;
+      box-shadow: 0 4px 12px -4px rgba(37, 99, 235, 0.6);
     }
-    .f-brand-name { font: 600 17px/1.1 var(--f-font-display); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .f-brand-name { font: 800 17px/1.1 var(--f-font-display); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .f-brand-sub { font: 500 10px/1.2 var(--f-font-mono); color: var(--f-sub); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .f-icon-btn {
       width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
@@ -273,7 +285,7 @@
 
     .f-tabbar {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
-      display: grid; grid-template-columns: repeat(4, 1fr);
+      display: grid; grid-template-columns: repeat(5, 1fr);
       padding: 6px max(8px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-right, 0px));
       background: var(--f-surface);
       border-top: 1px solid var(--f-line);
@@ -286,7 +298,7 @@
     }
     .f-tab.is-active { color: var(--f-accent); }
     .f-tab.is-active .f-tab-icon { background: var(--f-accent-soft); }
-    .f-tab-icon { width: 44px; height: 28px; border-radius: 999px; display: grid; place-items: center; transition: background .15s; }
+    .f-tab-icon { width: 40px; height: 28px; border-radius: 999px; display: grid; place-items: center; transition: background .15s; }
     .f-tab-dot {
       position: absolute; top: 4px; left: calc(50% + 10px);
       min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
@@ -298,15 +310,25 @@
       .f-topbar, .f-tabbar { display: none; }
     }
 
-    .f-side-nav { display: flex; flex-direction: column; gap: 2px; }
+    .f-sidebar { background: var(--f-side-bg); color: var(--f-side-ink); border-right: 1px solid var(--f-side-line); }
+    .f-sidebar .f-brand-name { color: #fff; }
+    .f-sidebar .f-brand-sub { color: var(--f-side-sub); }
+    .f-side-label { font: 600 11px/1 var(--f-font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--f-side-sub); opacity: .7; padding: 0 12px 8px; }
+    .f-side-nav { display: flex; flex-direction: column; gap: 4px; }
     .f-side-link {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 12px; border-radius: 12px;
-      font-size: 14px; font-weight: 500; color: var(--f-sub);
+      display: flex; align-items: center; gap: 12px; width: 100%;
+      padding: 11px 12px; border-radius: 12px;
+      font-size: 14px; font-weight: 500; color: var(--f-side-sub);
       transition: background .15s, color .15s;
     }
-    .f-side-link:hover { background: var(--f-surface-2); color: var(--f-ink); }
-    .f-side-link.is-active { background: var(--f-accent-soft); color: var(--f-accent); font-weight: 600; }
+    .f-side-link:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+    .f-side-link.is-active { background: var(--f-side-active); color: #fff; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.18); }
+    .f-side-link.is-active svg { color: #60A5FA; }
+    .f-side-foot { border-top: 1px solid var(--f-side-line); }
+    .f-side-user { display: flex; align-items: center; gap: 10px; padding: 12px; margin-top: 8px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); }
+    .f-avatar { width: 34px; height: 34px; border-radius: 999px; display: grid; place-items: center; flex-shrink: 0; background: linear-gradient(135deg, #1E293B, #334155); color: #fff; font-weight: 700; font-size: 14px; }
+    .f-side-user b { display: block; color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .f-side-user small { color: var(--f-side-sub); font-size: 11px; }
     .f-side-link .f-tab-dot { position: static; margin-left: auto; }
 
     /* ---------- 빠른 차감 ---------- */
@@ -337,8 +359,8 @@
     .f-status-value small { font: 500 13px/1 'Pretendard Variable', Pretendard, sans-serif; color: var(--f-sub); margin-left: 3px; letter-spacing: 0; }
     .f-status-cta { font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 2px; }
     button.f-status-cell:hover { background: var(--f-surface-2); }
-    .f-status-cell.is-alert { background: var(--f-alert-soft); color: var(--f-alert); }
-    .f-status-cell.is-alert .f-status-label { color: var(--f-alert); }
+    .f-status-cell.is-alert { background: var(--f-warn-soft); color: var(--f-warn); }
+    .f-status-cell.is-alert .f-status-label { color: var(--f-warn); }
     .f-status-cell.is-pending .f-status-value { color: var(--f-accent); }
 
     .f-chips { display: flex; gap: 6px; overflow-x: auto; margin: 0 -16px 12px; padding: 2px 16px; scrollbar-width: none; }
@@ -351,7 +373,7 @@
     }
     .f-chip .f-num { color: var(--f-sub); font-weight: 500; font-size: 12px; }
     .f-chip.is-empty { color: var(--f-sub); }
-    .f-chip.is-active { background: var(--f-ink); border-color: var(--f-ink); color: var(--f-bg); }
+    .f-chip.is-active { background: var(--f-accent-soft); border-color: var(--f-accent); color: var(--f-accent); }
     .f-chip.is-active .f-num { color: inherit; opacity: .7; }
     .f-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--cat, var(--f-sub)); flex-shrink: 0; display: inline-block; }
 
@@ -379,7 +401,7 @@
     }
     .f-notice p { flex: 1; min-width: 0; }
     .f-notice b { color: var(--f-ink); }
-    .f-notice.is-demo { background: var(--f-accent-soft); border-color: transparent; color: var(--f-ink); }
+    .f-notice.is-demo { background: var(--f-accent-soft); border-color: color-mix(in srgb, var(--f-accent) 25%, transparent); color: var(--f-ink); }
     .f-notice.is-demo b { color: var(--f-accent); }
     .f-notice-btn {
       flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: 10px;
@@ -395,7 +417,7 @@
       border: 1px solid var(--f-line); border-radius: var(--f-radius);
       box-shadow: var(--f-shadow);
     }
-    .f-item.is-low, .f-item.is-out { border-color: color-mix(in srgb, var(--f-alert) 35%, var(--f-line)); }
+    .f-item.is-out { border-color: color-mix(in srgb, var(--f-alert) 35%, var(--f-line)); }
     .f-thumb { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; background: var(--f-surface-2); }
     .f-mono {
       display: grid; place-items: center;
@@ -406,8 +428,9 @@
     .f-item-body { min-width: 0; }
     .f-item-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--f-sub); margin-bottom: 3px; min-width: 0; }
     .f-cat { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
-    .f-badge { flex-shrink: 0; margin-left: auto; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
-    .f-badge.is-low { background: var(--f-alert-soft); color: var(--f-alert); }
+    .f-badge { flex-shrink: 0; margin-left: auto; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; display: inline-block; }
+    .f-badge.is-low { background: var(--f-warn-soft); color: var(--f-warn); }
+    .f-badge.is-ok { background: var(--f-ok-soft); color: var(--f-ok); }
     .f-badge.is-out { background: var(--f-alert); color: #fff; }
     .f-badge.is-pending { background: var(--f-accent-soft); color: var(--f-accent); }
     .f-item-name { font-size: 16px; font-weight: 650; line-height: 1.35; letter-spacing: -0.015em; overflow-wrap: anywhere; }
@@ -415,8 +438,9 @@
     .f-item-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; }
     .f-gauge-wrap { flex: 1; min-width: 0; }
     .f-gauge { position: relative; height: 6px; border-radius: 999px; background: var(--f-surface-2); box-shadow: inset 0 0 0 1px var(--f-line); }
-    .f-gauge-fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--f-ok); transition: width .25s ease; }
-    .f-item.is-low .f-gauge-fill, .f-item.is-out .f-gauge-fill { background: var(--f-alert); }
+    .f-gauge-fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--f-accent); transition: width .25s ease; }
+    .f-item.is-low .f-gauge-fill { background: var(--f-warn); }
+    .f-item.is-out .f-gauge-fill { background: var(--f-alert); }
     .f-item.is-pending .f-gauge-fill { background: var(--f-accent); }
     .f-gauge-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--f-ink); opacity: .55; }
     .f-gauge-label { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--f-sub); }
@@ -432,7 +456,94 @@
       border-left: 1px solid var(--f-line); border-right: 1px solid var(--f-line);
       font: 600 20px/44px var(--f-font-display); font-variant-numeric: tabular-nums; text-align: center;
     }
-    .f-item.is-low .f-count, .f-item.is-out .f-count { color: var(--f-alert); }
+    .f-item.is-low .f-count { color: var(--f-warn); }
+    .f-item.is-out .f-count { color: var(--f-alert); }
+
+    /* ---------- 홈 대시보드 ---------- */
+    .f-hero {
+      position: relative; overflow: hidden; border-radius: 20px; padding: 24px;
+      background: radial-gradient(120% 140% at 100% 0%, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0) 55%), linear-gradient(135deg, #0B1220 0%, #111C33 100%);
+      color: #fff; margin-bottom: 16px;
+      display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;
+    }
+    .f-hero::after {
+      content: ""; position: absolute; right: -40px; bottom: -60px; width: 240px; height: 240px; border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.06); box-shadow: 0 0 0 30px rgba(255, 255, 255, 0.02), 0 0 0 60px rgba(255, 255, 255, 0.015);
+      pointer-events: none;
+    }
+    .f-hero-date { font-size: 13px; color: #93A4C3; font-weight: 500; }
+    .f-hero h2 { font-size: 26px; line-height: 1.25; font-weight: 800; letter-spacing: -0.03em; margin-top: 6px; }
+    .f-hero p { color: #B6C2D9; font-size: 14px; margin-top: 6px; }
+    .f-hero-btn {
+      position: relative; z-index: 1;
+      display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 999px;
+      background: #fff; color: #0B1220; font-size: 14px; font-weight: 700; flex-shrink: 0;
+    }
+    .f-hero-btn:hover { background: #E8EEF9; }
+
+    .f-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+    @media (min-width: 1024px) { .f-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; } }
+    .f-kpi {
+      background: var(--f-surface); border: 1px solid var(--f-line); border-radius: var(--f-radius);
+      padding: 16px; box-shadow: var(--f-shadow); text-align: left; display: flex; flex-direction: column; gap: 12px; min-width: 0;
+    }
+    button.f-kpi:hover { border-color: var(--f-line-strong); }
+    .f-kpi-icon { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: var(--tone-soft); color: var(--tone); }
+    .f-kpi-label { font-size: 12.5px; color: var(--f-sub); font-weight: 600; }
+    .f-kpi-value { font: 700 26px/1.1 var(--f-font-display); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; margin-top: 4px; }
+    .f-kpi-value small { font: 600 13px/1 'Pretendard Variable', Pretendard, sans-serif; color: var(--f-sub); margin-left: 3px; letter-spacing: 0; }
+    .tone-blue { --tone: var(--f-accent); --tone-soft: var(--f-accent-soft); }
+    .tone-green { --tone: var(--f-ok); --tone-soft: var(--f-ok-soft); }
+    .tone-orange { --tone: var(--f-warn); --tone-soft: var(--f-warn-soft); }
+    .tone-red { --tone: var(--f-alert); --tone-soft: var(--f-alert-soft); }
+
+    .f-panels { display: grid; gap: 14px; margin-bottom: 16px; }
+    @media (min-width: 1024px) { .f-panels { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); } }
+    .f-panel { background: var(--f-surface); border: 1px solid var(--f-line); border-radius: var(--f-radius); padding: 18px; box-shadow: var(--f-shadow); min-width: 0; }
+    .f-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .f-panel-title { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+    .f-panel-sub { font-size: 12px; color: var(--f-sub); }
+    .f-link-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--f-accent); white-space: nowrap; }
+
+    .f-donut-wrap { display: flex; align-items: center; gap: 20px; }
+    .f-donut { position: relative; width: 132px; height: 132px; flex-shrink: 0; }
+    .f-donut svg { transform: rotate(-90deg); }
+    .f-donut-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+    .f-donut-center b { display: block; font: 800 26px/1 var(--f-font-display); letter-spacing: -0.03em; }
+    .f-donut-center small { font-size: 11px; color: var(--f-sub); font-weight: 600; }
+    .f-legend { flex: 1; min-width: 0; display: grid; gap: 10px; list-style: none; margin: 0; padding: 0; }
+    .f-legend li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--f-sub); }
+    .f-legend li b { margin-left: auto; color: var(--f-ink); font: 700 15px var(--f-font-display); font-variant-numeric: tabular-nums; }
+    .f-legend i { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; }
+
+    .f-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end; height: 140px; padding-top: 8px; border-bottom: 1px solid var(--f-line); background-image: linear-gradient(var(--f-line) 1px, transparent 1px); background-size: 100% 35px; background-position: 0 -1px; }
+    .f-bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; min-width: 0; }
+    .f-bar span { font: 600 11px/1 var(--f-font-display); color: var(--f-sub); font-variant-numeric: tabular-nums; }
+    .f-bar i { width: min(26px, 70%); border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #60A5FA, var(--f-accent)); min-height: 2px; }
+    .f-bar.is-today i { background: linear-gradient(180deg, #93C5FD, #1D4ED8); box-shadow: 0 0 0 3px var(--f-accent-soft); }
+    .f-bar.is-zero i { background: var(--f-line-strong); }
+    .f-bar-labels { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-top: 6px; font-size: 11px; color: var(--f-sub); text-align: center; font-variant-numeric: tabular-nums; }
+    .f-chart-empty { font-size: 12px; color: var(--f-sub); margin-top: 10px; }
+
+    .f-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .f-table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--f-sub); padding: 10px 12px; background: var(--f-surface-2); white-space: nowrap; }
+    .f-table th:first-child { border-radius: 10px 0 0 10px; }
+    .f-table th:last-child { border-radius: 0 10px 10px 0; }
+    .f-table td { padding: 12px; border-bottom: 1px solid var(--f-line); vertical-align: middle; }
+    .f-table tr:last-child td { border-bottom: 0; }
+    .f-table td.f-td-name { font-weight: 600; }
+    .f-table .f-num { white-space: nowrap; }
+    @media (max-width: 640px) { .f-table .f-hide-sm { display: none; } }
+
+    .f-quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    @media (min-width: 1024px) { .f-quick-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    .f-quick {
+      display: flex; align-items: center; gap: 12px; padding: 14px; text-align: left;
+      background: var(--f-surface); border: 1px solid var(--f-line); border-radius: 14px; box-shadow: var(--f-shadow);
+      font-size: 14px; font-weight: 600;
+    }
+    .f-quick:hover { border-color: var(--f-accent); }
+    .f-quick .f-kpi-icon { width: 34px; height: 34px; }
 
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -492,6 +603,11 @@
       list: ['M8 6h13', 'M8 12h13', 'M8 18h13', 'M3 6h.01', 'M3 12h.01', 'M3 18h.01'],
       arrow: ['M5 12h14', 'm12 5 7 7-7 7'],
       minus: ['M5 12h14'],
+      home: ['M3 10.5 12 3l9 7.5', 'M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5'],
+      logo: ['M21 8 12 3 3 8v8l9 5 9-5V8z', 'M3 8l9 5 9-5', 'M12 13v8'],
+      check: ['M22 11.1V12a10 10 0 1 1-5.9-9.1', 'm22 4-10 10-3-3'],
+      alert: ['M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z', 'M12 9v4', 'M12 17h.01'],
+      clock: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z', 'M12 6v6l4 2'],
       plus: ['M12 5v14', 'M5 12h14'],
     };
     const Icon = ({ name, size = 20, strokeWidth = 1.75, className = '' }) => (
@@ -516,6 +632,7 @@
     }
 
     const NAV_ITEMS = [
+      { key: 'home', label: '홈' },
       { key: 'quick', label: '빠른 차감' },
       { key: 'stocktake', label: '재고조사' },
       { key: 'dashboard', label: '발주' },
@@ -1756,11 +1873,11 @@
       useEffect(() => {
         document.documentElement.setAttribute('data-filo-theme', currentThemeKey);
         const meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', currentThemeKey === 'night' ? '#111113' : '#F2F2EE');
+        if (meta) meta.setAttribute('content', currentThemeKey === 'night' ? '#0A0F1C' : '#F4F6FA');
       }, [currentThemeKey]);
       const toggleTheme = () => setCurrentThemeKey(k => (k === 'night' ? 'studio' : 'night'));
 
-      const [viewMode, setViewMode] = useState('quick');
+      const [viewMode, setViewMode] = useState('home');
       const [sidebarOpen, setSidebarOpen] = useState(false);
       const [searchQuery, setSearchQuery] = useState('');
       const [stockSearch, setStockSearch] = useState('');         // 재고조사 탭 검색
@@ -2634,15 +2751,14 @@
           )}
           <aside className={`
             hidden md:flex md:sticky top-0 left-0
-            w-60 h-screen flex-shrink-0
-            ${theme.surface} border-r ${theme.border}
-            flex-col p-5
+            w-64 h-screen flex-shrink-0
+            f-sidebar flex-col p-5
           `}>
             {/* 브랜드 */}
             <div className="mb-8 f-brand">
               {branding.logoImage
                 ? <img src={branding.logoImage} alt="" className="w-[30px] h-[30px] object-contain flex-shrink-0" />
-                : <span className="f-brand-mark">{(branding.appName || 'F').trim().charAt(0)}</span>}
+                : <span className="f-brand-mark"><Icon name="logo" size={18} strokeWidth={2} /></span>}
               <div className="min-w-0 flex-1">
                 <h1 className="f-brand-name">{branding.appName}</h1>
                 <p className="f-brand-sub">{branding.tagline}</p>
@@ -2650,6 +2766,7 @@
             </div>
 
             {/* 메뉴 */}
+            <p className="f-side-label">메뉴</p>
             <nav className="f-side-nav flex-1" aria-label="주요 메뉴">
               {NAV_ITEMS.map(m => (
                 <button
@@ -2666,7 +2783,7 @@
             </nav>
 
             {/* 하단 설정 */}
-            <div className={`mt-4 pt-4 border-t ${theme.border} flex flex-col gap-1`}>
+            <div className="mt-4 pt-4 f-side-foot flex flex-col gap-1">
               <button onClick={toggleTheme} className="f-side-link">
                 <Icon name={currentThemeKey === 'night' ? 'sun' : 'moon'} size={20} />
                 <span>{currentThemeKey === 'night' ? '밝은 화면' : '어두운 화면'}</span>
@@ -2675,6 +2792,13 @@
                 <Icon name="settings" size={20} />
                 <span>설정</span>
               </button>
+              <div className="f-side-user">
+                <span className="f-avatar">{(branding.appName || 'F').trim().charAt(0)}</span>
+                <div className="min-w-0">
+                  <b>{branding.appName}</b>
+                  <small>이 기기에 저장됨</small>
+                </div>
+              </div>
             </div>
           </aside>
 
@@ -2702,7 +2826,7 @@
               <div className="f-brand">
                 {branding.logoImage
                   ? <img src={branding.logoImage} alt="" className="w-[30px] h-[30px] object-contain flex-shrink-0" />
-                  : <span className="f-brand-mark">{(branding.appName || 'F').trim().charAt(0)}</span>}
+                  : <span className="f-brand-mark"><Icon name="logo" size={18} strokeWidth={2} /></span>}
                 <div className="min-w-0">
                   <h1 className="f-brand-name">{branding.appName}</h1>
                   <p className="f-brand-sub">{branding.tagline}</p>
@@ -2721,6 +2845,195 @@
           {/* 헤더는 사이드바로 대체됨 */}
 
           {/* TAB 0: 빠른 차감 (일일 사용) */}
+          {/* TAB: 홈 대시보드 */}
+          {viewMode === 'home' && (() => {
+            const total = products.length;
+            const shortage = products.filter(p => p.currentStock < p.safeStock);
+            const outCount = products.filter(p => p.currentStock === 0).length;
+            const lowCount = shortage.length - outCount;
+            const okCount = total - shortage.length;
+            const okPct = total ? Math.round((okCount / total) * 100) : 0;
+            const needOrder = shortage.filter(p => !orderingProductNames.has(p.name));
+            const lastOrderT = (orderHistory || []).reduce((m, o) => Math.max(m, o.t || 0), 0);
+            const now = new Date();
+            const weekday = ['일', '월', '화', '수', '목', '금', '토'][now.getDay()];
+
+            // 최근 7일 사용량 (차감 기록 기준)
+            const day0 = new Date(); day0.setHours(0, 0, 0, 0); day0.setDate(day0.getDate() - 6);
+            const days = Array.from({ length: 7 }, (_, i) => {
+              const d = new Date(day0); d.setDate(day0.getDate() + i);
+              return { start: d.getTime(), label: `${d.getMonth() + 1}.${d.getDate()}`, qty: 0 };
+            });
+            safeStorage.get('filo_history', []).forEach(h => {
+              if (!(h.delta < 0) || h.t < days[0].start) return;
+              for (let i = days.length - 1; i >= 0; i--) {
+                if (h.t >= days[i].start) { days[i].qty += -h.delta; break; }
+              }
+            });
+            const weekTotal = days.reduce((a, d) => a + d.qty, 0);
+            const maxQty = Math.max(1, ...days.map(d => d.qty));
+
+            // 도넛: 정상 / 부족 / 품절
+            const R = 52, C = 2 * Math.PI * R;
+            const segs = total ? [
+              { v: okCount, color: 'var(--f-accent)' },
+              { v: lowCount, color: 'var(--f-warn)' },
+              { v: outCount, color: 'var(--f-alert)' },
+            ] : [];
+            let acc = 0;
+
+            const attention = [...shortage]
+              .sort((a, b) => (a.currentStock / a.safeStock) - (b.currentStock / b.safeStock))
+              .slice(0, 6);
+
+            return (
+              <div className="max-w-6xl mx-auto">
+                <section className="f-hero">
+                  <div className="relative z-[1] min-w-0">
+                    <p className="f-hero-date">{now.getMonth() + 1}월 {now.getDate()}일 ({weekday})</p>
+                    <h2>약장 현황을<br />한눈에 확인하세요</h2>
+                    <p>{needOrder.length > 0 ? `지금 발주가 필요한 약이 ${needOrder.length}개 있어요.` : '모든 약이 적정선 위에 있어요.'}</p>
+                  </div>
+                  <button className="f-hero-btn" onClick={() => setViewMode('quick')}>
+                    빠른 차감 시작 <Icon name="arrow" size={16} strokeWidth={2.4} />
+                  </button>
+                </section>
+
+                {isDemo ? (
+                  <div className="f-notice is-demo">
+                    <p><b>샘플 데이터</b>로 체험 중입니다. 차감, 발주 문자 미리보기까지 마음껏 눌러 보세요.</p>
+                    <button onClick={startEmpty} className="f-notice-btn">내 약제로 시작</button>
+                  </div>
+                ) : products.length > 0 && (!lastBackup || (Date.now() - new Date(lastBackup).getTime()) > 14 * 86400000) && (
+                  <div className="f-notice">
+                    <p>
+                      {lastBackup
+                        ? `마지막 백업이 ${Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86400000)}일 전입니다.`
+                        : '아직 백업한 적이 없습니다.'}
+                      {' '}폰을 바꾸거나 브라우저 기록을 지우면 데이터가 사라질 수 있어요.
+                    </p>
+                    <button onClick={downloadBackup} className="f-notice-btn">지금 백업</button>
+                  </div>
+                )}
+
+
+                <div className="f-kpis">
+                  <div className="f-kpi tone-blue">
+                    <span className="f-kpi-icon"><Icon name="logo" size={20} /></span>
+                    <div><p className="f-kpi-label">등록 품목</p><p className="f-kpi-value">{total}<small>개</small></p></div>
+                  </div>
+                  <div className="f-kpi tone-green">
+                    <span className="f-kpi-icon"><Icon name="check" size={20} /></span>
+                    <div><p className="f-kpi-label">정상 재고</p><p className="f-kpi-value">{okPct}<small>%</small></p></div>
+                  </div>
+                  <button className="f-kpi tone-orange" onClick={() => setViewMode('dashboard')}>
+                    <span className="f-kpi-icon"><Icon name="alert" size={20} /></span>
+                    <div><p className="f-kpi-label">발주 필요</p><p className="f-kpi-value">{needOrder.length}<small>건</small></p></div>
+                  </button>
+                  <div className="f-kpi tone-blue">
+                    <span className="f-kpi-icon"><Icon name="clock" size={20} /></span>
+                    <div>
+                      <p className="f-kpi-label">최근 발주</p>
+                      <p className="f-kpi-value">
+                        {lastOrderT ? `${new Date(lastOrderT).getMonth() + 1}.${new Date(lastOrderT).getDate()}` : '–'}
+                        {lastOrderT ? <small>({['일','월','화','수','목','금','토'][new Date(lastOrderT).getDay()]})</small> : null}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="f-panels">
+                  <section className="f-panel">
+                    <div className="f-panel-head">
+                      <div><h3 className="f-panel-title">재고 상태</h3><p className="f-panel-sub">적정선 기준</p></div>
+                    </div>
+                    <div className="f-donut-wrap">
+                      <div className="f-donut">
+                        <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+                          <circle cx="66" cy="66" r={R} fill="none" stroke="var(--f-surface-2)" strokeWidth="14" />
+                          {segs.map((sg, i) => {
+                            if (!sg.v) return null;
+                            const len = (sg.v / total) * C;
+                            const el = <circle key={i} cx="66" cy="66" r={R} fill="none" stroke={sg.color} strokeWidth="14"
+                              strokeDasharray={`${Math.max(0, len - 2)} ${C}`} strokeDashoffset={-acc} strokeLinecap="butt" />;
+                            acc += len;
+                            return el;
+                          })}
+                        </svg>
+                        <div className="f-donut-center"><div><b>{okPct}%</b><small>정상</small></div></div>
+                      </div>
+                      <ul className="f-legend">
+                        <li><i style={{ background: 'var(--f-accent)' }} />정상<b>{okCount}</b></li>
+                        <li><i style={{ background: 'var(--f-warn)' }} />부족<b>{lowCount}</b></li>
+                        <li><i style={{ background: 'var(--f-alert)' }} />품절<b>{outCount}</b></li>
+                      </ul>
+                    </div>
+                  </section>
+
+                  <section className="f-panel">
+                    <div className="f-panel-head">
+                      <div><h3 className="f-panel-title">최근 7일 사용량</h3><p className="f-panel-sub">빠른 차감 기록 · 합계 {weekTotal}개</p></div>
+                      <button className="f-link-btn" onClick={() => setShowStats(true)}>월별 통계 <Icon name="arrow" size={14} strokeWidth={2.2} /></button>
+                    </div>
+                    <div className="f-bars" role="img" aria-label={`최근 7일 사용량 ${days.map(d => d.label + ' ' + d.qty + '개').join(', ')}`}>
+                      {days.map((d, i) => (
+                        <div key={d.start} className={`f-bar ${i === 6 ? 'is-today' : ''} ${d.qty === 0 ? 'is-zero' : ''}`}>
+                          {d.qty > 0 && <span>{d.qty}</span>}
+                          <i style={{ height: `${(d.qty / maxQty) * 100}%` }} />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="f-bar-labels">{days.map((d, i) => <span key={d.start}>{i === 6 ? '오늘' : d.label}</span>)}</div>
+                    {weekTotal === 0 && <p className="f-chart-empty">아직 사용 기록이 없어요. 빠른 차감에서 − 를 누르면 여기에 쌓입니다.</p>}
+                  </section>
+                </div>
+
+                <section className="f-panel" style={{ marginBottom: 16 }}>
+                  <div className="f-panel-head">
+                    <div><h3 className="f-panel-title">확인이 필요한 품목</h3><p className="f-panel-sub">적정선 아래로 내려간 약, 남은 비율이 낮은 순</p></div>
+                    {shortage.length > 0 && <button className="f-link-btn" onClick={() => setViewMode('dashboard')}>발주하기 <Icon name="arrow" size={14} strokeWidth={2.2} /></button>}
+                  </div>
+                  {attention.length === 0 ? (
+                    <p className="f-chart-empty" style={{ marginTop: 0 }}>{total === 0 ? "등록된 품목이 없어요. '품목 관리'에서 첫 약제를 등록하세요." : '적정선 아래로 내려간 약이 없어요.'}</p>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="f-table">
+                        <thead><tr><th>품목</th><th className="f-hide-sm">거래처</th><th>재고</th><th>상태</th></tr></thead>
+                        <tbody>
+                          {attention.map(p => {
+                            const st = p.currentStock === 0 ? 'out' : orderingProductNames.has(p.name) ? 'pending' : 'low';
+                            return (
+                              <tr key={p.id}>
+                                <td className="f-td-name">{p.name}</td>
+                                <td className="f-hide-sm" style={{ color: 'var(--f-sub)' }}>{p.company}</td>
+                                <td className="f-num">{p.currentStock} <span style={{ color: 'var(--f-sub)' }}>/ {p.safeStock}</span></td>
+                                <td><span className={`f-badge is-${st}`} style={{ marginLeft: 0 }}>{{ out: '품절', pending: '입고 대기', low: '발주 필요' }[st]}</span></td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+
+                <div className="f-quick-grid">
+                  {[
+                    { key: 'quick', label: '빠른 차감', tone: 'tone-blue' },
+                    { key: 'stocktake', label: '재고조사', tone: 'tone-green' },
+                    { key: 'dashboard', label: '발주', tone: 'tone-orange' },
+                    { key: 'manage', label: '품목 관리', tone: 'tone-blue' },
+                  ].map(q => (
+                    <button key={q.key} className={`f-quick ${q.tone}`} onClick={() => setViewMode(q.key)}>
+                      <span className="f-kpi-icon"><Icon name={q.key} size={18} /></span>
+                      {q.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {viewMode === 'quick' && (() => {
             // 1단계: 검색 필터
             let filtered = searchQuery.trim()
@@ -2788,23 +3101,6 @@
                     <span className="f-status-value">{todayUsage.length}<small>건</small></span>
                   </div>
                 </div>
-
-                {isDemo ? (
-                  <div className="f-notice is-demo">
-                    <p><b>샘플 데이터</b>로 체험 중입니다. 차감, 발주 문자 미리보기까지 마음껏 눌러 보세요.</p>
-                    <button onClick={startEmpty} className="f-notice-btn">내 약제로 시작</button>
-                  </div>
-                ) : products.length > 0 && (!lastBackup || (Date.now() - new Date(lastBackup).getTime()) > 14 * 86400000) && (
-                  <div className="f-notice">
-                    <p>
-                      {lastBackup
-                        ? `마지막 백업이 ${Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86400000)}일 전입니다.`
-                        : '아직 백업한 적이 없습니다.'}
-                      {' '}폰을 바꾸거나 브라우저 기록을 지우면 데이터가 사라질 수 있어요.
-                    </p>
-                    <button onClick={downloadBackup} className="f-notice-btn">지금 백업</button>
-                  </div>
-                )}
 
                 {/* 카테고리 필터 */}
                 <div className="f-chips" role="group" aria-label="카테고리">
