@@ -1,12 +1,12 @@
 {
-  "name": "ZERO COUNT",
-  "short_name": "ZERO COUNT",
+  "name": "ZEROCOUNT",
+  "short_name": "ZEROCOUNT",
   "description": "살롱 재고조사 · 바코드 스캔 · 발주 문자",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#F4F6FA",
-  "theme_color": "#2563EB",
+  "background_color": "#05070D",
+  "theme_color": "#05070D",
   "lang": "ko",
   "icons": [
     {

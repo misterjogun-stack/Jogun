@@ -6,16 +6,16 @@
   <meta name="theme-color" content="#F4F6FA" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="ZERO COUNT" />
+  <meta name="apple-mobile-web-app-title" content="ZEROCOUNT" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="icon-180.png" />
   <meta name="mobile-web-app-capable" content="yes" />
 
   <!-- SEO / OG -->
-  <title>ZERO COUNT</title>
+  <title>ZEROCOUNT</title>
   <meta name="description" content="살롱 약제 재고와 거래처별 발주를 자동화하는 프리미엄 시스템. 월말 재고조사 한 번으로 거래처별 발주 문자가 완성됩니다." />
-  <meta property="og:title" content="ZERO COUNT" />
+  <meta property="og:title" content="ZEROCOUNT" />
   <meta property="og:description" content="약 꺼낼 때 한 번 누르면 재고가 줄고, 떨어지면 거래처별 발주 문자가 완성됩니다." />
   <meta property="og:type" content="website" />
 
@@ -28,7 +28,7 @@
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
   />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Michroma&display=swap"
     rel="stylesheet"
   />
 
@@ -269,11 +269,16 @@
     }
     .f-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
     .f-brand-mark {
-      width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
+      width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
       display: grid; place-items: center;
-      background: linear-gradient(135deg, #3B82F6, #1D4ED8); color: #fff;
-      box-shadow: 0 4px 12px -4px rgba(37, 99, 235, 0.6);
+      background: #05070D; color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 12px -6px rgba(2, 6, 23, 0.6);
     }
+    .zc-wordmark { font-family: 'Michroma', var(--f-font-display); font-size: 14px; line-height: 1; letter-spacing: 0.03em; white-space: nowrap; }
+    .zc-wordmark b { font-weight: 400; color: inherit; }
+    .zc-wordmark i { font-style: normal; color: var(--f-sub); }
+    .f-sidebar .zc-wordmark b, .zc-scan .zc-wordmark b { color: #fff; }
+    .f-sidebar .zc-wordmark i, .zc-scan .zc-wordmark i { color: #A7AFBC; }
     .f-brand-name { font: 800 17px/1.1 var(--f-font-display); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .f-brand-sub { font: 500 10px/1.2 var(--f-font-mono); color: var(--f-sub); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .f-icon-btn {
@@ -667,7 +672,8 @@
       padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
     }
     .zc-scan-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; }
-    .zc-scan-brand { display: flex; align-items: center; gap: 8px; font: 800 13px var(--f-font-display); letter-spacing: 0.08em; }
+    .zc-scan-brand { display: flex; align-items: center; gap: 10px; }
+    .zc-scan-brand .zc-wordmark { font-size: 12px; }
     .zc-scan-close { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #CBD5E1; }
     .zc-scan-close:hover { background: rgba(255, 255, 255, 0.08); }
     .zc-scan-body { flex: 1; overflow: auto; width: min(520px, 100%); margin: 0 auto; padding: 4px 16px 20px; display: flex; flex-direction: column; gap: 14px; }
@@ -708,7 +714,7 @@
 <body>
   <!-- 초기 로딩 스크린 -->
   <div id="filo-loader" class="filo-loader">
-    <div style="font-size: 20px; font-weight: 800; letter-spacing: 0.12em;">ZERO COUNT</div>
+    <div style="font-family: Michroma, sans-serif; font-size: 18px; letter-spacing: 0.06em;">ZERO<span style="opacity:.55">COUNT</span></div>
     <div class="filo-loader-line"></div>
     <div style="font-size: 11px; opacity: 0.6; letter-spacing: 0.1em;">불러오는 중</div>
   </div>
@@ -779,6 +785,28 @@
         {(ICON_PATHS[name] || []).map((d, i) => <path key={i} d={d} />)}
       </svg>
     );
+    // 브랜드: Z 심볼 (사용자 로고를 벡터로 옮김) + ZEROCOUNT 워드마크
+    let zcMarkSeq = 0;
+    function ZMark({ size = 22 }) {
+      const id = React.useRef('zcm' + (++zcMarkSeq)).current;
+      return (
+        <svg width={size} height={Math.round(size * 252 / 500)} viewBox="0 0 500 252" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
+          <defs>
+            <linearGradient id={id + 's'} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#F4F5F7" /><stop offset="0.45" stopColor="#FFFFFF" /><stop offset="0.72" stopColor="#C9CDD4" /><stop offset="1" stopColor="#9EA5B0" />
+            </linearGradient>
+            <linearGradient id={id + 'b'} x1="1" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#2F74FF" /><stop offset="1" stopColor="#0A3FD1" />
+            </linearGradient>
+          </defs>
+          <path fill={`url(#${id}s)`} d="M60 59 129 1H432L112 250H0L246 59Z" />
+          <path fill={`url(#${id}s)`} d="M165 250H402L462 198H227Z" />
+          <path fill={`url(#${id}b)`} d="M457 26 497 66 372 173H277Z" />
+        </svg>
+      );
+    }
+    const Wordmark = () => <span className="zc-wordmark" aria-label="ZEROCOUNT"><b>ZERO</b><i>COUNT</i></span>;
+
     function ProductThumb({ product, size = 44 }) {
       const [failed, setFailed] = useState(false);
       const cat = getCategoryStyle(product.category);
@@ -1264,7 +1292,7 @@
     // ============================================
     function OrderPreviewModal({ theme, preview, branding, onSend, onCopy, onClose }) {
       const { company, info } = preview;
-      const salonLabel = branding.appName && branding.appName !== 'ZERO COUNT' ? `${branding.appName} ` : '';
+      const salonLabel = branding.appName && !['ZEROCOUNT', 'ZERO COUNT'].includes(branding.appName) ? `${branding.appName} ` : '';
       const defaultText = `[${salonLabel}발주 요청]\n\n안녕하세요 사장님,\n아래 제품 발주 요청드립니다.\n\n${info.items.map(it => `- ${it.name}: ${it.qty}개`).join('\n')}\n\n확인 후 배송 부탁드립니다. 감사합니다.`;
       const [text, setText] = useState(defaultText);
 
@@ -1861,7 +1889,7 @@
               {/* 환영 */}
               {current.type === 'welcome' && (
                 <div className="text-center space-y-5">
-                  <h2 className="text-2xl font-extrabold tracking-[0.08em] font-display">ZERO COUNT</h2>
+                  <h2 className="text-2xl"><Wordmark /></h2>
                   <div className={`w-12 h-px mx-auto ${theme.border} border-t`}></div>
                   <h3 className="text-xl font-medium tracking-tight">환영합니다</h3>
                   <p className={`text-base ${theme.subText} leading-relaxed`}>
@@ -2212,7 +2240,7 @@
           @media print { .print-btn { display: none; } body { padding: 0; } }
         </style></head><body>
         <button class="print-btn" onclick="window.print()">PDF로 저장 / 인쇄</button>
-        <header><div><div class="brand">${esc(appName || 'ZERO COUNT')}</div><h1>${esc(session.name)} 재고조사 결과</h1></div>
+        <header><div><div class="brand">${esc(appName || 'ZEROCOUNT')}</div><h1>${esc(session.name)} 재고조사 결과</h1></div>
           <div class="meta">시작 ${fmtDateTime(session.createdAt)}<br>${session.finishedAt ? '완료 ' + fmtDateTime(session.finishedAt) : '진행 중'}</div></header>
         <div class="kpis"><div class="kpi"><span>전체 항목</span><b>${sum.total}</b></div><div class="kpi"><span>조사 완료</span><b>${sum.done}</b></div>
           <div class="kpi"><span>미조사</span><b>${sum.left}</b></div><div class="kpi"><span>진행률</span><b>${sum.pct}%</b></div>
@@ -2290,7 +2318,7 @@
       return (
         <div className="zc-scan" role="dialog" aria-modal="true" aria-label="바코드 스캐너">
           <div className="zc-scan-top">
-            <span className="zc-scan-brand"><span className="f-brand-mark" style={{ width: 26, height: 26, borderRadius: 8 }}><Icon name="logo" size={15} strokeWidth={2} /></span>ZERO COUNT</span>
+            <span className="zc-scan-brand"><ZMark size={30} /><Wordmark /></span>
             <button className="zc-scan-close" onClick={onClose} aria-label="스캐너 닫기"><Icon name="close" size={22} /></button>
           </div>
           <div className="zc-scan-body">
@@ -2485,13 +2513,14 @@
       useEffect(() => { safeStorage.set('filo_completed_orders', completedOrders); }, [completedOrders]);
 
       // 브랜딩 (사용자 커스터마이즈)
-      const DEFAULT_BRANDING = { appName: 'ZERO COUNT', tagline: '살롱 재고 · 재고조사', logoImage: '' };
+      const DEFAULT_BRANDING = { appName: 'ZEROCOUNT', tagline: '살롱 재고 · 재고조사', logoImage: '' };
       const [branding, setBranding] = useState(() => {
         const saved = safeStorage.get('filo_branding', null);
         if (!saved) return DEFAULT_BRANDING;
         // 예전 기본값을 그대로 쓰던 경우만 새 기본값으로 교체 (직접 바꾼 이름은 유지)
         const untouched = (saved.appName === 'FILO SYSTEM' && saved.tagline === 'Intelligent Premium Salon Automation')
-          || (saved.appName === 'FILO' && saved.tagline === '살롱 약제 재고 · 발주');
+          || (saved.appName === 'FILO' && saved.tagline === '살롱 약제 재고 · 발주')
+          || (saved.appName === 'ZERO COUNT' && saved.tagline === '살롱 재고 · 재고조사');
         if (untouched) {
           return { ...DEFAULT_BRANDING, logoImage: saved.logoImage || '' };
         }
@@ -2504,7 +2533,7 @@
 
       // 페이지 타이틀 동기화
       useEffect(() => {
-        document.title = branding.appName === 'ZERO COUNT' ? 'ZERO COUNT' : `${branding.appName} · ZERO COUNT`;
+        document.title = branding.appName === 'ZEROCOUNT' ? 'ZEROCOUNT' : `${branding.appName} · ZEROCOUNT`;
       }, [branding.appName]);
 
       // ESC 키로 모든 편집/모달 닫기
@@ -3014,7 +3043,7 @@
           const data = parsed && (parsed.app === 'zerocount' || parsed.app === 'filo') && parsed.data && typeof parsed.data === 'object' ? parsed.data : null;
           const keys = data ? Object.keys(data).filter(k => k.startsWith('filo_') && !BACKUP_EXCLUDE.includes(k)) : [];
           if (!data || keys.length === 0) {
-            showToast('ZERO COUNT 백업 파일이 아닙니다', 'error');
+            showToast('ZEROCOUNT 백업 파일이 아닙니다', 'error');
             return;
           }
           const count = Array.isArray(data.filo_products) ? data.filo_products.length : 0;
@@ -3215,7 +3244,7 @@
       // 발주서 텍스트 생성 (SMS / 복사 공통)
       const buildOrderText = (company, info) => {
         const itemString = info.items.map(item => `- ${item.name}: ${item.qty}개`).join('\n');
-        const salonLabel = branding.appName && branding.appName !== 'ZERO COUNT' ? `${branding.appName} ` : '';
+        const salonLabel = branding.appName && !['ZEROCOUNT', 'ZERO COUNT'].includes(branding.appName) ? `${branding.appName} ` : '';
         return `[${salonLabel}발주 요청]\n\n안녕하세요 사장님,\n아래 제품 발주 요청드립니다.\n\n${itemString}\n\n확인 후 배송 부탁드립니다. 감사합니다.`;
       };
 
@@ -3435,9 +3464,9 @@
             <div className="mb-8 f-brand">
               {branding.logoImage
                 ? <img src={branding.logoImage} alt="" className="w-[30px] h-[30px] object-contain flex-shrink-0" />
-                : <span className="f-brand-mark"><Icon name="logo" size={18} strokeWidth={2} /></span>}
+                : <span className="f-brand-mark"><ZMark size={22} /></span>}
               <div className="min-w-0 flex-1">
-                <h1 className="f-brand-name">{branding.appName}</h1>
+                <h1 className="f-brand-name">{branding.appName === 'ZEROCOUNT' ? <Wordmark /> : branding.appName}</h1>
                 <p className="f-brand-sub">{branding.tagline}</p>
               </div>
             </div>
@@ -3503,9 +3532,9 @@
               <div className="f-brand">
                 {branding.logoImage
                   ? <img src={branding.logoImage} alt="" className="w-[30px] h-[30px] object-contain flex-shrink-0" />
-                  : <span className="f-brand-mark"><Icon name="logo" size={18} strokeWidth={2} /></span>}
+                  : <span className="f-brand-mark"><ZMark size={22} /></span>}
                 <div className="min-w-0">
-                  <h1 className="f-brand-name">{branding.appName}</h1>
+                  <h1 className="f-brand-name">{branding.appName === 'ZEROCOUNT' ? <Wordmark /> : branding.appName}</h1>
                   <p className="f-brand-sub">{branding.tagline}</p>
                 </div>
               </div>
