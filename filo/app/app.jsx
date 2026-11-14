@@ -2978,7 +2978,7 @@
                   <div className="relative z-[1] min-w-0">
                     <p className="f-hero-date">{now.getMonth() + 1}월 {now.getDate()}일 ({weekday})</p>
                     <h2>약장 현황을<br />한눈에 확인하세요</h2>
-                    <p>{needOrder.length > 0 ? `지금 발주가 필요한 약이 ${needOrder.length}개 있어요.` : '모든 약이 적정선 위에 있어요.'}</p>
+                    <p>{total === 0 ? '품목을 등록하면 약장 현황이 여기에 보여요.' : needOrder.length > 0 ? `지금 발주가 필요한 약이 ${needOrder.length}개 있어요.` : '모든 약이 적정선 위에 있어요.'}</p>
                   </div>
                   <button className="f-hero-btn" onClick={() => setViewMode('quick')}>
                     빠른 차감 시작 <Icon name="arrow" size={16} strokeWidth={2.4} />
@@ -3009,6 +3009,16 @@
                 )}
 
 
+                {total === 0 ? (
+                  <section className="f-panel" style={{ marginBottom: 16 }}>
+                    <div className="zc-empty">
+                      <img src="empty-boxes.webp" width="128" height="128" alt="" className="zc-empty-img" />
+                      <b>등록된 품목이 없어요</b>
+                      <p>품목을 하나씩 등록하거나, 정리해 둔 엑셀을 올려 한 번에 시작하세요.</p>
+                      <button className="zc-btn-primary" onClick={() => setViewMode('manage')}>품목 등록하기</button>
+                    </div>
+                  </section>
+                ) : (<>
                 {activeCount ? (() => {
                   const sm = countSummary(buildCountRows(activeCount, products));
                   return (
@@ -3103,7 +3113,14 @@
                     {shortage.length > 0 && <button className="f-link-btn" onClick={() => setViewMode('dashboard')}>발주하기 <Icon name="arrow" size={14} strokeWidth={2.2} /></button>}
                   </div>
                   {attention.length === 0 ? (
-                    <p className="f-chart-empty" style={{ marginTop: 0 }}>{total === 0 ? "등록된 품목이 없어요. '품목 관리'에서 첫 약제를 등록하세요." : '적정선 아래로 내려간 약이 없어요.'}</p>
+                    total === 0 ? (
+                      <div className="zc-empty">
+                        <img src="empty-boxes.webp" width="128" height="128" alt="" className="zc-empty-img" />
+                        <b>등록된 품목이 없어요</b>
+                        <p>품목을 하나씩 등록하거나, 정리해 둔 엑셀을 올려 한 번에 시작하세요.</p>
+                        <button className="zc-btn-primary" onClick={() => setViewMode('manage')}>품목 등록하기</button>
+                      </div>
+                    ) : <p className="f-chart-empty" style={{ marginTop: 0 }}>적정선 아래로 내려간 약이 없어요.</p>
                   ) : (
                     <div style={{ overflowX: 'auto' }}>
                       <table className="f-table">
@@ -3125,6 +3142,8 @@
                     </div>
                   )}
                 </section>
+
+                </>)}
 
                 <div className="f-quick-grid">
                   {[
@@ -3274,11 +3293,16 @@
                 </div>
 
                 <ul className="f-list">
-                  {sorted.length === 0 && (
-                    <li className="f-empty">
-                      {searchQuery ? '검색 결과가 없습니다' : "등록된 품목이 없습니다. '품목 관리'에서 첫 약제를 등록하세요."}
+                  {sorted.length === 0 && (searchQuery || products.length > 0 ? (
+                    <li className="f-empty">검색 결과가 없습니다</li>
+                  ) : (
+                    <li className="f-empty zc-empty">
+                      <img src="empty-boxes.webp" width="128" height="128" alt="" className="zc-empty-img" />
+                      <b>등록된 품목이 없어요</b>
+                      <p>품목을 하나씩 등록하거나, 정리해 둔 엑셀을 올려 한 번에 시작하세요.</p>
+                      <button className="zc-btn-primary" onClick={() => setViewMode('manage')}>품목 등록하기</button>
                     </li>
-                  )}
+                  ))}
                   {sorted.map(product => {
                     const isShortage = product.currentStock < product.safeStock;
                     const isCritical = product.currentStock === 0;
@@ -3394,7 +3418,7 @@
                     <div className="f-panel-head"><div><h3 className="f-panel-title">재고조사 목록</h3><p className="f-panel-sub">전체 {counts.length}건</p></div></div>
                     {counts.length === 0 ? (
                       <div className="zc-empty">
-                        <span className="f-kpi-icon tone-blue"><Icon name="stocktake" size={22} /></span>
+                        <img src="empty-boxes.webp" width="128" height="128" alt="" className="zc-empty-img" />
                         <b>아직 재고조사 기록이 없어요</b>
                         <p>'재고조사 생성'을 누르고 약장을 돌며 바코드를 찍거나 수량을 입력하세요. 전산 재고와 다른 품목은 자동으로 표시됩니다.</p>
                       </div>

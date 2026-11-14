@@ -6,7 +6,10 @@
   <title>ZEROCOUNT</title>
   <meta name="description" content="바코드로 찍고, 실물 수량만 입력하면 전산 재고와의 차이가 자동으로 나옵니다. 미용실 약제 재고조사 · 재고 관리 · 발주." />
   <meta property="og:title" content="ZEROCOUNT" />
-  <meta property="og:image" content="https://filo-salon-system.vercel.app/og-image.png" />
+  <meta property="og:image" content="https://filo-salon-system.vercel.app/images/og.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <link rel="preload" as="image" href="images/hero-1600.webp" imagesrcset="images/hero-900.webp 900w, images/hero-1600.webp 1600w" imagesizes="(min-width: 1232px) 1168px, 100vw" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta property="og:description" content="정확한 재고조사, 더 스마트하게. 바코드 스캔 · 재고 차이 자동 비교 · 엑셀/PDF 결과." />
   <meta property="og:type" content="website" />
@@ -131,8 +134,34 @@
     .wordmark { font-family: 'Michroma', var(--font-num); font-size: 15px; font-weight: 400; letter-spacing: 0.03em; white-space: nowrap; }
     .wordmark b { font-weight: 400; color: var(--ink); }
     .wordmark i { font-style: normal; color: var(--sub); }
-    .hero-mark { position: absolute; right: -60px; bottom: -40px; width: 560px; opacity: 0.06; pointer-events: none; }
-    .hero-mark svg { width: 100%; height: auto; display: block; }
+    .hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 72% 50%; }
+    .hero-shade {
+      position: absolute; inset: 0; pointer-events: none;
+      background:
+        linear-gradient(90deg, rgba(4, 7, 14, 0.94) 0%, rgba(4, 7, 14, 0.8) 36%, rgba(4, 7, 14, 0.2) 66%, rgba(4, 7, 14, 0.05) 100%),
+        linear-gradient(0deg, rgba(4, 7, 14, 0.9) 0%, rgba(4, 7, 14, 0) 42%);
+    }
+    @media (max-width: 959px) {
+      .hero-photo { object-position: 80% 45%; }
+      .hero-shade { background: linear-gradient(180deg, rgba(4, 7, 14, 0.72) 0%, rgba(4, 7, 14, 0.55) 34%, rgba(4, 7, 14, 0.82) 62%, rgba(4, 7, 14, 0.94) 100%); }
+    }
+    .ov-photo {
+      position: relative; overflow: hidden; border-radius: 24px; min-height: 400px;
+      padding: 44px 36px; display: flex; flex-direction: column; justify-content: center;
+      background: #DCE3EC; color: #0F172A;
+    }
+    .ov-photo-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 85% 50%; }
+    .ov-photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(244, 246, 250, 0.95) 0%, rgba(244, 246, 250, 0.82) 38%, rgba(244, 246, 250, 0) 68%); }
+    .ov-photo > :not(img) { position: relative; z-index: 1; max-width: 380px; }
+    .ov-photo .eyebrow { color: #2563EB; }
+    .ov-photo .h2 { color: #0F172A; }
+    .ov-photo .lead { color: #475569; }
+    @media (max-width: 639px) {
+      .ov-photo { padding: 30px 22px; min-height: 460px; justify-content: flex-start; }
+      .ov-photo::after { background: linear-gradient(180deg, rgba(244, 246, 250, 0.96) 0%, rgba(244, 246, 250, 0.85) 52%, rgba(244, 246, 250, 0.05) 100%); }
+      .ov-photo-img { object-position: 78% 50%; }
+    }
+    .scan-photo { display: block; width: min(460px, 100%); height: auto; margin: 0 auto; border-radius: 28px; box-shadow: 0 40px 80px -40px rgba(15, 23, 42, 0.6); }
     .hero-logo { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
     .hero-logo .wordmark { font-size: 18px; }
     .hero-logo .wordmark b { color: #fff; } .hero-logo .wordmark i { color: #A7AFBC; }
@@ -168,9 +197,10 @@
       -webkit-mask-image: radial-gradient(70% 70% at 70% 30%, #000 0%, transparent 75%);
     }
     .hero-grid { position: relative; display: grid; gap: 36px; align-items: center; }
+    .hero-grid > div { max-width: 600px; }
     @media (min-width: 960px) {
       .hero-card { padding: 64px 56px 32px; }
-      .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; }
+      .hero-card { min-height: 620px; display: flex; flex-direction: column; justify-content: space-between; }
     }
     .hero-tag { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); font-size: 13px; font-weight: 600; color: #C7D4EC; }
     .hero-tag i { width: 6px; height: 6px; border-radius: 99px; background: #60A5FA; box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.2); }
@@ -228,9 +258,9 @@
 
     /* ---------- overview (light) ---------- */
     .overview-grid { display: grid; gap: 28px; align-items: center; }
-    @media (min-width: 960px) { .overview-grid { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 48px; } }
+    @media (min-width: 960px) { .overview-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 20px; align-items: stretch; } }
     .ov-cards { display: grid; gap: 14px; }
-    @media (min-width: 640px) { .ov-cards { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); } }
+    @media (min-width: 640px) and (max-width: 959px) { .ov-cards { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); } }
     .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 20px; box-shadow: var(--shadow); min-width: 0; }
     .card h3 { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
     .card .cap { font-size: 12px; color: var(--sub); }
@@ -395,7 +425,8 @@
     <section class="hero">
       <div class="wrap">
         <div class="hero-card">
-          <div class="hero-mark"><svg width="560" height="282" aria-hidden="true"><use href="#zmark"/></svg></div>
+          <img class="hero-photo" src="images/hero-1600.webp" srcset="images/hero-900.webp 900w, images/hero-1600.webp 1600w" sizes="(min-width: 1232px) 1168px, 100vw" width="1600" height="900" alt="" fetchpriority="high" decoding="async" />
+          <div class="hero-shade" aria-hidden="true"></div>
           <div class="hero-grid">
             <div>
               <div class="hero-logo"><svg width="64" height="32" aria-hidden="true"><use href="#zmark"/></svg><span class="wordmark"><b>ZERO</b><i>COUNT</i></span></div>
@@ -411,39 +442,6 @@
               </div>
             </div>
 
-            <div class="mock" aria-hidden="true">
-              <div class="mock-app">
-                <div class="mock-side">
-                  <div class="ml"><svg width="18" height="9" aria-hidden="true"><use href="#zmark"/></svg><span class="wordmark" style="font-size:8.5px"><b style="color:#fff">ZERO</b><i style="color:#A7AFBC">COUNT</i></span></div>
-                  <p>홈</p><p>빠른 차감</p><p class="on">재고조사</p><p>발주</p><p>품목 관리</p>
-                </div>
-                <div class="mock-main">
-                  <div class="mock-kpis">
-                    <div class="mk"><small>전체 항목</small><b>120<em>개</em></b></div>
-                    <div class="mk"><small>조사 완료</small><b>75<em>%</em></b></div>
-                    <div class="mk"><small>재고 차이</small><b style="color:#E5484D">3<em>개</em></b></div>
-                  </div>
-                  <div class="mock-row">
-                    <div class="mock-card">
-                      <h4>진행률</h4>
-                      <svg viewBox="0 0 64 64" width="64" height="64" style="display:block;margin:0 auto;transform:rotate(-90deg)">
-                        <circle cx="32" cy="32" r="24" fill="none" stroke="#EEF2F7" stroke-width="8"/>
-                        <circle cx="32" cy="32" r="24" fill="none" stroke="#2563EB" stroke-width="8" stroke-linecap="round" stroke-dasharray="113 151"/>
-                      </svg>
-                    </div>
-                    <div class="mock-card">
-                      <h4>11월 재고조사</h4>
-                      <div class="mock-bars"><i style="height:100%"></i><i style="height:100%"></i><i style="height:100%"></i><i style="height:80%"></i><i style="height:55%;opacity:.35"></i><i style="height:30%;opacity:.25"></i><i style="height:15%;opacity:.2"></i></div>
-                    </div>
-                  </div>
-                  <div class="mock-list">
-                    <div class="mock-li"><span>치오 크림 펌제 1제</span><span class="num">전산 4 · 실물 4</span><span class="pill ok">일치</span></div>
-                    <div class="mock-li"><span>산화제 6% 1000ml</span><span class="num">전산 5 · 실물 3</span><span class="pill out">−2</span></div>
-                    <div class="mock-li"><span>매트 텍스처 왁스</span><span class="num">전산 7 · 실물 –</span><span class="pill warn">미조사</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="glass-kpis" aria-label="앱 화면 예시 수치">
@@ -472,7 +470,8 @@
     <!-- OVERVIEW -->
     <section id="overview">
       <div class="wrap overview-grid">
-        <div>
+        <div class="ov-photo">
+          <img class="ov-photo-img" src="images/overview-1200.webp" srcset="images/overview-700.webp 700w, images/overview-1200.webp 1200w" sizes="(min-width: 960px) 640px, 100vw" width="1200" height="900" alt="" loading="lazy" decoding="async" />
           <p class="eyebrow">재고조사 현황</p>
           <h2 class="h2">재고조사 현황을<br />한눈에 확인하세요</h2>
           <p class="lead">조사를 시작하면 그 순간의 전산 재고를 기록해 둡니다. 실물 수량을 넣는 대로 진행률과 차이가 바로 바뀌어서, 어디까지 셌는지 헷갈리지 않습니다.</p>
@@ -565,21 +564,7 @@
     <!-- PHONE SPLIT -->
     <section id="scan">
       <div class="wrap split">
-        <div class="phone" aria-hidden="true">
-          <div class="phone-head"><span><svg width="26" height="13" aria-hidden="true"><use href="#zmark"/></svg><span class="wordmark" style="font-size:10px"><b style="color:#fff">ZERO</b><i style="color:#A7AFBC">COUNT</i></span></span><span style="color:#94A3B8;font-weight:600">✕</span></div>
-          <p class="phone-title">바코드를 스캔하거나<br />번호를 입력하세요</p>
-          <div class="scan-view">
-            <div class="scan-frame"><i></i><i></i><i></i><i></i></div>
-            <div class="barcode"><span></span><em>8 800000 010002</em></div>
-            <div class="scan-line"></div>
-          </div>
-          <div class="phone-item">
-            <span class="box">펌</span>
-            <div><small>동양상사 · 전산 4</small><b>치오 크림 펌제 1제</b></div>
-            <div class="phone-step"><span>−</span><strong>4</strong><span>+</span></div>
-          </div>
-          <div class="phone-btn">등록하기 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></div>
-        </div>
+        <img class="scan-photo" src="images/scan-900.webp" srcset="images/scan-560.webp 560w, images/scan-900.webp 900w" sizes="(min-width: 960px) 460px, 90vw" width="900" height="1125" alt="매장 약장 앞에서 휴대폰으로 ZEROCOUNT 바코드 스캔 화면을 띄운 모습" loading="lazy" decoding="async" />
 
         <div>
           <p class="eyebrow">바코드 재고조사</p>
