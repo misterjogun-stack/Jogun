@@ -1,4 +1,35 @@
+# 검색엔진과 AI 검색(ChatGPT · Claude · Perplexity · Google AI) 모두 소개 페이지를 읽을 수 있게 허용
 User-agent: *
+Allow: /
+Disallow: /app/
+
+User-agent: GPTBot
+Allow: /
+Disallow: /app/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /app/
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /app/
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /app/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /app/
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Yeti
 Allow: /
 Disallow: /app/
 

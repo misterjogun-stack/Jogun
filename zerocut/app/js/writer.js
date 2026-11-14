@@ -98,6 +98,34 @@ export function draftWithoutAI({ memo, topic, title, settings, stillCount }) {
       description: [`${head}`, '', ...points.map((p, i) => `${i + 1}. ${p}`), '', T.cta, '', hashtags.slice(0, 8).join(' ')].join('\n'),
     },
     tiktok: { caption: `${head} ${T.hook}`, hashtags: hashtags.slice(0, 6) },
+    article: basicArticle({ head, f, T, points, hashtags, end }),
+  };
+}
+
+// 워드프레스용 글: 검색(SEO)과 AI 검색(GEO)에 맞춘 구조 — 맨 앞 요약 답변, 소제목, 자주 묻는 질문
+function basicArticle({ head, f, T, points, hashtags, end }) {
+  const kw = (f[0] || head).split(' ').slice(0, 3).join(' ');
+  const d = new Date();
+  const facts = f.filter((x) => x !== head).join(', ');
+  return {
+    seoTitle: `${head} | ${T.label} 핵심 정리`.slice(0, 60),
+    slug: `post-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`,
+    metaDescription: (`${head}. ${facts ? facts + '. ' : ''}${points.slice(0, 3).join(', ')}까지 사진과 함께 정리했어요.`).slice(0, 150),
+    focusKeyword: kw,
+    summary: end(
+      `${head}, 핵심부터 말하면 ${facts || points[0]}. 아래에 ${points.slice(0, 3).join(', ')} 순서로 직접 확인한 내용만 정리했어요.`,
+      `${head}, 핵심부터 말하면 ${facts || points[0]}. 아래에 ${points.slice(0, 3).join(', ')} 순서로 직접 확인한 내용만 정리했습니다.`),
+    sections: points.map((p, i) => ({
+      heading: p,
+      body: i === 0 && facts
+        ? end(`${facts}. ${kw}에서 가장 먼저 알아둘 부분이에요.`, `${facts}. ${kw}에서 가장 먼저 알아둘 부분입니다.`)
+        : end('이 부분은 직접 겪은 내용을 두세 문장으로 적어 주세요. 숫자(가격·시간·횟수)가 들어가면 검색과 AI 답변에 더 잘 인용돼요.', '이 부분은 직접 겪은 내용을 두세 문장으로 적어 주세요. 숫자(가격·시간·횟수)가 들어가면 검색과 AI 답변에 더 잘 인용됩니다.'),
+    })),
+    faq: [
+      { q: `${kw} 핵심만 알려주세요`, a: facts ? `${facts}입니다.` : '핵심 내용을 한두 문장으로 적어 주세요.' },
+      { q: '어떤 분께 추천하나요?', a: '추천 대상을 한 문장으로 적어 주세요.' },
+    ],
+    tags: hashtags.slice(0, 8).map((t) => t.replace(/^#/, '')),
   };
 }
 
@@ -119,6 +147,12 @@ const SCHEMA = obj({
   short: obj({ hook: str, lines: strArr, narration: str, keyword: str }),
   youtube: obj({ title: str, description: str }),
   tiktok: obj({ caption: str, hashtags: strArr }),
+  article: obj({
+    seoTitle: str, slug: str, metaDescription: str, focusKeyword: str, summary: str,
+    sections: { type: 'array', items: obj({ heading: str, body: str }) },
+    faq: { type: 'array', items: obj({ q: str, a: str }) },
+    tags: strArr,
+  }),
 });
 
 export async function draftWithAI({ memo, topic, title, settings, images, onStatus }) {
@@ -139,6 +173,14 @@ export async function draftWithAI({ memo, topic, title, settings, images, onStat
     '- short: 9:16 숏폼. hook은 첫 1.5초에 띄울 14자 이내 문장. lines는 화면 자막 4~6개(각 16자 이내). narration은 25~35초 분량 내레이션 원고. keyword는 강조할 단어 하나.',
     '- youtube: 가로 영상 제목(40자 이내)과 설명(문단 + 해시태그 3~5개).',
     '- tiktok: 짧은 캡션과 해시태그 5~6개.',
+    '- article: 워드프레스용 글. 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티·구글 AI 요약 같은 AI 검색(GEO)에 인용되기 좋게 쓴다.',
+    '  · focusKeyword: 사람들이 실제로 검색할 2~4단어 핵심 검색어 하나(예: "성수동 카페 추천").',
+    '  · seoTitle: 60자 이내, 핵심 검색어를 앞쪽에. slug: 영어 소문자와 하이픈 3~6단어.',
+    '  · metaDescription: 80~150자, 핵심 검색어 포함, 클릭하고 싶게.',
+    '  · summary: 글 맨 앞에 둘 2~3문장 요약 답변. 질문에 바로 답하는 문장으로 시작하고 핵심 검색어와 구체적 사실(숫자·장소·이름)을 담는다.',
+    '  · sections: 4~6개. heading은 사람들이 물어볼 법한 질문형이나 핵심어가 든 소제목, body는 3~6문장. 본 것과 메모의 사실만 쓰고, 직접 경험한 사람의 시점으로 구체적으로 쓴다. 목록이 어울리면 줄마다 "- "로 시작한다.',
+    '  · faq: 3~5개. 실제 검색 질문 형태(q)와 1~3문장의 직접적인 답(a).',
+    '  · tags: 5~8개, # 없이.',
     '- topic: 소재의 주제를 하나 고른다.',
   ].join('\n');
 
@@ -187,6 +229,82 @@ export async function draftWithAI({ memo, topic, title, settings, images, onStat
   const out = JSON.parse(text);
   out.source = 'ai';
   out.instagram.hashtags = uniq(out.instagram.hashtags.map((t) => (t.startsWith('#') ? t : '#' + t)));
+  out.article.tags = uniq(out.article.tags.map((t) => t.replace(/^#/, '')));
   out.tiktok.hashtags = uniq(out.tiktok.hashtags.map((t) => (t.startsWith('#') ? t : '#' + t)));
   return out;
+}
+
+
+/** 예전에 만든 작업에 워드프레스 글이 없으면 기본 구조를 채워 넣는다 */
+export function ensureArticle(copy, memo, topic, settings) {
+  if (copy.article) return copy.article;
+  const base = draftWithoutAI({ memo, topic, title: copy.title, settings, stillCount: 1 });
+  copy.article = base.article;
+  return copy.article;
+}
+
+const plain = (s) => String(s || '').replace(/<[^>]+>/g, '');
+
+/** 상위노출 점검: SEO + GEO 체크리스트 */
+export function seoCheck(a, imageCount) {
+  const kw = (a.focusKeyword || '').trim();
+  const body = [a.summary, ...a.sections.map((x) => x.heading + ' ' + x.body), ...a.faq.map((x) => x.q + ' ' + x.a)].join(' ');
+  const len = plain(body).replace(/\s/g, '').length;
+  const has = (t) => kw && String(t || '').toLowerCase().includes(kw.toLowerCase());
+  const numbers = (body.match(/\d/g) || []).length;
+  const items = [
+    { ok: !!kw, label: '핵심 검색어를 정했어요', tip: '사람들이 실제로 검색할 2~4단어를 적어 주세요.' },
+    { ok: has(a.seoTitle), label: '제목에 핵심 검색어가 있어요', tip: '제목 앞쪽에 핵심 검색어를 넣어 주세요.' },
+    { ok: a.seoTitle.length >= 15 && a.seoTitle.length <= 60, label: `제목 길이 적당 (${a.seoTitle.length}자)`, tip: '15~60자가 검색 결과에서 잘리지 않아요.' },
+    { ok: a.metaDescription.length >= 60 && a.metaDescription.length <= 160, label: `검색 설명 길이 적당 (${a.metaDescription.length}자)`, tip: '60~160자로 맞춰 주세요.' },
+    { ok: has(a.metaDescription), label: '검색 설명에 핵심 검색어가 있어요', tip: '검색 설명에도 핵심 검색어를 한 번 넣어 주세요.' },
+    { ok: has(a.summary), label: '맨 앞 요약에 핵심 검색어가 있어요', tip: 'AI 검색은 첫 문단을 가장 많이 인용해요.' },
+    { ok: a.sections.length >= 3, label: `소제목 ${a.sections.length}개`, tip: '소제목을 3개 이상 나눠 주세요.' },
+    { ok: a.sections.some((x) => has(x.heading)), label: '소제목 중 하나에 핵심 검색어가 있어요', tip: '소제목 하나에 핵심 검색어를 넣어 주세요.' },
+    { ok: len >= 800, label: `본문 분량 ${len}자`, tip: '공백 빼고 800자 이상이면 좋아요.' },
+    { ok: a.faq.length >= 3, label: `자주 묻는 질문 ${a.faq.length}개`, tip: 'AI 검색은 질문-답 형식을 잘 인용해요. 3개 이상 넣어 주세요.' },
+    { ok: numbers >= 3, label: '구체적인 숫자가 들어 있어요', tip: '가격·시간·횟수 같은 숫자는 신뢰도를 높이고 AI 답변에 인용되기 쉬워요.' },
+    { ok: imageCount >= 2, label: `이미지 ${imageCount}장 (대체 텍스트 자동)`, tip: '이미지를 2장 이상 넣어 주세요.' },
+    { ok: /^[a-z0-9-]{3,80}$/.test(a.slug || ''), label: '주소(slug)가 영어로 깔끔해요', tip: '영어 소문자와 하이픈만 써 주세요.' },
+    { ok: !/직접 겪은 내용을|적어 주세요/.test(body), label: '빈칸이 모두 채워졌어요', tip: '"적어 주세요"로 남은 부분을 채워 주세요.' },
+  ];
+  const score = Math.round((items.filter((i) => i.ok).length / items.length) * 100);
+  return { score, items };
+}
+
+const escH = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function bodyHtml(text) {
+  const lines = String(text || '').split('\n').map((l) => l.trim()).filter(Boolean);
+  let html = '', list = [];
+  const flush = () => { if (list.length) { html += `<ul>${list.map((l) => `<li>${escH(l)}</li>`).join('')}</ul>`; list = []; } };
+  lines.forEach((l) => { if (/^[-•·]\s+/.test(l)) list.push(l.replace(/^[-•·]\s+/, '')); else { flush(); html += `<p>${escH(l)}</p>`; } });
+  flush();
+  return html;
+}
+
+/**
+ * 워드프레스 본문 HTML. images: [{url, alt}] (섹션 사이에 하나씩)
+ * 요약 → 소제목별 본문(+이미지) → 자주 묻는 질문 → FAQ 구조화 데이터
+ */
+export function articleHtml(a, images = [], { author = '', updated = new Date() } = {}) {
+  const parts = [];
+  parts.push(`<p><strong>핵심 요약</strong> ${escH(a.summary)}</p>`);
+  a.sections.forEach((sec, i) => {
+    parts.push(`<h2>${escH(sec.heading)}</h2>`);
+    parts.push(bodyHtml(sec.body));
+    const img = images[i];
+    if (img) parts.push(`<figure><img src="${escH(img.url)}" alt="${escH(img.alt)}" loading="lazy" /><figcaption>${escH(img.alt)}</figcaption></figure>`);
+  });
+  if (a.faq.length) {
+    parts.push('<h2>자주 묻는 질문</h2>');
+    a.faq.forEach((f) => { parts.push(`<h3>${escH(f.q)}</h3>`); parts.push(`<p>${escH(f.a)}</p>`); });
+  }
+  const d = updated.toISOString().slice(0, 10);
+  parts.push(`<p><em>${author ? escH(author) + ' 작성 · ' : ''}${d} 업데이트 · 직접 촬영한 사진과 경험을 바탕으로 썼습니다.</em></p>`);
+  if (a.faq.length) {
+    const ld = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: a.faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) };
+    parts.push(`<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
+  }
+  return parts.join('\n');
 }

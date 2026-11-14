@@ -86,6 +86,10 @@ export const DEFAULT_SETTINGS = {
   claudeKey: '',
   elevenKey: '',
   elevenVoice: '',
+  wpUrl: '',
+  wpUser: '',
+  wpPass: '',
+  wpStatus: 'draft',
 };
 
 export function loadSettings() {

@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>ZEROCUT 제로컷 | 사진·영상 올리면 블로그·카드뉴스·릴스·쇼츠 자동 제작</title>
-  <meta name="description" content="사진·영상만 올리면 블로그 글, 인스타 카드뉴스, 스레드, 릴스·쇼츠·틱톡 숏폼 영상, 유튜브 영상까지 자동으로 만듭니다. 영상 장면 자동 추출, 자막·모션그래픽·내레이션 자동 편집. 설치 없이 무료로 바로 시작." />
-  <meta name="keywords" content="제로컷, ZEROCUT, 숏폼 자동 편집, 릴스 자동 편집, 쇼츠 자동 만들기, 틱톡 영상 편집, 카드뉴스 자동 만들기, 블로그 글 자동 작성, 인스타 캡션 생성, 스레드 글, 원소스 멀티유즈, SNS 콘텐츠 자동화, 영상 자막 자동, 모션그래픽" />
+  <title>ZEROCUT 제로컷 | 사진·영상 올리면 블로그·워드프레스·카드뉴스·릴스·쇼츠 자동 제작</title>
+  <meta name="description" content="사진·영상만 올리면 블로그 글, 워드프레스 SEO·GEO 글, 인스타 카드뉴스, 스레드, 릴스·쇼츠·틱톡 숏폼, 유튜브 영상까지 자동으로 만듭니다. 장면 자동 추출, 자막·모션그래픽·내레이션 자동 편집. 설치 없이 무료." />
+  <meta name="keywords" content="제로컷, ZEROCUT, 숏폼 자동 편집, 릴스 자동 편집, 쇼츠 자동 만들기, 틱톡 영상 편집, 카드뉴스 자동 만들기, 블로그 글 자동 작성, 워드프레스 자동 발행, GEO, 생성형 엔진 최적화, AI 검색 최적화, SEO 글쓰기, 인스타 캡션 생성, 스레드 글, 원소스 멀티유즈, SNS 콘텐츠 자동화, 영상 자막 자동, 모션그래픽" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <link rel="canonical" href="https://zerocut.vercel.app/" />
 
@@ -34,6 +34,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="app/icon-192.png" />
   <link rel="apple-touch-icon" href="app/icon-180.png" />
   <link rel="manifest" href="app/manifest.webmanifest" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM용 사이트 안내" />
 
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
@@ -63,10 +64,13 @@
         "operatingSystem": "Web, iOS, Android, Windows, macOS",
         "inLanguage": "ko-KR",
         "image": "https://zerocut.vercel.app/images/og.jpg",
+        "isAccessibleForFree": true,
+        "dateModified": "2026-11-14",
         "description": "사진·영상을 올리면 블로그 글, 인스타그램 카드뉴스, 스레드, 릴스·쇼츠·틱톡 숏폼 영상, 유튜브 영상을 자동으로 만들어 주는 웹앱.",
         "featureList": [
           "영상에서 잘 나온 장면 자동 추출 · 고화질 이미지 변환",
           "블로그 글 자동 작성",
+          "워드프레스 자동 발행 (검색 SEO · AI 검색 GEO 구조, 상위노출 점검)",
           "인스타그램 캡션 · 해시태그 생성",
           "카드뉴스(1080×1350) 자동 제작",
           "스레드 이어지는 글 생성",
@@ -84,6 +88,8 @@
           { "@type": "Question", "name": "목소리도 넣을 수 있나요?", "acceptedAnswer": { "@type": "Answer", "text": "원본 영상 소리, 직접 녹음한 목소리, AI 목소리 내레이션 중에서 고를 수 있고, 배경음악을 넣으면 목소리가 있을 때 자동으로 작게 깔립니다." } },
           { "@type": "Question", "name": "사진과 영상은 어디에 저장되나요?", "acceptedAnswer": { "@type": "Answer", "text": "올린 사진과 영상, 만든 결과물은 서버가 아니라 쓰는 기기의 브라우저에만 저장됩니다. AI 글쓰기나 AI 목소리를 켠 경우에만 해당 서비스로 필요한 이미지와 원고가 전송됩니다." } },
           { "@type": "Question", "name": "인스타그램·틱톡에 자동으로 올라가나요?", "acceptedAnswer": { "@type": "Answer", "text": "현재는 결과물을 저장하거나 휴대폰 공유 버튼으로 각 앱에 바로 넘겨 올리는 방식입니다. 채널별로 캡션 복사, 영상 저장, 게시 완료 체크를 한 화면에서 할 수 있습니다." } },
+          { "@type": "Question", "name": "GEO가 무엇이고, ZEROCUT은 어떻게 도와주나요?", "acceptedAnswer": { "@type": "Answer", "text": "GEO(생성형 엔진 최적화)는 ChatGPT, 퍼플렉시티, 구글 AI 요약 같은 AI 검색이 내 글을 답변 출처로 인용하도록 글을 구성하는 방법입니다. ZEROCUT은 워드프레스 글을 맨 앞 요약 답변, 질문형 소제목, 자주 묻는 질문, FAQ 구조화 데이터 순서로 만들고, 14가지 항목으로 상위노출 점수를 매겨 줍니다." } },
+          { "@type": "Question", "name": "워드프레스에 바로 올릴 수 있나요?", "acceptedAnswer": { "@type": "Answer", "text": "네. 워드프레스 주소와 응용 프로그램 비밀번호를 한 번 연결하면 글, 이미지, 대표 이미지, 태그, 요약을 버튼 한 번으로 임시저장하거나 발행합니다." } },
           { "@type": "Question", "name": "비용이 드나요?", "acceptedAnswer": { "@type": "Answer", "text": "기본 기능은 무료로 쓸 수 있습니다. AI가 사진을 직접 읽고 글을 쓰게 하거나 AI 목소리를 쓰려면 본인 API 키를 연결하고, 사용량만큼 해당 서비스 요금이 나옵니다." } }
         ]
       }
@@ -212,7 +218,7 @@
     /* channels row */
     .channels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 28px; }
     @media (min-width: 720px) { .channels { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-    @media (min-width: 1080px) { .channels { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+    @media (min-width: 1080px) { .channels { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
     .chn { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
     .chn b { font-size: 15px; } .chn small { font-size: 12.5px; color: var(--sub); }
 
@@ -286,6 +292,7 @@
       <nav class="nav-links" aria-label="소개 메뉴">
         <a href="#channels">만들어지는 것</a>
         <a href="#shortform">숏폼 자동 편집</a>
+        <a href="#geo">워드프레스·GEO</a>
         <a href="#how">사용 방법</a>
         <a href="#faq">자주 묻는 질문</a>
       </nav>
@@ -302,7 +309,7 @@
               <div class="hero-logo"><svg width="64" height="32" aria-hidden="true"><use href="#zmark"/></svg><span class="wordmark"><b>ZERO</b><i>CUT</i></span></div>
               <span class="hero-tag"><i></i>원소스 멀티유즈 · SNS 콘텐츠 자동화</span>
               <h1>사진·영상 한 번 올리면<br /><em>블로그부터 숏폼까지</em><br />자동으로</h1>
-              <p class="hero-sub">블로그 글, 인스타 카드뉴스, 스레드, 릴스·쇼츠·틱톡 영상, 유튜브 영상까지. 편집 시간은 0분, 퇴근 후엔 올리기만 하세요.</p>
+              <p class="hero-sub">블로그 글, 워드프레스 글, 인스타 카드뉴스, 스레드, 릴스·쇼츠·틱톡 영상, 유튜브 영상까지. 편집 시간은 0분, 퇴근 후엔 올리기만 하세요.</p>
               <div class="hero-cta">
                 <a class="btn btn-white" href="app/#/new">지금 만들어 보기
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
@@ -325,7 +332,7 @@
           </div>
           <div class="glass-kpis">
             <div class="gk"><svg viewBox="0 0 24 24" fill="none" stroke="#60A5FA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg><div><small>올리는 횟수</small><b class="num">1<em>번</em></b></div></div>
-            <div class="gk"><svg viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><div><small>만들어지는 채널</small><b class="num">7<em>종</em></b></div></div>
+            <div class="gk"><svg viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><div><small>만들어지는 채널</small><b class="num">8<em>종</em></b></div></div>
             <div class="gk"><svg viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v18H3z"/><path d="M7 3v18M17 3v18M3 12h18"/></svg><div><small>직접 편집 시간</small><b class="num">0<em>분</em></b></div></div>
             <div class="gk"><svg viewBox="0 0 24 24" fill="none" stroke="#93C5FD" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><div><small>사진·영상 보관</small><b>내 기기<em>에만</em></b></div></div>
           </div>
@@ -333,13 +340,23 @@
       </div>
     </section>
 
+    <section id="about" style="padding-bottom:0">
+      <div class="wrap">
+        <div class="card" style="padding:24px 26px">
+          <h2 style="font-size:20px;font-weight:800;letter-spacing:-0.03em">ZEROCUT(제로컷)이란?</h2>
+          <p style="font-size:16px;color:var(--ink);margin-top:10px;max-width:none">ZEROCUT은 사진과 영상을 한 번 올리면 <strong>블로그 글, 워드프레스 글, 인스타그램 카드뉴스, 스레드, 릴스·쇼츠·틱톡 세로 영상, 유튜브 가로 영상</strong>을 자동으로 만들어 주는 무료 웹앱입니다. 영상에서 선명한 장면을 골라 이미지로 바꾸고, 채널마다 맞는 길이와 비율로 글과 영상을 편집합니다. 설치가 필요 없고, 원본 사진과 영상은 쓰는 기기에만 저장됩니다.</p>
+        </div>
+      </div>
+    </section>
+
     <section id="channels">
       <div class="wrap">
         <p class="eyebrow">한 번 올리면 만들어지는 것</p>
-        <h2 class="h2">하나의 소재로 7개 채널 콘텐츠를 동시에</h2>
+        <h2 class="h2">하나의 소재로 8개 채널 콘텐츠를 동시에</h2>
         <p class="lead">같은 내용을 채널마다 다시 쓰고 다시 편집할 필요가 없습니다. 각 채널에 맞는 길이·비율·말투로 자동으로 바꿔 드립니다.</p>
         <div class="channels">
           <div class="card chn"><span class="ico green"><svg class="svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h6"/></svg></span><b>네이버 블로그</b><small>소제목까지 나눈 원고</small></div>
+          <div class="card chn"><span class="ico blue"><svg class="svg" viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></span><b>워드프레스</b><small>SEO·GEO 글 자동 발행</small></div>
           <div class="card chn"><span class="ico red"><svg class="svg" viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></span><b>인스타 카드뉴스</b><small>1080×1350 6~8장</small></div>
           <div class="card chn"><span class="ico red"><svg class="svg" viewBox="0 0 24 24"><path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zM16 11.4A4 4 0 1 1 12.6 8 4 4 0 0 1 16 11.4zM17.5 6.5h.01"/></svg></span><b>인스타 릴스</b><small>세로 영상 + 캡션 + 해시태그</small></div>
           <div class="card chn"><span class="ico blue"><svg class="svg" viewBox="0 0 24 24"><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/></svg></span><b>스레드</b><small>이어지는 글 3~5개</small></div>
@@ -390,6 +407,28 @@
       </div>
     </section>
 
+    <section id="geo" style="padding-top:8px">
+      <div class="wrap split">
+        <div>
+          <p class="eyebrow">워드프레스 · 검색 상위노출 · GEO</p>
+          <h2 class="h2">구글·네이버 검색도,<br />AI 검색 답변도 노리는 글</h2>
+          <p class="lead">GEO(생성형 엔진 최적화)는 ChatGPT, 퍼플렉시티, 구글 AI 요약이 내 글을 답변 출처로 인용하게 만드는 방법입니다. ZEROCUT은 검색(SEO)과 AI 검색(GEO)에 유리한 구조로 워드프레스 글을 쓰고, 버튼 한 번으로 올려 드립니다.</p>
+          <ul class="check-list">
+            <li><span class="ico blue"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>맨 앞에 질문에 바로 답하는 2~3문장 요약</li>
+            <li><span class="ico blue"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>핵심 검색어를 넣은 제목·검색 설명·영어 주소</li>
+            <li><span class="ico blue"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>질문형 소제목과 자주 묻는 질문 + FAQ 구조화 데이터</li>
+            <li><span class="ico blue"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>이미지 대체 텍스트·대표 이미지·태그 자동</li>
+            <li><span class="ico blue"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>14가지 상위노출 점검표로 빠진 곳을 바로 표시</li>
+          </ul>
+        </div>
+        <div class="card" aria-hidden="true" style="display:grid;gap:12px">
+          <div style="display:flex;align-items:center;gap:14px"><div style="width:72px;height:72px;border-radius:99px;display:grid;place-items:center;background:conic-gradient(var(--ok) 0 92%, var(--surface-2) 0);"><div style="width:56px;height:56px;border-radius:99px;background:var(--surface);display:grid;place-items:center;font:800 20px var(--font-num)">92</div></div><div><b>상위노출 준비 완료</b><p style="margin-top:2px">검색(SEO) · AI 검색(GEO) 14가지 점검</p></div></div>
+          <div style="padding:14px;border-radius:14px;background:var(--surface-2);font-size:14px"><b style="color:var(--accent)">핵심 요약</b> 성수동 카페 추천, 핵심부터 말하면 라떼 6천원·평일 웨이팅 20분…</div>
+          <div style="padding:14px;border-radius:14px;background:var(--surface-2);font-size:14px;display:grid;gap:6px"><b>H2 웨이팅은 얼마나 하나요?</b><b>H2 주차는 가능한가요?</b><b>H2 자주 묻는 질문</b></div>
+        </div>
+      </div>
+    </section>
+
     <section id="topics" style="padding-top:8px">
       <div class="wrap">
         <p class="eyebrow">이런 분들이 씁니다</p>
@@ -421,6 +460,8 @@
           <details><summary>목소리도 넣을 수 있나요?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><p>원본 영상 소리, 직접 녹음한 목소리, AI 목소리 내레이션 중에서 고를 수 있고, 배경음악을 넣으면 목소리가 있을 때 자동으로 작게 깔립니다.</p></details>
           <details><summary>사진과 영상은 어디에 저장되나요?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><p>올린 사진과 영상, 만든 결과물은 서버가 아니라 쓰는 기기의 브라우저에만 저장됩니다. AI 글쓰기나 AI 목소리를 켠 경우에만 해당 서비스로 필요한 이미지와 원고가 전송됩니다.</p></details>
           <details><summary>인스타그램·틱톡에 자동으로 올라가나요?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><p>현재는 결과물을 저장하거나 휴대폰 공유 버튼으로 각 앱에 바로 넘겨 올리는 방식입니다. 채널별로 캡션 복사, 영상 저장, 게시 완료 체크를 한 화면에서 할 수 있습니다.</p></details>
+          <details><summary>GEO가 무엇이고, ZEROCUT은 어떻게 도와주나요?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><p>GEO(생성형 엔진 최적화)는 ChatGPT, 퍼플렉시티, 구글 AI 요약 같은 AI 검색이 내 글을 답변 출처로 인용하도록 글을 구성하는 방법입니다. ZEROCUT은 워드프레스 글을 맨 앞 요약 답변, 질문형 소제목, 자주 묻는 질문, FAQ 구조화 데이터 순서로 만들고, 14가지 항목으로 상위노출 점수를 매겨 줍니다.</p></details>
+          <details><summary>워드프레스에 바로 올릴 수 있나요?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><p>네. 워드프레스 주소와 응용 프로그램 비밀번호를 한 번 연결하면 글, 이미지, 대표 이미지, 태그, 요약을 버튼 한 번으로 임시저장하거나 발행합니다.</p></details>
           <details><summary>비용이 드나요?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><p>기본 기능은 무료로 쓸 수 있습니다. AI가 사진을 직접 읽고 글을 쓰게 하거나 AI 목소리를 쓰려면 본인 API 키를 연결하고, 사용량만큼 해당 서비스 요금이 나옵니다.</p></details>
         </div>
       </div>
