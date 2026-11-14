@@ -1,0 +1,16 @@
+{
+  "name": "ZEROCUT",
+  "short_name": "ZEROCUT",
+  "description": "사진·영상 한 번으로 블로그·카드뉴스·스레드·릴스·쇼츠·틱톡·유튜브까지 자동으로",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F4F6FA",
+  "theme_color": "#0B1220",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
