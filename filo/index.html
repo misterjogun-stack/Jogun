@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#0B0B0C" />
+  <meta name="theme-color" content="#F2F2EE" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Filo" />
@@ -16,7 +16,7 @@
   <meta property="og:description" content="Intelligent Premium Salon Automation — 거래처별 자동 발주 시스템" />
   <meta property="og:type" content="website" />
 
-  <!-- Fonts: Pretendard (한글) + Cormorant (디스플레이) + JetBrains Mono (모노) -->
+  <!-- Fonts: Pretendard (한글 본문) + Space Grotesk (숫자·영문 디스플레이) + JetBrains Mono (라벨) -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -25,24 +25,35 @@
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
   />
   <link
-    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=JetBrains+Mono:wght@300;400&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet"
   />
 
   <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: {
             sans: ['"Pretendard Variable"', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-            display: ['"Cormorant Garamond"', 'serif'],
+            display: ['"Space Grotesk"', '"Pretendard Variable"', 'Pretendard', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace'],
           },
         },
       },
     };
+  </script>
+  <script>
+    // 저장된 테마(없으면 기기 설정)를 렌더 전에 적용해 깜빡임 방지
+    (function () {
+      var t = null;
+      try { t = JSON.parse(localStorage.getItem('filo_theme')); } catch (e) {}
+      if (t !== 'night' && t !== 'studio') {
+        t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'night' : 'studio';
+      }
+      document.documentElement.setAttribute('data-filo-theme', t);
+    })();
   </script>
 
   <!-- React 18 -->
@@ -54,8 +65,53 @@
 
   <style>
     /* ============================================
-       FILO — Quiet Luxury Base Styles
+       FILO — Salon Dispensary
+       Layout: 약장 선반처럼 품목이 한 줄씩 놓이고, 각 줄의 재고 게이지에
+       적정선 눈금이 새겨진 구조. 모바일은 엄지로 닿는 하단 탭바.
        ============================================ */
+    :root, :root[data-filo-theme="studio"] {
+      --f-bg: #F2F2EE;          /* 도자기 흰색 바탕 */
+      --f-surface: #FFFFFF;
+      --f-surface-2: #F7F7F3;
+      --f-field: #FFFFFF;
+      --f-ink: #17181B;
+      --f-sub: #696B70;
+      --f-line: #E2E2DB;
+      --f-line-strong: #CBCBC2;
+      --f-accent: #5B2C5E;      /* 보랏빛 토너 — 브랜드 포인트 */
+      --f-accent-hover: #47204A;
+      --f-on-accent: #FFFFFF;
+      --f-accent-soft: #F2E9F2;
+      --f-alert: #C4432B;       /* 재고 부족 */
+      --f-alert-soft: #FBEAE4;
+      --f-ok: #2D7A57;
+      --f-shadow: 0 1px 2px rgba(23, 24, 27, 0.05);
+      --f-radius: 14px;
+      --f-radius-sm: 10px;
+      --f-font-display: 'Space Grotesk', 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+      --f-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+      color-scheme: light;
+    }
+    :root[data-filo-theme="night"] {
+      --f-bg: #111113;
+      --f-surface: #1A1A1E;
+      --f-surface-2: #222227;
+      --f-field: #16161A;
+      --f-ink: #EDEDE9;
+      --f-sub: #9D9DA4;
+      --f-line: #2B2B31;
+      --f-line-strong: #3C3C44;
+      --f-accent: #D9A8D8;
+      --f-accent-hover: #E8C3E7;
+      --f-on-accent: #26122B;
+      --f-accent-soft: #2D2030;
+      --f-alert: #FF8064;
+      --f-alert-soft: #3A1F1A;
+      --f-ok: #63C99A;
+      --f-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+      color-scheme: dark;
+    }
+    html, body { background: var(--f-bg); color: var(--f-ink); }
     *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
 
     html, body {
@@ -74,12 +130,6 @@
       padding-bottom: env(safe-area-inset-bottom);
     }
 
-    /* 0.5px hairline borders (Quiet Luxury 시그니처) */
-    @media (min-resolution: 2dppx) {
-      .border, .border-t, .border-b, .border-l, .border-r {
-        border-width: 0.5px;
-      }
-    }
 
     /* Input number — 스피너 제거 (현장 미용실 깔끔함) */
     input[type=number]::-webkit-inner-spin-button,
@@ -102,15 +152,15 @@
     .filo-loader {
       position: fixed;
       inset: 0;
-      background: #0B0B0C;
-      color: #E5E5E0;
+      background: var(--f-bg);
+      color: var(--f-ink);
       display: flex;
       align-items: center;
       justify-content: center;
       flex-direction: column;
       gap: 16px;
       z-index: 9999;
-      font-family: 'Cormorant Garamond', serif;
+      font-family: var(--f-font-display);
       letter-spacing: 0.3em;
       transition: opacity 0.4s ease;
     }
@@ -121,8 +171,8 @@
     .filo-loader-line {
       width: 32px;
       height: 1px;
-      background: #E5E5E0;
-      opacity: 0.4;
+      background: var(--f-accent);
+      opacity: 0.6;
       animation: filoLine 1.6s ease-in-out infinite;
     }
     @keyframes filoLine {
@@ -184,6 +234,190 @@
       box-shadow: inset 0 0 0 1px currentColor;
       opacity: 1 !important;
     }
+
+    /* ---------- 공통 형태 ---------- */
+    #root .border:not(.rounded-full) { border-radius: var(--f-radius-sm); }
+    #root input, #root textarea, #root select { border-radius: var(--f-radius-sm); }
+    #root :focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+    #root .font-display { letter-spacing: -0.01em; }
+    #root h2.text-xl { font-size: 1.375rem; letter-spacing: -0.02em; }
+    .f-num { font-family: var(--f-font-display); font-variant-numeric: tabular-nums; }
+    .filo-cat-active { background: var(--f-surface-2); }
+
+    /* ---------- 앱 골격 ---------- */
+    .f-topbar {
+      position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin: -16px -16px 16px; padding: 12px 16px;
+      background: var(--f-bg);
+      border-bottom: 1px solid var(--f-line);
+    }
+    .f-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .f-brand-mark {
+      width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+      display: grid; place-items: center;
+      background: var(--f-accent); color: var(--f-on-accent);
+      font: 700 15px/1 var(--f-font-display);
+    }
+    .f-brand-name { font: 600 17px/1.1 var(--f-font-display); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .f-brand-sub { font: 500 10px/1.2 var(--f-font-mono); color: var(--f-sub); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .f-icon-btn {
+      width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+      display: grid; place-items: center; color: var(--f-sub);
+      transition: background .15s, color .15s;
+    }
+    .f-icon-btn:hover { background: var(--f-surface-2); color: var(--f-ink); }
+
+    .f-tabbar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      padding: 6px max(8px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-right, 0px));
+      background: var(--f-surface);
+      border-top: 1px solid var(--f-line);
+    }
+    .f-tab {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 6px 2px; border-radius: 12px; color: var(--f-sub);
+      font-size: 11px; font-weight: 600; letter-spacing: -0.01em;
+      position: relative;
+    }
+    .f-tab.is-active { color: var(--f-accent); }
+    .f-tab.is-active .f-tab-icon { background: var(--f-accent-soft); }
+    .f-tab-icon { width: 44px; height: 28px; border-radius: 999px; display: grid; place-items: center; transition: background .15s; }
+    .f-tab-dot {
+      position: absolute; top: 4px; left: calc(50% + 10px);
+      min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+      background: var(--f-alert); color: #fff;
+      font: 700 10px/16px var(--f-font-display); text-align: center;
+    }
+
+    @media (min-width: 768px) {
+      .f-topbar, .f-tabbar { display: none; }
+    }
+
+    .f-side-nav { display: flex; flex-direction: column; gap: 2px; }
+    .f-side-link {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 12px;
+      font-size: 14px; font-weight: 500; color: var(--f-sub);
+      transition: background .15s, color .15s;
+    }
+    .f-side-link:hover { background: var(--f-surface-2); color: var(--f-ink); }
+    .f-side-link.is-active { background: var(--f-accent-soft); color: var(--f-accent); font-weight: 600; }
+    .f-side-link .f-tab-dot { position: static; margin-left: auto; }
+
+    /* ---------- 빠른 차감 ---------- */
+    .f-page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .f-eyebrow { font: 500 11px/1.2 var(--f-font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--f-sub); margin-bottom: 4px; }
+    .f-title { font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -0.03em; text-wrap: balance; }
+    .f-chip-btn {
+      display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+      height: 36px; padding: 0 12px; border-radius: 999px;
+      border: 1px solid var(--f-line-strong); background: var(--f-surface);
+      font-size: 13px; font-weight: 600; color: var(--f-ink);
+    }
+    .f-chip-btn:hover { border-color: var(--f-ink); }
+
+    .f-status {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      background: var(--f-surface); border: 1px solid var(--f-line);
+      border-radius: var(--f-radius); overflow: hidden; margin-bottom: 18px;
+      box-shadow: var(--f-shadow);
+    }
+    .f-status-cell {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+      padding: 14px 14px 12px; text-align: left; min-width: 0;
+    }
+    .f-status-cell + .f-status-cell { border-left: 1px solid var(--f-line); }
+    .f-status-label { font-size: 12px; font-weight: 600; color: var(--f-sub); display: flex; align-items: center; gap: 6px; }
+    .f-status-value { font: 600 28px/1 var(--f-font-display); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+    .f-status-value small { font: 500 13px/1 'Pretendard Variable', Pretendard, sans-serif; color: var(--f-sub); margin-left: 3px; letter-spacing: 0; }
+    .f-status-cta { font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 2px; }
+    button.f-status-cell:hover { background: var(--f-surface-2); }
+    .f-status-cell.is-alert { background: var(--f-alert-soft); color: var(--f-alert); }
+    .f-status-cell.is-alert .f-status-label { color: var(--f-alert); }
+    .f-status-cell.is-pending .f-status-value { color: var(--f-accent); }
+
+    .f-chips { display: flex; gap: 6px; overflow-x: auto; margin: 0 -16px 12px; padding: 2px 16px; scrollbar-width: none; }
+    .f-chips::-webkit-scrollbar { display: none; }
+    .f-chip {
+      display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+      height: 34px; padding: 0 12px; border-radius: 999px;
+      border: 1px solid var(--f-line-strong); background: var(--f-surface);
+      font-size: 13px; font-weight: 600; color: var(--f-ink); white-space: nowrap;
+    }
+    .f-chip .f-num { color: var(--f-sub); font-weight: 500; font-size: 12px; }
+    .f-chip.is-empty { color: var(--f-sub); }
+    .f-chip.is-active { background: var(--f-ink); border-color: var(--f-ink); color: var(--f-bg); }
+    .f-chip.is-active .f-num { color: inherit; opacity: .7; }
+    .f-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--cat, var(--f-sub)); flex-shrink: 0; display: inline-block; }
+
+    .f-toolbar { display: flex; gap: 8px; margin-bottom: 14px; }
+    .f-search {
+      flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
+      height: 44px; padding: 0 14px; border-radius: 12px;
+      background: var(--f-field); border: 1px solid var(--f-line-strong); color: var(--f-sub);
+    }
+    .f-search:focus-within { border-color: var(--f-accent); }
+    #root .f-search input { flex: 1; min-width: 0; height: 100%; background: transparent; border: 0; outline: none; color: var(--f-ink); font-size: 15px; border-radius: 0; }
+    .f-ghost-btn {
+      display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+      height: 44px; padding: 0 14px; border-radius: 12px;
+      border: 1px solid var(--f-line-strong); background: var(--f-surface);
+      font-size: 14px; font-weight: 600; color: var(--f-ink);
+    }
+    .f-ghost-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    .f-list { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0; padding: 0; }
+    .f-empty { padding: 40px 16px; text-align: center; color: var(--f-sub); font-size: 14px; background: var(--f-surface); border: 1px dashed var(--f-line-strong); border-radius: var(--f-radius); }
+    .f-item {
+      display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 12px; row-gap: 10px;
+      padding: 14px; background: var(--f-surface);
+      border: 1px solid var(--f-line); border-radius: var(--f-radius);
+      box-shadow: var(--f-shadow);
+    }
+    .f-item.is-low, .f-item.is-out { border-color: color-mix(in srgb, var(--f-alert) 35%, var(--f-line)); }
+    .f-thumb { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; background: var(--f-surface-2); }
+    .f-mono {
+      display: grid; place-items: center;
+      background: color-mix(in srgb, var(--cat, var(--f-sub)) 14%, var(--f-surface));
+      color: var(--cat, var(--f-sub));
+      font-size: 16px; font-weight: 700;
+    }
+    .f-item-body { min-width: 0; }
+    .f-item-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--f-sub); margin-bottom: 3px; min-width: 0; }
+    .f-cat { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .f-badge { flex-shrink: 0; margin-left: auto; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .f-badge.is-low { background: var(--f-alert-soft); color: var(--f-alert); }
+    .f-badge.is-out { background: var(--f-alert); color: #fff; }
+    .f-badge.is-pending { background: var(--f-accent-soft); color: var(--f-accent); }
+    .f-item-name { font-size: 16px; font-weight: 650; line-height: 1.35; letter-spacing: -0.015em; overflow-wrap: anywhere; }
+
+    .f-item-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; }
+    .f-gauge-wrap { flex: 1; min-width: 0; }
+    .f-gauge { position: relative; height: 6px; border-radius: 999px; background: var(--f-surface-2); box-shadow: inset 0 0 0 1px var(--f-line); }
+    .f-gauge-fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--f-ok); transition: width .25s ease; }
+    .f-item.is-low .f-gauge-fill, .f-item.is-out .f-gauge-fill { background: var(--f-alert); }
+    .f-item.is-pending .f-gauge-fill { background: var(--f-accent); }
+    .f-gauge-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--f-ink); opacity: .55; }
+    .f-gauge-label { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--f-sub); }
+    .f-gauge-label b { font-weight: 600; color: var(--f-ink); }
+
+    .f-stepper { display: flex; align-items: center; flex-shrink: 0; border: 1px solid var(--f-line-strong); border-radius: 12px; overflow: hidden; background: var(--f-field); }
+    .f-step { width: 44px; height: 44px; display: grid; place-items: center; color: var(--f-ink); transition: background .12s; }
+    .f-step:hover { background: var(--f-surface-2); }
+    .f-step:active { background: var(--f-accent-soft); }
+    .f-step:disabled { opacity: .25; cursor: not-allowed; }
+    .f-count {
+      min-width: 52px; height: 44px; padding: 0 6px;
+      border-left: 1px solid var(--f-line); border-right: 1px solid var(--f-line);
+      font: 600 20px/44px var(--f-font-display); font-variant-numeric: tabular-nums; text-align: center;
+    }
+    .f-item.is-low .f-count, .f-item.is-out .f-count { color: var(--f-alert); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
   </style>
 </head>
 <body>
@@ -207,23 +441,67 @@
     const CATEGORIES = [
       {
         key: '펌제',
-        color: { hex: '#E63329', bg: 'bg-red-500/25', border: 'border-red-500', text: 'text-red-300', dot: 'bg-red-500', solid: 'bg-red-500' }
+        color: { hex: '#D2583C', bg: 'filo-cat-active', border: 'border-[#D2583C]', text: '', dot: 'bg-[#D2583C]', solid: 'bg-[#D2583C]' }
       },
       {
         key: '염색',
-        color: { hex: '#3B82F6', bg: 'bg-blue-500/25', border: 'border-blue-500', text: 'text-blue-300', dot: 'bg-blue-500', solid: 'bg-blue-500' }
+        color: { hex: '#4A63D8', bg: 'filo-cat-active', border: 'border-[#4A63D8]', text: '', dot: 'bg-[#4A63D8]', solid: 'bg-[#4A63D8]' }
       },
       {
         key: '헤어케어',
-        color: { hex: '#10B981', bg: 'bg-emerald-500/25', border: 'border-emerald-500', text: 'text-emerald-300', dot: 'bg-emerald-500', solid: 'bg-emerald-500' }
+        color: { hex: '#1F9A80', bg: 'filo-cat-active', border: 'border-[#1F9A80]', text: '', dot: 'bg-[#1F9A80]', solid: 'bg-[#1F9A80]' }
       },
       {
         key: '스타일링',
-        color: { hex: '#A855F7', bg: 'bg-purple-500/25', border: 'border-purple-500', text: 'text-purple-300', dot: 'bg-purple-500', solid: 'bg-purple-500' }
+        color: { hex: '#C0901C', bg: 'filo-cat-active', border: 'border-[#C0901C]', text: '', dot: 'bg-[#C0901C]', solid: 'bg-[#C0901C]' }
       }
     ];
 
     const getCategoryStyle = (cat) => CATEGORIES.find(c => c.key === cat) || null;
+
+    // 선 아이콘 (24px 그리드, currentColor)
+    const ICON_PATHS = {
+      quick: ['M13 2 4 14h7l-1 8 9-12h-7l1-8z'],
+      stocktake: ['M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z', 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2', 'm9 14 2 2 4-4'],
+      dashboard: ['m22 2-7 20-4-9-9-4z', 'M22 2 11 13'],
+      manage: ['M21 8 12 3 3 8v8l9 5 9-5V8z', 'M3 8l9 5 9-5', 'M12 13v8'],
+      settings: ['M4 21v-7', 'M4 10V3', 'M12 21v-9', 'M12 8V3', 'M20 21v-5', 'M20 12V3', 'M1 14h6', 'M9 8h6', 'M17 16h6'],
+      sun: ['M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z', 'M12 2v2', 'M12 20v2', 'm4.9 4.9 1.4 1.4', 'm17.7 17.7 1.4 1.4', 'M2 12h2', 'M20 12h2', 'm4.9 19.1 1.4-1.4', 'm17.7 6.3 1.4-1.4'],
+      moon: ['M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z'],
+      undo: ['M9 14 4 9l5-5', 'M4 9h10.5a5.5 5.5 0 0 1 0 11H11'],
+      search: ['M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16z', 'm21 21-4.3-4.3'],
+      list: ['M8 6h13', 'M8 12h13', 'M8 18h13', 'M3 6h.01', 'M3 12h.01', 'M3 18h.01'],
+      arrow: ['M5 12h14', 'm12 5 7 7-7 7'],
+      minus: ['M5 12h14'],
+      plus: ['M12 5v14', 'M5 12h14'],
+    };
+    const Icon = ({ name, size = 20, strokeWidth = 1.75, className = '' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+        {(ICON_PATHS[name] || []).map((d, i) => <path key={i} d={d} />)}
+      </svg>
+    );
+    function ProductThumb({ product, size = 44 }) {
+      const [failed, setFailed] = useState(false);
+      const cat = getCategoryStyle(product.category);
+      const hasPhoto = product.image && product.image !== FALLBACK_IMAGE && !failed;
+      const style = { width: size, height: size, flexShrink: 0, ...(cat ? { '--cat': cat.color.hex } : {}) };
+      if (hasPhoto) {
+        return <img src={product.image} alt="" loading="lazy" className="f-thumb" style={style} onError={() => setFailed(true)} />;
+      }
+      return (
+        <div className="f-thumb f-mono" style={style} aria-hidden="true">
+          {(cat ? cat.key : (product.name || '?')).trim().charAt(0)}
+        </div>
+      );
+    }
+
+    const NAV_ITEMS = [
+      { key: 'quick', label: '빠른 차감' },
+      { key: 'stocktake', label: '재고조사' },
+      { key: 'dashboard', label: '발주' },
+      { key: 'manage', label: '품목 관리' },
+    ];
 
     // 전화번호 자동 포맷팅 (010-1234-5678 / 02-123-4567)
     const formatPhone = (raw) => {
@@ -253,32 +531,32 @@
     };
 
     // ============================================
-    // 1. THEME PRESETS — Quiet Luxury Palette
+    // 1. THEME PRESETS — 색 값은 CSS 토큰(data-filo-theme)에서 결정
     // ============================================
     const themes = {
-      cream: {
-        name: "Warm Cream",
-        bg: "bg-[#F4E9D9]",
-        surface: "bg-[#FBF4E9] border-[#E0CDB3]",
-        text: "text-[#3C2F2F]",
-        subText: "text-[#7A6655]",
-        inputBg: "bg-[#FBF4E9] border-[#D6BF9F] text-[#3C2F2F]",
-        pointBtn: "bg-[#C17F4F] text-[#FBF4E9] hover:bg-[#A86B40] font-semibold",
-        badge: "text-[#C17F4F]",
-        activeTab: "bg-[#5C4033] text-[#F4E9D9] font-semibold",
-        border: "border-[#E0CDB3]"
+      studio: {
+        name: "Studio",
+        bg: "bg-[color:var(--f-bg)]",
+        surface: "bg-[color:var(--f-surface)] border-[color:var(--f-line)]",
+        text: "text-[color:var(--f-ink)]",
+        subText: "text-[color:var(--f-sub)]",
+        inputBg: "bg-[color:var(--f-field)] border-[color:var(--f-line-strong)] text-[color:var(--f-ink)]",
+        pointBtn: "bg-[color:var(--f-accent)] text-[color:var(--f-on-accent)] hover:bg-[color:var(--f-accent-hover)] font-semibold",
+        badge: "text-[color:var(--f-accent)]",
+        activeTab: "bg-[color:var(--f-ink)] text-[color:var(--f-bg)] font-semibold",
+        border: "border-[color:var(--f-line)]"
       },
-      forest: {
-        name: "Forest Green",
-        bg: "bg-[#F5F1E8]",
-        surface: "bg-[#FFFFFF] border-[#E5E0D2]",
-        text: "text-[#1F2D26]",
-        subText: "text-[#6B7670]",
-        inputBg: "bg-[#FAFAF5] border-[#D6D2C4] text-[#1F2D26]",
-        pointBtn: "bg-[#2D4A3E] text-[#F5F1E8] hover:bg-[#1F352B] font-semibold",
-        badge: "text-[#2D4A3E]",
-        activeTab: "bg-[#2D4A3E] text-[#F5F1E8] font-semibold",
-        border: "border-[#E5E0D2]"
+      night: {
+        name: "Night",
+        bg: "bg-[color:var(--f-bg)]",
+        surface: "bg-[color:var(--f-surface)] border-[color:var(--f-line)]",
+        text: "text-[color:var(--f-ink)]",
+        subText: "text-[color:var(--f-sub)]",
+        inputBg: "bg-[color:var(--f-field)] border-[color:var(--f-line-strong)] text-[color:var(--f-ink)]",
+        pointBtn: "bg-[color:var(--f-accent)] text-[color:var(--f-on-accent)] hover:bg-[color:var(--f-accent-hover)] font-semibold",
+        badge: "text-[color:var(--f-accent)]",
+        activeTab: "bg-[color:var(--f-ink)] text-[color:var(--f-bg)] font-semibold",
+        border: "border-[color:var(--f-line)]"
       }
     };
 
@@ -398,7 +676,7 @@
               </div>
               <div className="flex-1 grid grid-cols-2 gap-2">
                 <label className={`p-2 text-xs text-center tracking-wider border border-current opacity-70 hover:opacity-100 transition-all cursor-pointer ${uploading ? 'pointer-events-none opacity-40' : ''}`}>
-                  📷 촬영
+                  촬영
                   <input
                     type="file"
                     accept="image/*"
@@ -409,7 +687,7 @@
                   />
                 </label>
                 <label className={`p-2 text-xs text-center tracking-wider border border-current opacity-70 hover:opacity-100 transition-all cursor-pointer ${uploading ? 'pointer-events-none opacity-40' : ''}`}>
-                  🖼 갤러리
+                  갤러리
                   <input
                     type="file"
                     accept="image/*"
@@ -719,7 +997,7 @@
                   onClick={() => { onCopy(text); onClose(); }}
                   className="py-3 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 active:scale-95 transition-all"
                 >
-                  📋 복사
+                  복사
                 </button>
                 <button
                   onClick={() => { onSend(text); onClose(); }}
@@ -759,8 +1037,8 @@
 
       const channelLabel = {
         sms: '📱 문자',
-        copy: '📋 복사',
-        preview: '👁 미리보기'
+        copy: '복사',
+        preview: '미리보기'
       };
 
       const fmtDate = (key) => {
@@ -786,7 +1064,7 @@
           >
             <div className={`p-5 border-b ${theme.border} flex items-center justify-between sticky top-0 ${theme.surface} z-10`}>
               <div>
-                <h3 className="text-base font-light tracking-wide">📜 발주 이력</h3>
+                <h3 className="text-base font-light tracking-wide">발주 이력</h3>
                 <p className={`text-xs ${theme.subText} mt-1 font-mono tracking-widest uppercase`}>
                   총 {history.length}건
                 </p>
@@ -1090,7 +1368,7 @@
           >
             <div className={`p-5 border-b ${theme.border} flex items-center justify-between sticky top-0 ${theme.surface} z-10`}>
               <div>
-                <h3 className="text-base font-light tracking-wide">📊 사용 통계</h3>
+                <h3 className="text-base font-light tracking-wide">사용 통계</h3>
                 <p className={`text-xs ${theme.subText} mt-1 font-mono tracking-widest uppercase`}>
                   Monthly Summary
                 </p>
@@ -1431,13 +1709,16 @@
         : { this: '이번 달', last: '지난 달', unit: '월' };
 
       const [currentThemeKey, setCurrentThemeKey] = useState(() => {
-        const saved = safeStorage.get('filo_theme', 'cream');
-        // 구 키 마이그레이션 (ivory→cream, noir/bottega→cream, 구 cream(chrome)→forest)
-        const migrated = saved === 'ivory' ? 'cream'
-                       : saved === 'noir' || saved === 'bottega' ? 'cream'
-                       : saved;
-        return themes[migrated] ? migrated : 'cream';
+        // head 스크립트가 정한 값(저장값 또는 기기 설정)을 그대로 사용. 구 테마 키(cream/forest 등)는 studio로 이전됨.
+        const attr = document.documentElement.getAttribute('data-filo-theme');
+        return themes[attr] ? attr : 'studio';
       });
+      useEffect(() => {
+        document.documentElement.setAttribute('data-filo-theme', currentThemeKey);
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', currentThemeKey === 'night' ? '#111113' : '#F2F2EE');
+      }, [currentThemeKey]);
+      const toggleTheme = () => setCurrentThemeKey(k => (k === 'night' ? 'studio' : 'night'));
 
       const [viewMode, setViewMode] = useState('quick');
       const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -2286,6 +2567,8 @@
         if (e.target.src !== FALLBACK_IMAGE) e.target.src = FALLBACK_IMAGE;
       };
 
+      const navShortageCount = products.filter(p => p.currentStock < p.safeStock && !orderingProductNames.has(p.name)).length;
+
       return (
         <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-300 font-sans antialiased flex flex-col md:flex-row`}>
 
@@ -2297,99 +2580,90 @@
             />
           )}
           <aside className={`
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            md:translate-x-0
-            fixed md:sticky top-0 left-0 z-50 md:z-auto
-            w-64 md:w-56 h-screen md:h-screen
+            hidden md:flex md:sticky top-0 left-0
+            w-60 h-screen flex-shrink-0
             ${theme.surface} border-r ${theme.border}
-            flex flex-col p-5 transition-transform duration-300
+            flex-col p-5
           `}>
             {/* 브랜드 */}
-            <div className="mb-8 flex items-center gap-3">
-              {branding.logoImage && (
-                <img src={branding.logoImage} alt="" className="w-10 h-10 object-contain flex-shrink-0" />
-              )}
+            <div className="mb-8 f-brand">
+              {branding.logoImage
+                ? <img src={branding.logoImage} alt="" className="w-[30px] h-[30px] object-contain flex-shrink-0" />
+                : <span className="f-brand-mark">{(branding.appName || 'F').trim().charAt(0)}</span>}
               <div className="min-w-0 flex-1">
-                <h1 className="text-xl font-light tracking-[0.15em] font-display truncate">{branding.appName}</h1>
-                <p className={`text-[10px] ${theme.subText} tracking-[0.25em] mt-0.5 font-mono uppercase truncate`}>
-                  {branding.tagline}
-                </p>
+                <h1 className="f-brand-name">{branding.appName}</h1>
+                <p className="f-brand-sub">{branding.tagline}</p>
               </div>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="md:hidden text-lg opacity-50 w-7 h-7 flex items-center justify-center"
-                aria-label="닫기"
-              >✕</button>
             </div>
 
             {/* 메뉴 */}
-            <nav className="flex flex-col gap-1 flex-1">
-              {[
-                { key: 'quick', icon: '⚡', label: '빠른 차감' },
-                { key: 'stocktake', icon: '📋', label: '재고조사' },
-                { key: 'dashboard', icon: '📨', label: '발주 대시보드' },
-                { key: 'manage', icon: '⚙', label: '마스터 관리' },
-              ].map(m => (
+            <nav className="f-side-nav flex-1" aria-label="주요 메뉴">
+              {NAV_ITEMS.map(m => (
                 <button
                   key={m.key}
-                  onClick={() => { setViewMode(m.key); setSidebarOpen(false); }}
-                  className={`flex items-center gap-3 px-3 py-3 text-sm tracking-wide transition-all rounded ${
-                    viewMode === m.key
-                      ? `${theme.activeTab}`
-                      : `${theme.subText} hover:opacity-100 opacity-70`
-                  }`}
+                  onClick={() => setViewMode(m.key)}
+                  className={`f-side-link ${viewMode === m.key ? 'is-active' : ''}`}
+                  aria-current={viewMode === m.key ? 'page' : undefined}
                 >
-                  <span className="text-base">{m.icon}</span>
-                  <span className="font-medium">{m.label}</span>
+                  <Icon name={m.key} size={20} />
+                  <span>{m.label}</span>
+                  {m.key === 'dashboard' && navShortageCount > 0 && <span className="f-tab-dot">{navShortageCount}</span>}
                 </button>
               ))}
             </nav>
 
             {/* 하단 설정 */}
-            <div className={`mt-4 pt-4 border-t ${theme.border}`}>
-              <button
-                onClick={() => setShowSettings(true)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm tracking-wide ${theme.subText} hover:opacity-100 opacity-70 transition-all rounded`}
-              >
-                <span>⚙</span>
+            <div className={`mt-4 pt-4 border-t ${theme.border} flex flex-col gap-1`}>
+              <button onClick={toggleTheme} className="f-side-link">
+                <Icon name={currentThemeKey === 'night' ? 'sun' : 'moon'} size={20} />
+                <span>{currentThemeKey === 'night' ? '밝은 화면' : '어두운 화면'}</span>
+              </button>
+              <button onClick={() => setShowSettings(true)} className="f-side-link">
+                <Icon name="settings" size={20} />
                 <span>설정</span>
               </button>
-              <p className={`text-[10px] ${theme.subText} text-center mt-3 opacity-50 font-mono tracking-widest uppercase`}>
-                FILO · Quiet Luxury
-              </p>
             </div>
           </aside>
 
-          {/* ====== 메인 컨텐츠 영역 ====== */}
-          <main className="flex-1 min-w-0 p-4 md:p-8 pb-24">
-
-            {/* 모바일 상단바 (햄버거 + 앱이름) */}
-            <div className="md:hidden flex items-center justify-between mb-4 pb-3 border-b border-current/20">
+          {/* 모바일 하단 탭바 */}
+          <nav className="f-tabbar md:hidden" aria-label="주요 메뉴">
+            {NAV_ITEMS.map(m => (
               <button
-                onClick={() => setSidebarOpen(true)}
-                className="w-10 h-10 flex items-center justify-center text-xl"
-                aria-label="메뉴"
-              >☰</button>
-              <h1 className="text-base font-light tracking-[0.15em] font-display truncate">{branding.appName}</h1>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="w-10 h-10 flex items-center justify-center text-base opacity-60"
-                aria-label="설정"
-              >⚙</button>
-            </div>
-
-          {/* 테마 전환 상단바 */}
-          <div className="flex justify-end gap-3 mb-6 text-xs tracking-widest opacity-80">
-            {Object.entries(themes).map(([key, value]) => (
-              <button
-                key={key}
-                onClick={() => setCurrentThemeKey(key)}
-                className={`pb-1 border-b transition-all uppercase ${currentThemeKey === key ? 'border-current font-bold opacity-100' : 'border-transparent opacity-30'}`}
+                key={m.key}
+                onClick={() => { setViewMode(m.key); window.scrollTo(0, 0); }}
+                className={`f-tab ${viewMode === m.key ? 'is-active' : ''}`}
+                aria-current={viewMode === m.key ? 'page' : undefined}
               >
-                {value.name}
+                <span className="f-tab-icon"><Icon name={m.key} size={20} /></span>
+                <span>{m.label}</span>
+                {m.key === 'dashboard' && navShortageCount > 0 && <span className="f-tab-dot">{navShortageCount}</span>}
               </button>
             ))}
-          </div>
+          </nav>
+
+                    {/* ====== 메인 컨텐츠 영역 ====== */}
+          <main className="flex-1 min-w-0 p-4 md:p-8 pb-28 md:pb-12">
+
+            {/* 모바일 상단바 */}
+            <div className="f-topbar md:hidden">
+              <div className="f-brand">
+                {branding.logoImage
+                  ? <img src={branding.logoImage} alt="" className="w-[30px] h-[30px] object-contain flex-shrink-0" />
+                  : <span className="f-brand-mark">{(branding.appName || 'F').trim().charAt(0)}</span>}
+                <div className="min-w-0">
+                  <h1 className="f-brand-name">{branding.appName}</h1>
+                  <p className="f-brand-sub">{branding.tagline}</p>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <button onClick={toggleTheme} className="f-icon-btn" aria-label={currentThemeKey === 'night' ? '밝은 화면으로' : '어두운 화면으로'}>
+                  <Icon name={currentThemeKey === 'night' ? 'sun' : 'moon'} size={20} />
+                </button>
+                <button onClick={() => setShowSettings(true)} className="f-icon-btn" aria-label="설정">
+                  <Icon name="settings" size={20} />
+                </button>
+              </div>
+            </div>
 
           {/* 헤더는 사이드바로 대체됨 */}
 
@@ -2424,95 +2698,51 @@
 
             return (
               <div className="max-w-3xl mx-auto">
-                <div className="mb-5">
-                  <div className="flex items-baseline justify-between mb-1 gap-3">
-                    <h2 className="text-xl font-bold tracking-tight flex-1 min-w-0 truncate">일일 사용량 차감</h2>
-                    <button
-                      onClick={() => setShowTodayUsage(true)}
-                      className={`px-2.5 py-1 text-xs tracking-widest uppercase border border-current opacity-60 hover:opacity-100 transition-all flex-shrink-0 font-mono`}
-                      title="오늘 차감한 약품 목록 보기"
-                    >
-                      📋 오늘 사용 {todayUsage.length > 0 && `(${todayUsage.length})`}
-                    </button>
+                <header className="f-page-head">
+                  <div className="min-w-0">
+                    <p className="f-eyebrow">Daily use</p>
+                    <h2 className="f-title">빠른 차감</h2>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <p className={`text-sm ${theme.subText}`}>약을 꺼낼 때 한 번 누르면 재고가 차감됩니다.</p>
-                    <span className={`text-xs ${theme.subText} font-mono tracking-widest whitespace-nowrap`}>
-                      {shortageCount > 0 ? `발주대상 ${shortageCount}` : (orderingCount > 0 ? `발주중 ${orderingCount}` : 'ALL OK')}
-                    </span>
-                  </div>
-                </div>
+                  <button
+                    onClick={() => setShowTodayUsage(true)}
+                    className="f-chip-btn"
+                    title="오늘 차감한 약품 목록 보기"
+                  >
+                    <Icon name="list" size={16} />
+                    오늘 사용 <span className="f-num">{todayUsage.length}</span>
+                  </button>
+                </header>
 
-                {/* 테라코타 발주 배너 (이미지 디자인) */}
-                {shortageCount > 0 && (
+                {/* 상태 요약: 발주 필요 / 입고 대기 / 오늘 사용 */}
+                <div className="f-status">
                   <button
                     onClick={() => setViewMode('dashboard')}
-                    className="w-full mb-4 p-5 rounded-lg flex items-center justify-between gap-3 transition-all hover:opacity-90 active:scale-[0.99] shadow-md"
-                    style={{ backgroundColor: '#C17F4F', color: '#FBF4E9' }}
+                    className={`f-status-cell ${shortageCount > 0 ? 'is-alert' : ''}`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-2xl flex-shrink-0">
-                        📦
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs opacity-80 mb-0.5">발주가 필요한 상품이 있어요!</p>
-                        <p className="text-xl font-bold tracking-tight">발주 필요 {shortageCount}건</p>
-                      </div>
-                    </div>
-                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 border border-white/40 rounded text-sm font-medium whitespace-nowrap">
-                      발주 관리 바로가기 →
-                    </div>
-                    <span className="sm:hidden text-2xl">→</span>
+                    <span className="f-status-label">발주 필요</span>
+                    <span className="f-status-value">{shortageCount}<small>건</small></span>
+                    {shortageCount > 0 && <span className="f-status-cta">발주하기 <Icon name="arrow" size={12} strokeWidth={2.5} /></span>}
                   </button>
-                )}
-
-                {/* 발주중 안내 */}
-                {orderingCount > 0 && (
-                  <div
-                    className="w-full mb-4 px-4 py-3 rounded-lg flex items-center gap-3"
-                    style={{ backgroundColor: 'rgba(193, 127, 79, 0.12)', border: '1px solid rgba(193, 127, 79, 0.4)' }}
+                  <button
+                    onClick={() => setViewMode('dashboard')}
+                    className={`f-status-cell ${orderingCount > 0 ? 'is-pending' : ''}`}
                   >
-                    <span className="text-lg">📨</span>
-                    <p className="text-sm" style={{ color: '#C17F4F' }}>
-                      <span className="font-bold">발주중 {orderingCount}건</span> · 입고 대기 중
-                    </p>
+                    <span className="f-status-label">입고 대기</span>
+                    <span className="f-status-value">{orderingCount}<small>건</small></span>
+                  </button>
+                  <div className="f-status-cell">
+                    <span className="f-status-label">오늘 사용</span>
+                    <span className="f-status-value">{todayUsage.length}<small>건</small></span>
                   </div>
-                )}
-
-                {/* 4개 요약 카드 (이미지 디자인) */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-                  {[
-                    { icon: '🔔', label: '발주 필요', value: shortageCount, unit: '건', color: '#C17F4F' },
-                    { icon: '📨', label: '발주중', value: orderingCount, unit: '건', color: '#A88062' },
-                    { icon: '📋', label: '오늘 사용', value: todayUsage.length, unit: '건', color: '#5C4033' },
-                    { icon: '📦', label: '전체 재고', value: products.length, unit: '개', color: '#7A6655' },
-                  ].map((c, i) => (
-                    <div key={i} className={`${theme.surface} border ${theme.border} rounded-lg p-4`}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"
-                          style={{ backgroundColor: `${c.color}22` }}
-                        >
-                          {c.icon}
-                        </div>
-                        <span className={`text-xs ${theme.subText} font-medium`}>{c.label}</span>
-                      </div>
-                      <p className="text-2xl font-bold tracking-tight">
-                        {c.value}<span className={`text-sm ml-1 ${theme.subText} font-normal`}>{c.unit}</span>
-                      </p>
-                    </div>
-                  ))}
                 </div>
 
-                {/* 카테고리 필터 칩 (4개 고정 대분류) */}
-                <div className="mb-3 grid grid-cols-3 md:grid-cols-6 gap-1.5">
+                {/* 카테고리 필터 */}
+                <div className="f-chips" role="group" aria-label="카테고리">
                   <button
                     onClick={() => setCategoryFilter('all')}
-                    className={`px-2 py-2 text-sm tracking-wider border transition-all ${
-                      categoryFilter === 'all' ? `${theme.activeTab} font-medium` : 'border-current opacity-40 hover:opacity-80'
-                    }`}
+                    className={`f-chip ${categoryFilter === 'all' ? 'is-active' : ''}`}
                   >
-                    전체 <span className="font-mono">({products.length})</span>
+                    전체 <span className="f-num">{products.length}</span>
                   </button>
                   {CATEGORIES.map(c => {
                     const count = products.filter(p => p.category === c.key).length;
@@ -2521,156 +2751,129 @@
                       <button
                         key={c.key}
                         onClick={() => setCategoryFilter(c.key)}
-                        className={`px-2 py-2 text-sm tracking-wide border-2 transition-all ${
-                          active
-                            ? `${c.color.bg} ${c.color.text} font-semibold`
-                            : `border-current opacity-${count > 0 ? '50' : '25'} hover:opacity-90`
-                        }`}
-                        style={active ? { borderColor: c.color.hex } : {}}
+                        className={`f-chip ${active ? 'is-active' : ''} ${count === 0 ? 'is-empty' : ''}`}
+                        style={{ '--cat': c.color.hex }}
                       >
-                        {c.key} <span className="font-mono opacity-70">({count})</span>
+                        <i className="f-dot" />
+                        {c.key} <span className="f-num">{count}</span>
                       </button>
                     );
                   })}
                   {hasUnclassified && (
                     <button
                       onClick={() => setCategoryFilter('__none__')}
-                      className={`px-2 py-2 text-sm tracking-wider border transition-all ${
-                        categoryFilter === '__none__' ? `${theme.activeTab} font-medium` : 'border-current opacity-40 hover:opacity-80'
-                      }`}
+                      className={`f-chip ${categoryFilter === '__none__' ? 'is-active' : ''}`}
                     >
-                      미분류 <span className="font-mono">({products.filter(p => !p.category).length})</span>
+                      미분류 <span className="f-num">{products.filter(p => !p.category).length}</span>
                     </button>
                   )}
                 </div>
 
-                {/* 검색바 + Undo 버튼 */}
-                <div className="mb-4 flex gap-2">
-                  <input
-                    type="search"
-                    placeholder="제품명 또는 거래처로 검색..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className={`flex-1 px-4 py-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
-                  />
+                {/* 검색 + 되돌리기 */}
+                <div className="f-toolbar">
+                  <label className="f-search">
+                    <Icon name="search" size={18} />
+                    <input
+                      id="quick-search"
+                      type="search"
+                      placeholder="제품명 또는 거래처 검색"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                    />
+                  </label>
                   <button
                     onClick={handleUndo}
                     disabled={undoStack.length === 0}
                     title={undoStack.length > 0 ? `되돌리기: ${undoStack[undoStack.length-1].productName.slice(0,12)}` : '되돌릴 작업 없음'}
-                    className={`px-3 py-2.5 text-sm tracking-wider border border-current transition-all whitespace-nowrap ${undoStack.length === 0 ? 'opacity-20 cursor-not-allowed' : 'opacity-80 hover:opacity-100'}`}
+                    className="f-ghost-btn"
                   >
-                    ↶ 되돌리기 {undoStack.length > 0 && <span className="font-mono">({undoStack.length})</span>}
+                    <Icon name="undo" size={18} />
+                    <span className="hidden sm:inline">되돌리기</span>
+                    {undoStack.length > 0 && <span className="f-num">{undoStack.length}</span>}
                   </button>
                 </div>
 
-                <div className="space-y-2">
+                <ul className="f-list">
                   {sorted.length === 0 && (
-                    <div className={`text-center py-12 border ${theme.surface} ${theme.subText} text-sm`}>
-                      {searchQuery ? '검색 결과 없음' : '제품을 먼저 등록해주세요'}
-                    </div>
+                    <li className="f-empty">
+                      {searchQuery ? '검색 결과가 없습니다' : "등록된 품목이 없습니다. '품목 관리'에서 첫 약제를 등록하세요."}
+                    </li>
                   )}
                   {sorted.map(product => {
                     const isShortage = product.currentStock < product.safeStock;
                     const isCritical = product.currentStock === 0;
-                    const ratio = Math.min(100, (product.currentStock / product.safeStock) * 100);
+                    const isOrdering = isShortage && orderingProductNames.has(product.name);
+                    const state = isCritical && !isOrdering ? 'out' : isOrdering ? 'pending' : isShortage ? 'low' : 'ok';
                     const catStyle = getCategoryStyle(product.category);
+                    const scaleMax = Math.max(product.safeStock * 1.5, product.currentStock, 1);
+                    const fillPct = Math.min(100, (product.currentStock / scaleMax) * 100);
+                    const safePct = Math.min(100, (product.safeStock / scaleMax) * 100);
+                    const badgeText = { out: '품절', pending: '입고 대기', low: '발주 필요' }[state];
 
                     return (
-                      <div
+                      <li
                         key={product.id}
-                        className={`relative border overflow-hidden ${theme.surface} ${isCritical ? 'ring-1 ring-red-500/30' : ''}`}
+                        className={`f-item is-${state}`}
+                        style={catStyle ? { '--cat': catStyle.color.hex } : undefined}
                       >
-                        {/* 좌측 카테고리 컬러 바 (4px) */}
-                        {catStyle && (
-                          <div
-                            className="absolute inset-y-0 left-0 w-1 pointer-events-none"
-                            style={{ background: catStyle.color.hex }}
-                          />
-                        )}
+                        <ProductThumb product={product} size={44} />
 
-                        {/* 백그라운드 게이지 (재고 비율 시각화) */}
-                        <div
-                          className="absolute inset-y-0 left-0 opacity-[0.04] pointer-events-none transition-all"
-                          style={{
-                            width: `${ratio}%`,
-                            background: isShortage ? '#E63946' : 'currentColor'
-                          }}
-                        />
+                        <div className="f-item-body">
+                          <div className="f-item-meta">
+                            <span className="truncate">{product.company}</span>
+                            {catStyle && <span className="f-cat"><i className="f-dot" />{catStyle.key}</span>}
+                            {badgeText && <span className={`f-badge is-${state}`}>{badgeText}</span>}
+                          </div>
+                          <h3 className="f-item-name">{product.name}</h3>
+                        </div>
 
-                        <div className="relative flex items-center p-3 gap-3">
-                          <img
-                            src={product.image}
-                            alt=""
-                            onError={handleImgError}
-                            loading="lazy"
-                            className="w-12 h-12 object-cover bg-neutral-800 flex-shrink-0 grayscale opacity-80"
-                          />
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                              <span className={`text-xs ${theme.subText} truncate`}>{product.company}</span>
-                              {catStyle && (
-                                <span
-                                  className={`text-[11px] tracking-wide px-1.5 py-0.5 font-semibold text-white flex-shrink-0`}
-                                  style={{ backgroundColor: catStyle.color.hex }}
-                                >
-                                  {catStyle.key}
-                                </span>
-                              )}
-                              {isShortage && (
-                                orderingProductNames.has(product.name) ? (
-                                  <span className="text-[11px] tracking-wider uppercase font-bold px-1.5 py-0.5 text-white bg-amber-600">
-                                    📨 발주중
-                                  </span>
-                                ) : (
-                                  <span className={`text-[11px] tracking-wider uppercase font-bold px-1.5 py-0.5 text-white ${isCritical ? 'bg-red-600' : 'bg-orange-500'}`}>
-                                    {isCritical ? '⚠ 품절' : '발주'}
-                                  </span>
-                                )
-                              )}
+                        <div className="f-item-foot">
+                          <div className="f-gauge-wrap">
+                            <div className="f-gauge" role="img" aria-label={`현재 ${product.currentStock}개, 적정선 ${product.safeStock}개`}>
+                              <span className="f-gauge-fill" style={{ width: `${fillPct}%` }} />
+                              <span className="f-gauge-mark" style={{ left: `${safePct}%` }} />
                             </div>
-                            <h3 className="text-base font-bold truncate tracking-tight leading-snug">{product.name}</h3>
-                            <div className={`text-xs ${theme.subText} font-mono mt-0.5`}>
-                              {product.currentStock} / {product.safeStock}
+                            <div className="f-gauge-label">
+                              <span>적정선 <b className="f-num">{product.safeStock}</b></span>
+                              {isShortage && <span>부족 <b className="f-num">{product.safeStock - product.currentStock}</b></span>}
                             </div>
                           </div>
 
-                          {/* − / 숫자 / + 컨트롤 (큰 터치 영역) */}
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                          <div className="f-stepper">
                             <button
                               onClick={() => handleQuickAdjust(product.id, -1)}
                               disabled={product.currentStock === 0}
-                              className="w-10 h-10 text-lg font-light border border-current opacity-80 hover:opacity-100 active:scale-95 transition-all disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center"
-                              aria-label="차감"
+                              className="f-step"
+                              aria-label={`${product.name} 1개 차감`}
                             >
-                              −
+                              <Icon name="minus" size={20} strokeWidth={2} />
                             </button>
                             <button
                               onClick={() => setQuickInputId(product.id)}
-                              className="w-12 h-10 text-center font-mono text-base font-semibold hover:opacity-70 active:scale-95 transition-all"
-                              aria-label="직접 입력"
+                              className="f-count"
+                              aria-label="수량 직접 입력"
                               title="탭하여 직접 입력"
                             >
                               {product.currentStock}
                             </button>
                             <button
                               onClick={() => handleQuickAdjust(product.id, 1)}
-                              className="w-10 h-10 text-lg font-light border border-current opacity-80 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center"
-                              aria-label="추가"
+                              className="f-step"
+                              aria-label={`${product.name} 1개 추가`}
                             >
-                              +
+                              <Icon name="plus" size={20} strokeWidth={2} />
                             </button>
                           </div>
                         </div>
-                      </div>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
               </div>
             );
           })()}
 
-          {/* TAB 1: 재고조사 */}
+                    {/* TAB 1: 재고조사 */}
           {viewMode === 'stocktake' && (() => {
             const stockFiltered = stockSearch.trim()
               ? products.filter(p =>
@@ -2680,10 +2883,11 @@
 
             return (
             <div className="max-w-4xl mx-auto">
-              <div className="mb-6">
-                <h2 className="text-xl font-bold tracking-tight">실사 수량 기입 모드</h2>
-                <p className={`text-sm ${theme.subText} mt-1`}>매장 창고 및 약장을 대조하며 실제 남아있는 약제의 수량을 정밀하게 입력해 주세요.</p>
-              </div>
+              <header className="mb-5">
+                <p className="f-eyebrow">Stock count</p>
+                <h2 className="f-title">재고조사</h2>
+                <p className={`text-sm ${theme.subText} mt-1.5`}>약장과 창고를 보면서 실제로 남은 수량으로 맞춰 주세요.</p>
+              </header>
 
               {/* 검색바 */}
               <div className="mb-4">
@@ -2705,40 +2909,30 @@
                 {stockFiltered.map(product => {
                   const isShortage = product.currentStock < product.safeStock;
                   return (
-                    <div key={product.id} className={`flex items-center justify-between p-4 border transition-all ${theme.surface}`}>
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <img
-                          src={product.image}
-                          alt=""
-                          onError={handleImgError}
-                          loading="lazy"
-                          className="w-14 h-14 object-cover bg-neutral-800 flex-shrink-0 grayscale opacity-80"
-                        />
+                    <div key={product.id} className={`flex flex-wrap items-center justify-between gap-3 p-4 border transition-all ${theme.surface}`}>
+                      <div className="flex items-center gap-3 grow basis-[220px] min-w-0">
+                        <ProductThumb product={product} size={44} />
                         <div className="min-w-0">
-                          <span className={`text-sm ${theme.subText} block`}>{product.company}</span>
-                          <h3 className="text-base font-medium truncate tracking-wide">{product.name}</h3>
+                          <span className={`text-xs ${theme.subText} block`}>{product.company}</span>
+                          <h3 className="text-base font-semibold leading-snug tracking-tight [overflow-wrap:anywhere]">{product.name}</h3>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <span className={`text-sm ${theme.subText}`}>적정선: {product.safeStock}개</span>
                             {isShortage && (
                               orderingProductNames.has(product.name) ? (
-                                <span className="text-xs tracking-wider uppercase font-bold px-1.5 py-0.5 bg-amber-600 text-white">
-                                  📨 발주중
-                                </span>
+                                <span className="f-badge is-pending" style={{ marginLeft: 0 }}>입고 대기</span>
                               ) : (
-                                <span className={`text-xs tracking-widest uppercase font-bold px-1.5 py-0.5 bg-red-900/10 ${theme.badge}`}>
-                                  발주 대상
-                                </span>
+                                <span className="f-badge is-low" style={{ marginLeft: 0 }}>발주 필요</span>
                               )
                             )}
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 ml-4 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
                         <button
                           onClick={() => handleQuickAdjust(product.id, -1)}
                           disabled={product.currentStock === 0}
-                          className="w-9 h-9 text-base font-light border border-current opacity-70 hover:opacity-100 active:scale-95 transition-all disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center"
+                          className={`w-10 h-10 text-lg border ${theme.border} hover:bg-[color:var(--f-surface-2)] active:scale-95 transition-all disabled:opacity-25 disabled:cursor-not-allowed flex items-center justify-center`}
                           aria-label="차감"
                         >
                           −
@@ -2749,11 +2943,11 @@
                           min="0"
                           value={product.currentStock}
                           onChange={(e) => handleStockChange(product.id, e.target.value)}
-                          className={`w-14 text-center py-2 text-base focus:outline-none font-medium border ${theme.inputBg}`}
+                          className={`w-16 h-10 text-center text-lg f-num focus:outline-none font-semibold border ${theme.inputBg}`}
                         />
                         <button
                           onClick={() => handleQuickAdjust(product.id, 1)}
-                          className="w-9 h-9 text-base font-light border border-current opacity-70 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center"
+                          className={`w-10 h-10 text-lg border ${theme.border} hover:bg-[color:var(--f-surface-2)] active:scale-95 transition-all flex items-center justify-center`}
                           aria-label="추가"
                         >
                           +
@@ -2776,21 +2970,22 @@
             return (
             <div className="max-w-3xl mx-auto">
               <div className="mb-6">
-                <div className="flex items-baseline justify-between mb-1 gap-3">
-                  <h2 className="text-xl font-bold tracking-tight flex-1 min-w-0 truncate">거래처 자동 분류 발주 시스템</h2>
+                <header className="f-page-head" style={{ marginBottom: 6 }}>
+                  <div className="min-w-0">
+                    <p className="f-eyebrow">Orders · 대기 {pending.length} · 완료 {completed.length}</p>
+                    <h2 className="f-title">거래처별 발주</h2>
+                  </div>
                   <button
                     onClick={() => setShowOrderHistory(true)}
-                    className={`px-2.5 py-1 text-xs tracking-widest uppercase border border-current opacity-60 hover:opacity-100 transition-all flex-shrink-0 font-mono`}
+                    className="f-chip-btn"
                     title="과거 발주 이력 보기"
                   >
-                    📜 이력 {orderHistory.length > 0 && `(${orderHistory.length})`}
+                    <Icon name="list" size={16} />
+                    이력 <span className="f-num">{orderHistory.length}</span>
                   </button>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className={`text-sm ${theme.subText}`}>발주 후 "완료" 버튼을 누르면 같은 발주가 반복 노출되지 않습니다.</p>
-                  <span className={`text-xs ${theme.subText} font-mono tracking-widest whitespace-nowrap`}>
-                    대기 {pending.length} · 완료 {completed.length}
-                  </span>
+                </header>
+                <div>
+                  <p className={`text-sm ${theme.subText}`}>적정선 아래로 떨어진 품목을 거래처별로 묶었습니다. 문자를 보낸 뒤 '완료'를 누르면 목록에서 내려갑니다.</p>
                 </div>
               </div>
 
@@ -2868,7 +3063,7 @@
                               className="py-2.5 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center gap-1"
                               title="발주서 미리보기 및 메시지 편집"
                             >
-                              👁 미리보기
+                              미리보기
                             </button>
                             <button
                               onClick={() => {
@@ -2878,7 +3073,7 @@
                               className="py-2.5 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center gap-1"
                               title="발주서 텍스트 복사"
                             >
-                              📋 복사
+                              복사
                             </button>
                             <button
                               onClick={() => handleMarkOrderComplete(company, info)}
@@ -2932,8 +3127,9 @@
               {/* 등록 폼 */}
               <div className="md:col-span-1">
                 <div className="mb-4">
-                  <div className="flex items-baseline justify-between mb-1 gap-2">
-                    <h2 className="text-xl font-bold tracking-tight">신규 약제 마스터 등록</h2>
+                  <p className="f-eyebrow">Items</p>
+                  <div className="flex items-end justify-between mb-1 gap-2">
+                    <h2 className="f-title">새 약제 등록</h2>
                     <button
                       onClick={() => setShowAddCompany(true)}
                       className={`px-2.5 py-1 text-xs tracking-widest uppercase border border-current opacity-60 hover:opacity-100 transition-all flex-shrink-0 font-mono whitespace-nowrap`}
@@ -3062,7 +3258,7 @@
                       )}
                       <div className="grid grid-cols-2 gap-2">
                         <label className={`p-2.5 text-xs text-center tracking-wider border border-current opacity-70 hover:opacity-100 transition-all cursor-pointer`}>
-                          📷 촬영
+                          촬영
                           <input
                             type="file"
                             accept="image/*"
@@ -3072,7 +3268,7 @@
                           />
                         </label>
                         <label className={`p-2.5 text-xs text-center tracking-wider border border-current opacity-70 hover:opacity-100 transition-all cursor-pointer`}>
-                          🖼 갤러리
+                          갤러리
                           <input
                             type="file"
                             accept="image/*"
@@ -3100,9 +3296,9 @@
               <div className="md:col-span-2">
                 <div className="mb-4">
                   <h2 className="text-xl font-bold tracking-tight">
-                    마스터 리스트 데이터 <span className="font-mono opacity-60">({products.length})</span>
+                    등록된 품목 <span className="f-num opacity-60">{products.length}</span>
                   </h2>
-                  <p className={`text-sm ${theme.subText} mt-1`}>현재 살롱 앱 내부에 세팅되어 있는 제품 마스터 데이터입니다.</p>
+                  <p className={`text-sm ${theme.subText} mt-1`}>연필 버튼으로 이름·거래처·적정선을 고칠 수 있습니다.</p>
                 </div>
 
                 {/* 마스터 검색바 */}
@@ -3145,16 +3341,10 @@
                       <div key={product.id} className={`border text-sm ${theme.surface} transition-all`}>
                         {/* 기본 카드 */}
                         <div className="flex items-center justify-between p-3">
-                          <div className="flex items-center gap-3 truncate flex-1 min-w-0">
-                            <img
-                              src={product.image}
-                              alt=""
-                              onError={handleImgError}
-                              loading="lazy"
-                              className="w-10 h-10 object-cover bg-neutral-800 grayscale flex-shrink-0"
-                            />
-                            <div className="truncate min-w-0">
-                              <p className="font-medium truncate">{product.name}</p>
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <ProductThumb product={product} size={40} />
+                            <div className="min-w-0">
+                              <p className="font-semibold leading-snug [overflow-wrap:anywhere]">{product.name}</p>
                               <p className={`text-xs ${theme.subText} font-mono truncate`}>
                                 {product.company} · {formatPhone(product.phone)} · 재고 {product.currentStock}/{product.safeStock}
                               </p>
@@ -3338,7 +3528,7 @@
                       </div>
                       <div className="flex-1 space-y-1.5">
                         <label className="block p-2 text-xs text-center tracking-wider border border-current opacity-70 hover:opacity-100 transition-all cursor-pointer">
-                          🖼 로고 이미지 선택
+                          로고 이미지 선택
                           <input
                             type="file"
                             accept="image/*"
@@ -3452,7 +3642,7 @@
                   {/* 전체 백업 / 복원 */}
                   <div className={`pt-4 mt-2 border-t ${theme.border}`}>
                     <p className={`text-xs ${theme.subText} tracking-widest uppercase font-mono mb-2`}>
-                      💾 전체 백업 · 복원
+                      전체 백업 · 복원
                     </p>
                     <p className={`text-xs mb-2.5 ${lastBackup ? theme.subText : 'text-amber-500'}`}>
                       {lastBackup
@@ -3491,7 +3681,7 @@
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium tracking-wide">📖 사용 가이드 다시 보기</p>
+                          <p className="text-sm font-medium tracking-wide">사용 가이드 다시 보기</p>
                           <p className={`text-xs ${theme.subText} mt-0.5`}>
                             5단계 빠른 시작 가이드
                           </p>
@@ -3509,7 +3699,7 @@
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium tracking-wide">📊 사용 통계 (월별)</p>
+                          <p className="text-sm font-medium tracking-wide">사용 통계 (월별)</p>
                           <p className={`text-xs ${theme.subText} mt-0.5`}>
                             이번 달 / 지난 달 비교 · 제품별 사용량 랭킹
                           </p>
@@ -3522,7 +3712,7 @@
                   {/* 위험 영역 — 전체 초기화 */}
                   <div className={`pt-4 mt-2 border-t border-red-900/30`}>
                     <p className={`text-xs text-red-400 tracking-widest uppercase font-mono mb-2`}>
-                      ⚠ Danger Zone
+                      위험 구역
                     </p>
                     <p className={`text-xs ${theme.subText} mb-2.5 leading-relaxed`}>
                       모든 제품, 히스토리, 브랜딩 설정을 영구 삭제합니다.
@@ -3706,7 +3896,7 @@
           {toast && (
             <div
               key={toast.id}
-              className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 px-5 py-3 text-sm tracking-wider font-medium border ${theme.surface} shadow-2xl`}
+              className={`fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-40 px-5 py-3 text-sm font-medium border rounded-full ${theme.surface} shadow-2xl`}
               style={{ animation: 'filoToast 1.8s ease-out forwards' }}
             >
               {toast.message}
@@ -3714,8 +3904,8 @@
           )}
 
           {/* 푸터 시그니처 */}
-          <footer className={`mt-16 pt-6 border-t ${theme.border} text-center text-xs ${theme.subText} tracking-[0.3em] font-mono uppercase`}>
-            FILO · Quiet Luxury Salon System
+          <footer className={`mt-16 pt-6 border-t ${theme.border} text-center text-[11px] ${theme.subText} tracking-[0.18em] font-mono uppercase`}>
+            FILO · Salon dispensary
           </footer>
           </main>
         </div>
