@@ -1,16 +1,29 @@
 {
-  "name": "FILO 약제 재고",
-  "short_name": "FILO",
-  "description": "살롱 약제 재고 차감과 거래처별 발주 문자",
+  "name": "ZERO COUNT",
+  "short_name": "ZERO COUNT",
+  "description": "살롱 재고조사 · 바코드 스캔 · 발주 문자",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#F2F2EE",
-  "theme_color": "#5B2C5E",
+  "background_color": "#F4F6FA",
+  "theme_color": "#2563EB",
   "lang": "ko",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

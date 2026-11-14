@@ -6,16 +6,16 @@
   <meta name="theme-color" content="#F4F6FA" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="FILO" />
+  <meta name="apple-mobile-web-app-title" content="ZERO COUNT" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="icon-180.png" />
   <meta name="mobile-web-app-capable" content="yes" />
 
   <!-- SEO / OG -->
-  <title>FILO 약제 재고</title>
+  <title>ZERO COUNT</title>
   <meta name="description" content="살롱 약제 재고와 거래처별 발주를 자동화하는 프리미엄 시스템. 월말 재고조사 한 번으로 거래처별 발주 문자가 완성됩니다." />
-  <meta property="og:title" content="FILO 약제 재고" />
+  <meta property="og:title" content="ZERO COUNT" />
   <meta property="og:description" content="약 꺼낼 때 한 번 누르면 재고가 줄고, 떨어지면 거래처별 발주 문자가 완성됩니다." />
   <meta property="og:type" content="website" />
 
@@ -68,7 +68,7 @@
 
   <style>
     /* ============================================
-       FILO — Salon Dispensary
+       ZERO COUNT — 살롱 재고 · 재고조사
        Layout: 약장 선반처럼 품목이 한 줄씩 놓이고, 각 줄의 재고 게이지에
        적정선 눈금이 새겨진 구조. 모바일은 엄지로 닿는 하단 탭바.
        ============================================ */
@@ -545,6 +545,161 @@
     .f-quick:hover { border-color: var(--f-accent); }
     .f-quick .f-kpi-icon { width: 34px; height: 34px; }
 
+    /* ---------- 재고조사 · 스캐너 · 엑셀 ---------- */
+    .zc-btn-primary, .zc-btn-ghost {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0;
+      height: 44px; padding: 0 16px; border-radius: 12px; font-size: 14px; font-weight: 700; white-space: nowrap;
+    }
+    .zc-btn-primary { background: var(--f-accent); color: var(--f-on-accent); box-shadow: 0 6px 16px -8px rgba(37, 99, 235, 0.7); }
+    .zc-btn-primary:hover { background: var(--f-accent-hover); }
+    .zc-btn-primary:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+    .zc-btn-ghost { border: 1px solid var(--f-line-strong); background: var(--f-surface); color: var(--f-ink); }
+    .zc-btn-ghost:hover { border-color: var(--f-ink); }
+    .zc-btn-ghost:disabled { opacity: .4; }
+    .zc-back { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--f-sub); margin-bottom: 10px; }
+    .zc-back:hover { color: var(--f-ink); }
+    .zc-title-input { width: 100%; font-size: 24px; font-weight: 800; letter-spacing: -0.03em; background: transparent; border: 0; border-bottom: 1px dashed var(--f-line-strong); color: var(--f-ink); padding: 2px 0; border-radius: 0 !important; }
+    .zc-title-input:focus { outline: none; border-bottom-color: var(--f-accent); }
+
+    .zc-progress { position: relative; display: block; height: 8px; border-radius: 99px; background: var(--f-surface-2); overflow: hidden; }
+    .zc-progress i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--f-accent); transition: width .3s; }
+    .zc-cell-progress { display: flex; align-items: center; gap: 8px; min-width: 110px; }
+    .zc-cell-progress .zc-progress { flex: 1; height: 6px; }
+    .zc-cell-progress .f-num { font-size: 12px; color: var(--f-sub); width: 34px; text-align: right; }
+    .zc-click { cursor: pointer; }
+    .zc-click:hover td { background: var(--f-surface-2); }
+
+    .zc-active-card {
+      width: 100%; display: flex; align-items: center; gap: 16px; text-align: left; margin-bottom: 16px;
+      padding: 16px 18px; border-radius: var(--f-radius); background: var(--f-surface);
+      border: 1px solid color-mix(in srgb, var(--f-accent) 35%, var(--f-line)); box-shadow: var(--f-shadow);
+    }
+    .zc-active-card:hover { border-color: var(--f-accent); }
+    .zc-active-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+    .zc-active-left b { font-size: 16px; letter-spacing: -0.02em; }
+    .zc-active-left small { font-size: 12px; color: var(--f-sub); }
+    .zc-active-right { width: 34%; max-width: 220px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    .zc-active-right .zc-progress { width: 100%; }
+    .zc-pct { font: 800 24px/1 var(--f-font-display); color: var(--f-accent); letter-spacing: -0.03em; }
+
+    .zc-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 28px 12px; }
+    .zc-empty .f-kpi-icon { width: 48px; height: 48px; border-radius: 14px; }
+    .zc-empty p { font-size: 13px; color: var(--f-sub); max-width: 26em; }
+
+    .zc-progress-grid { display: grid; gap: 12px; margin-bottom: 14px; }
+    @media (min-width: 768px) { .zc-progress-grid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); } }
+    .zc-progress-card { display: flex; align-items: center; gap: 20px; }
+
+    .zc-scan-cta {
+      width: 100%; display: flex; align-items: center; gap: 14px; text-align: left; margin-bottom: 14px;
+      padding: 14px 16px; border-radius: var(--f-radius); color: #fff;
+      background: radial-gradient(120% 140% at 100% 0%, rgba(59, 130, 246, 0.45) 0%, rgba(59, 130, 246, 0) 60%), linear-gradient(135deg, #0B1220, #14213D);
+    }
+    .zc-scan-cta b { display: block; font-size: 15px; }
+    .zc-scan-cta small { font-size: 12px; color: #A9B6CD; }
+    .zc-scan-cta > span:nth-child(2) { flex: 1; min-width: 0; }
+    .zc-scan-cta-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.1); flex-shrink: 0; }
+
+    .zc-count-row {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px;
+      background: var(--f-surface); border: 1px solid var(--f-line); border-radius: 14px;
+    }
+    .zc-count-row.is-over, .zc-count-row.is-under { border-color: color-mix(in srgb, var(--f-alert) 35%, var(--f-line)); background: color-mix(in srgb, var(--f-alert-soft) 45%, var(--f-surface)); }
+    .zc-count-info { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; }
+    .zc-count-info b { font-size: 15px; font-weight: 650; letter-spacing: -0.015em; line-height: 1.35; overflow-wrap: anywhere; }
+    .zc-count-info small { font-size: 12px; color: var(--f-sub); }
+    .zc-count-nums { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .zc-num-box { width: 64px; height: 50px; border-radius: 10px; background: var(--f-surface-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+    .zc-num-box span, .zc-num-box label { font-size: 10.5px; color: var(--f-sub); font-weight: 600; }
+    .zc-num-box b { font-size: 18px; line-height: 1.1; }
+    .zc-num-box.is-input { background: var(--f-field); border: 1.5px solid var(--f-accent); }
+    #root .zc-num-box input { width: 100%; text-align: center; border: 0; background: transparent; color: var(--f-ink); font: 700 18px/1.1 var(--f-font-display); padding: 0; outline: none; }
+    .zc-count-row.is-left .zc-num-box.is-input { border-color: var(--f-line-strong); border-style: dashed; }
+    .zc-diff { width: 60px; display: flex; justify-content: center; }
+    .zc-diff-pill { min-width: 52px; text-align: center; padding: 6px 8px; border-radius: 10px; font: 700 14px/1 var(--f-font-display); }
+    .zc-diff-pill.is-match { background: var(--f-ok-soft); color: var(--f-ok); font-size: 12.5px; font-family: inherit; }
+    .zc-diff-pill.is-over { background: var(--f-accent-soft); color: var(--f-accent); }
+    .zc-diff-pill.is-under { background: var(--f-alert-soft); color: var(--f-alert); }
+    .zc-diff-pill.is-left { color: var(--f-sub); font-size: 12px; font-family: inherit; }
+    .zc-same-btn { min-width: 52px; padding: 7px 8px; border-radius: 10px; font-size: 12.5px; font-weight: 700; border: 1px solid var(--f-line-strong); color: var(--f-sub); }
+    .zc-same-btn:hover { border-color: var(--f-ok); color: var(--f-ok); }
+
+    .zc-count-actions {
+      position: sticky; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 20;
+      display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; padding: 10px;
+      background: color-mix(in srgb, var(--f-bg) 88%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--f-line); border-radius: 16px;
+    }
+    @media (min-width: 768px) { .zc-count-actions { bottom: 16px; } }
+    @media (max-width: 480px) { .zc-count-actions > * { flex: 1 1 auto; } }
+
+    .zc-excel-grid { display: grid; gap: 10px; grid-template-columns: 1fr; margin-bottom: 4px; }
+    @media (min-width: 640px) { .zc-excel-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .zc-excel-card { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 14px; border: 1px solid var(--f-line); background: var(--f-surface); text-align: left; cursor: pointer; }
+    .zc-excel-card:hover { border-color: var(--tone); }
+    .zc-excel-card:disabled { opacity: .45; cursor: not-allowed; }
+    .zc-excel-card.is-busy { opacity: .6; pointer-events: none; }
+    .zc-excel-card b { display: block; font-size: 14px; }
+    .zc-excel-card small { font-size: 12px; color: var(--f-sub); }
+    .zc-scan-btn { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 0 12px; border-radius: 10px; background: var(--f-ink); color: var(--f-bg); font-size: 13px; font-weight: 700; }
+
+    .zc-modal-bg { position: fixed; inset: 0; z-index: 60; background: rgba(2, 6, 23, 0.6); display: flex; align-items: flex-end; justify-content: center; padding: 12px; }
+    @media (min-width: 640px) { .zc-modal-bg { align-items: center; } }
+    .zc-modal { width: min(560px, 100%); max-height: calc(100vh - 24px); overflow: auto; background: var(--f-surface); color: var(--f-ink); border-radius: 20px; padding: 20px; box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.5); }
+    .zc-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .zc-modal-head h3 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+    .zc-modal-head p { font-size: 13px; color: var(--f-sub); margin-top: 2px; overflow-wrap: anywhere; }
+    .zc-modal-note { font-size: 12.5px; color: var(--f-sub); margin-top: 12px; line-height: 1.55; }
+    .zc-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .zc-import-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .zc-import-kpis div { padding: 12px; border-radius: 12px; background: var(--tone-soft); color: var(--tone); }
+    .zc-import-kpis span { display: block; font-size: 12px; font-weight: 700; }
+    .zc-import-kpis b { font: 800 22px/1.2 var(--f-font-display); }
+    .zc-import-list { margin-top: 12px; max-height: 300px; overflow: auto; display: grid; gap: 6px; }
+    .zc-import-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--f-surface-2); font-size: 13px; }
+    .zc-import-row b { display: block; font-weight: 650; }
+    .zc-import-row small { color: var(--f-sub); font-size: 12px; overflow-wrap: anywhere; }
+
+    /* 스캐너: 레퍼런스처럼 어두운 전체 화면 */
+    .zc-scan {
+      position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column;
+      background: #0B1220; color: #fff;
+      padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    }
+    .zc-scan-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; }
+    .zc-scan-brand { display: flex; align-items: center; gap: 8px; font: 800 13px var(--f-font-display); letter-spacing: 0.08em; }
+    .zc-scan-close { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #CBD5E1; }
+    .zc-scan-close:hover { background: rgba(255, 255, 255, 0.08); }
+    .zc-scan-body { flex: 1; overflow: auto; width: min(520px, 100%); margin: 0 auto; padding: 4px 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+    .zc-scan-title { text-align: center; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.35; }
+    .zc-scan-hint { text-align: center; font-size: 12px; color: #93A4C3; margin-top: -8px; }
+    .zc-cam { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 20px; overflow: hidden; background: radial-gradient(80% 80% at 50% 30%, #1E2A44, #0F172A); }
+    .zc-cam-region { position: absolute; inset: 0; }
+    #root .zc-cam-region video { width: 100% !important; height: 100% !important; object-fit: cover; }
+    #root .zc-cam-region #qr-shaded-region { border-color: rgba(11, 18, 32, 0.45) !important; }
+    .zc-cam-overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; font-size: 13.5px; color: #CBD5E1; line-height: 1.6; }
+    .zc-frame { position: absolute; left: 12%; right: 12%; top: 26%; bottom: 26%; pointer-events: none; }
+    .zc-frame i { position: absolute; width: 28px; height: 28px; border: 3px solid #fff; }
+    .zc-frame i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 12px; }
+    .zc-frame i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 12px; }
+    .zc-frame i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 12px; }
+    .zc-frame i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 12px; }
+    .zc-manual { display: flex; align-items: center; gap: 8px; height: 50px; padding: 0 6px 0 14px; border-radius: 14px; background: #162036; border: 1px solid #24324D; color: #93A4C3; }
+    #root .zc-manual input { flex: 1; min-width: 0; height: 100%; background: transparent; border: 0; outline: none; color: #fff; font-size: 15px; border-radius: 0; }
+    .zc-manual button { height: 38px; padding: 0 14px; border-radius: 10px; background: #2563EB; color: #fff; font-weight: 700; font-size: 14px; }
+    .zc-scan-result { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 18px; background: #131C2E; border: 1px solid #22304A; }
+    .zc-scan-item { display: flex; align-items: center; gap: 12px; }
+    .zc-scan-item small { display: block; font-size: 11.5px; color: #94A3B8; }
+    .zc-scan-item b { font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
+    .zc-scan-thumb { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: rgba(251, 191, 36, 0.15); color: #FBBF24; flex-shrink: 0; }
+    .zc-scan-step { display: flex; align-items: center; gap: 2px; background: #0F172A; border-radius: 14px; padding: 4px; flex-shrink: 0; }
+    .zc-scan-step button { width: 38px; height: 40px; display: grid; place-items: center; color: #CBD5E1; border-radius: 10px; }
+    .zc-scan-step button:hover { background: rgba(255, 255, 255, 0.06); }
+    .zc-scan-step button:disabled { opacity: .3; }
+    .zc-scan-step strong, #root .zc-scan-step input { width: 46px; text-align: center; font: 800 22px/1 var(--f-font-display); color: #fff; background: transparent; border: 0; outline: none; padding: 0; }
+    .zc-scan-submit { height: 52px; border-radius: 14px; background: #2563EB; color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .zc-scan-submit:hover { background: #1D4ED8; }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     }
@@ -553,7 +708,7 @@
 <body>
   <!-- 초기 로딩 스크린 -->
   <div id="filo-loader" class="filo-loader">
-    <div style="font-size: 22px; font-weight: 300;">FILO</div>
+    <div style="font-size: 20px; font-weight: 800; letter-spacing: 0.12em;">ZERO COUNT</div>
     <div class="filo-loader-line"></div>
     <div style="font-size: 11px; opacity: 0.6; letter-spacing: 0.1em;">불러오는 중</div>
   </div>
@@ -604,7 +759,15 @@
       arrow: ['M5 12h14', 'm12 5 7 7-7 7'],
       minus: ['M5 12h14'],
       home: ['M3 10.5 12 3l9 7.5', 'M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5'],
-      logo: ['M21 8 12 3 3 8v8l9 5 9-5V8z', 'M3 8l9 5 9-5', 'M12 13v8'],
+      logo: ['M12 3c3.6 0 6 3.6 6 9s-2.4 9-6 9-6-3.6-6-9 2.4-9 6-9z', 'M8.6 17.2 15.4 6.8'],
+      box: ['M21 8 12 3 3 8v8l9 5 9-5V8z', 'M3 8l9 5 9-5', 'M12 13v8'],
+      scan: ['M3 7V5a2 2 0 0 1 2-2h2', 'M17 3h2a2 2 0 0 1 2 2v2', 'M21 17v2a2 2 0 0 1-2 2h-2', 'M7 21H5a2 2 0 0 1-2-2v-2', 'M7 8v8', 'M10 8v8', 'M13 8v8', 'M17 8v8'],
+      upload: ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'm17 8-5-5-5 5', 'M12 3v12'],
+      download: ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'm7 10 5 5 5-5', 'M12 15V3'],
+      sheet: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6', 'M8 13h8', 'M8 17h8', 'M10 9H8'],
+      printer: ['M6 9V2h12v7', 'M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2', 'M6 14h12v8H6z'],
+      close: ['M18 6 6 18', 'm6 6 12 12'],
+      back: ['m15 18-6-6 6-6'],
       check: ['M22 11.1V12a10 10 0 1 1-5.9-9.1', 'm22 4-10 10-3-3'],
       alert: ['M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z', 'M12 9v4', 'M12 17h.01'],
       clock: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z', 'M12 6v6l4 2'],
@@ -710,6 +873,9 @@
       { id: 7, name: "매트 텍스처 왁스", company: "한빛뷰티", phone: "01000009012", category: "스타일링", currentStock: 7, safeStock: 3, image: "" },
     ];
 
+    // 체험용 바코드 (8800000010001 ~)
+    defaultProducts.forEach((p, i) => { p.barcode = String(8800000010001 + i); });
+
     const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?q=80&w=200&auto=format&fit=crop";
 
     // ============================================
@@ -758,6 +924,7 @@
     function ProductEditor({ theme, product, onSave, onCancel, onImageUpload, companyList = [], categoryList = [] }) {
       const [draft, setDraft] = useState({
         name: product.name,
+        barcode: product.barcode || '',
         company: product.company,
         phone: product.phone,
         category: product.category || '',
@@ -789,6 +956,7 @@
         }
         onSave({
           name: draft.name.trim(),
+          barcode: (draft.barcode || '').trim(),
           company: draft.company.trim(),
           phone: draft.phone.replace(/[^0-9]/g, ''),
           category: (draft.category || '').trim(),
@@ -846,6 +1014,18 @@
                 type="text"
                 value={draft.name}
                 onChange={e => setDraft({...draft, name: e.target.value})}
+                className={`w-full p-2 text-sm focus:outline-none border ${theme.inputBg}`}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">바코드</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={draft.barcode}
+                placeholder="없으면 비워 두세요"
+                onChange={e => setDraft({...draft, barcode: e.target.value})}
                 className={`w-full p-2 text-sm focus:outline-none border ${theme.inputBg}`}
               />
             </div>
@@ -1084,7 +1264,8 @@
     // ============================================
     function OrderPreviewModal({ theme, preview, branding, onSend, onCopy, onClose }) {
       const { company, info } = preview;
-      const defaultText = `[${branding.appName} 살롱 발주 요청]\n\n안녕하세요 사장님,\n아래 제품 발주 요청드립니다.\n\n${info.items.map(it => `- ${it.name}: ${it.qty}개`).join('\n')}\n\n확인 후 배송 부탁드립니다. 감사합니다.`;
+      const salonLabel = branding.appName && branding.appName !== 'ZERO COUNT' ? `${branding.appName} ` : '';
+      const defaultText = `[${salonLabel}발주 요청]\n\n안녕하세요 사장님,\n아래 제품 발주 요청드립니다.\n\n${info.items.map(it => `- ${it.name}: ${it.qty}개`).join('\n')}\n\n확인 후 배송 부탁드립니다. 감사합니다.`;
       const [text, setText] = useState(defaultText);
 
       return (
@@ -1680,7 +1861,7 @@
               {/* 환영 */}
               {current.type === 'welcome' && (
                 <div className="text-center space-y-5">
-                  <h2 className="text-3xl font-light tracking-[0.15em] font-display">FILO</h2>
+                  <h2 className="text-2xl font-extrabold tracking-[0.08em] font-display">ZERO COUNT</h2>
                   <div className={`w-12 h-px mx-auto ${theme.border} border-t`}></div>
                   <h3 className="text-xl font-medium tracking-tight">환영합니다</h3>
                   <p className={`text-base ${theme.subText} leading-relaxed`}>
@@ -1834,6 +2015,376 @@
       );
     }
 
+
+    // ============================================
+    // 4-1. 외부 라이브러리 지연 로딩 (엑셀 · 바코드)
+    // ============================================
+    const XLSX_SRC = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+    const SCANNER_SRC = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+    const scriptCache = {};
+    const loadScript = (src) => scriptCache[src] || (scriptCache[src] = new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = src; el.async = true;
+      el.onload = () => resolve();
+      el.onerror = () => { delete scriptCache[src]; reject(new Error('라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.')); };
+      document.head.appendChild(el);
+    }));
+    const getXLSX = async () => { if (!window.XLSX) await loadScript(XLSX_SRC); return window.XLSX; };
+
+    // ============================================
+    // 4-2. 엑셀 가져오기 / 내보내기
+    // ============================================
+    const PRODUCT_HEADERS = ['제품명', '바코드', '카테고리', '거래처', '전화번호', '현재고', '적정선'];
+    const COLUMN_ALIASES = {
+      name: ['제품명', '상품명', '품목명', '품목', '이름', 'name', 'product'],
+      barcode: ['바코드', '바코드번호', 'barcode', 'ean', '상품코드'],
+      category: ['카테고리', '분류', 'category'],
+      company: ['거래처', '거래처명', '업체', '업체명', '제조사', 'company'],
+      phone: ['전화번호', '거래처전화번호', '연락처', 'phone'],
+      currentStock: ['현재고', '재고', '현재재고', '수량', '재고수량', 'stock'],
+      safeStock: ['적정선', '안전재고', '적정재고', '최소재고', 'safe'],
+    };
+    const normHeader = (h) => String(h == null ? '' : h).replace(/\s+/g, '').toLowerCase();
+    const cellText = (v) => (v == null ? '' : String(v).trim());
+
+    const readSheetRows = async (file) => {
+      const XLSX = await getXLSX();
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array', codepage: 65001 });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: true });
+      if (!rows.length) throw new Error('첫 번째 시트에 데이터가 없습니다.');
+      const keys = Object.keys(rows[0]);
+      const map = {};
+      Object.entries(COLUMN_ALIASES).forEach(([field, aliases]) => {
+        const k = keys.find(key => aliases.some(a => normHeader(a) === normHeader(key)));
+        if (k) map[field] = k;
+      });
+      if (!map.name) throw new Error("'제품명' 열을 찾지 못했습니다. 첫 줄에 제품명, 거래처, 현재고 같은 제목을 넣어 주세요.");
+      return rows
+        .map(r => { const o = {}; Object.keys(map).forEach(f => { o[f] = r[map[f]]; }); return o; })
+        .filter(o => cellText(o.name));
+    };
+
+    const matchCategory = (v) => {
+      const t = cellText(v);
+      if (!t) return null;
+      const hit = CATEGORIES.find(c => c.key === t || c.key.startsWith(t) || t.startsWith(c.key));
+      return hit ? hit.key : null;
+    };
+    const toCount = (v, min) => {
+      const t = cellText(v).replace(/,/g, '');
+      if (t === '' || isNaN(Number(t))) return null;
+      return Math.max(min, Math.round(Number(t)));
+    };
+
+    // 엑셀 행과 현재 품목을 비교해 추가/변경 계획을 만든다 (바코드 → 제품명 순으로 같은 품목을 찾음)
+    const planImport = (rows, products) => {
+      const byBarcode = new Map(products.filter(p => p.barcode).map(p => [String(p.barcode), p]));
+      const byName = new Map(products.map(p => [p.name.trim(), p]));
+      const adds = [], updates = [];
+      let same = 0;
+      const LABEL = { name: '제품명', barcode: '바코드', category: '카테고리', company: '거래처', phone: '전화번호', currentStock: '현재고', safeStock: '적정선' };
+      rows.forEach((r, i) => {
+        const vals = { name: cellText(r.name) };
+        const bc = cellText(r.barcode).replace(/\s/g, '');
+        if (bc) vals.barcode = bc;
+        const cat = matchCategory(r.category); if (cat) vals.category = cat;
+        if (cellText(r.company)) vals.company = cellText(r.company);
+        const ph = cellText(r.phone).replace(/[^0-9]/g, ''); if (ph) vals.phone = ph;
+        const cur = toCount(r.currentStock, 0); if (cur !== null) vals.currentStock = cur;
+        const safe = toCount(r.safeStock, 1); if (safe !== null) vals.safeStock = safe;
+        const existing = (bc && byBarcode.get(bc)) || byName.get(vals.name);
+        if (existing) {
+          const changes = Object.keys(vals).filter(k => String(existing[k] == null ? '' : existing[k]) !== String(vals[k]));
+          if (changes.length) {
+            updates.push({
+              id: existing.id, name: existing.name, vals,
+              text: changes.map(k => `${LABEL[k]} ${cellText(existing[k]) || '없음'} → ${vals[k]}`).join(', ')
+            });
+          } else same += 1;
+        } else {
+          adds.push({
+            id: Date.now() + i, name: vals.name, barcode: vals.barcode || '', category: vals.category || '',
+            company: vals.company || '미지정 거래처', phone: vals.phone || '',
+            currentStock: vals.currentStock == null ? 0 : vals.currentStock,
+            safeStock: vals.safeStock == null ? 1 : vals.safeStock, image: ''
+          });
+        }
+      });
+      return { adds, updates, same };
+    };
+
+    const stamp = () => {
+      const d = new Date(), z = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}`;
+    };
+    const fmtDateTime = (t) => {
+      if (!t) return '';
+      const d = new Date(t), z = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}.${z(d.getMonth() + 1)}.${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+    };
+    const fmtShortDate = (t) => { const d = new Date(t); return `${d.getMonth() + 1}.${d.getDate()}`; };
+
+    const exportProductsXlsx = async (products, template) => {
+      const XLSX = await getXLSX();
+      const rows = template
+        ? [['아이롱 펌제 1제 (건강모용)', '8801234567890', '펌제', '동양상사', '010-0000-1234', 12, 20]]
+        : products.map(p => [p.name, p.barcode || '', p.category || '', p.company, p.phone ? formatPhone(p.phone) : '', p.currentStock, p.safeStock]);
+      const ws = XLSX.utils.aoa_to_sheet([PRODUCT_HEADERS, ...rows]);
+      ws['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 15 }, { wch: 8 }, { wch: 8 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '품목');
+      XLSX.writeFile(wb, template ? 'zerocount_items_template.xlsx' : `zerocount_items_${stamp()}.xlsx`);
+    };
+
+    // ============================================
+    // 4-3. 재고조사 계산
+    // ============================================
+    // 조사 생성 시점의 전산 재고(snapshot)와 실물 수량(actual)을 비교한다.
+    const buildCountRows = (session, products) => {
+      const live = new Map(products.map(p => [p.id, p]));
+      const ids = new Set(Object.keys(session.snapshot).map(Number));
+      if (session.status === 'active') products.forEach(p => ids.add(p.id));
+      return [...ids].map(id => {
+        const snap = session.snapshot[id];
+        const p = live.get(id);
+        const info = p || snap;
+        const a = session.actual[id];
+        const system = snap ? snap.system : (a && a.system != null ? a.system : (p ? p.currentStock : 0));
+        const actual = a ? a.qty : null;
+        return {
+          id, name: info.name, company: info.company || '', category: info.category || '', barcode: info.barcode || '',
+          system, actual, diff: actual == null ? null : actual - system, countedAt: a ? a.t : null,
+          removed: !p, added: !snap,
+        };
+      }).sort((x, y) => x.name.localeCompare(y.name, 'ko'));
+    };
+    const countSummary = (rows) => {
+      const total = rows.length;
+      const done = rows.filter(r => r.actual != null).length;
+      const diffRows = rows.filter(r => r.diff != null && r.diff !== 0);
+      return { total, done, left: total - done, pct: total ? Math.round((done / total) * 100) : 0, diff: diffRows.length,
+        diffQty: diffRows.reduce((a, r) => a + r.diff, 0) };
+    };
+
+    const exportCountXlsx = async (session, rows) => {
+      const XLSX = await getXLSX();
+      const sum = countSummary(rows);
+      const head = ['제품명', '바코드', '카테고리', '거래처', '전산 재고', '실물 재고', '차이', '조사 시각'];
+      const body = rows.map(r => [r.name, r.barcode, r.category, r.company, r.system, r.actual == null ? '' : r.actual,
+        r.diff == null ? '미조사' : r.diff, r.countedAt ? fmtDateTime(r.countedAt) : '']);
+      const ws = XLSX.utils.aoa_to_sheet([head, ...body]);
+      ws['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 9 }, { wch: 9 }, { wch: 8 }, { wch: 17 }];
+      const info = XLSX.utils.aoa_to_sheet([
+        ['조사명', session.name], ['시작', fmtDateTime(session.createdAt)], ['완료', session.finishedAt ? fmtDateTime(session.finishedAt) : '진행 중'],
+        ['전체 항목', sum.total], ['조사 완료', sum.done], ['미조사', sum.left], ['진행률', `${sum.pct}%`],
+        ['차이 발생 품목', sum.diff], ['차이 합계(실물-전산)', sum.diffQty],
+      ]);
+      info['!cols'] = [{ wch: 18 }, { wch: 26 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '조사 결과');
+      XLSX.utils.book_append_sheet(wb, info, '요약');
+      XLSX.writeFile(wb, `zerocount_count_${stamp()}.xlsx`);
+    };
+
+    // PDF: 인쇄용 보고서를 새 창에 그리고 인쇄 대화상자를 연다 (PDF로 저장 선택)
+    const printCountReport = (session, rows, appName) => {
+      const sum = countSummary(rows);
+      const esc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const tr = rows.map(r => `<tr class="${r.diff ? 'diff' : ''}"><td>${esc(r.name)}${r.barcode ? `<br><small>${esc(r.barcode)}</small>` : ''}</td><td>${esc(r.company)}</td>
+        <td class="n">${r.system}</td><td class="n">${r.actual == null ? '-' : r.actual}</td>
+        <td class="n">${r.diff == null ? '<span class="muted">미조사</span>' : (r.diff > 0 ? '+' + r.diff : r.diff === 0 ? '0' : '−' + Math.abs(r.diff))}</td></tr>`).join('');
+      const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${esc(session.name)} 재고조사 결과</title>
+        <style>
+          @page { size: A4; margin: 14mm; }
+          * { box-sizing: border-box; }
+          body { font-family: 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: #0F172A; margin: 0; padding: 24px; font-size: 12px; }
+          header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #0F172A; padding-bottom: 10px; margin-bottom: 14px; }
+          h1 { font-size: 20px; margin: 0; } .brand { font-weight: 800; letter-spacing: .08em; font-size: 11px; color: #2563EB; }
+          .meta { color: #64748B; text-align: right; line-height: 1.6; }
+          .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+          .kpi { border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 10px; } .kpi b { display: block; font-size: 18px; } .kpi span { color: #64748B; font-size: 10.5px; }
+          table { width: 100%; border-collapse: collapse; } th { background: #F1F5F9; text-align: left; font-size: 11px; padding: 7px 8px; }
+          td { padding: 7px 8px; border-bottom: 1px solid #E2E8F0; vertical-align: top; } td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+          tr.diff td { background: #FEF2F2; } small, .muted { color: #94A3B8; }
+          .print-btn { position: fixed; right: 20px; top: 20px; padding: 10px 16px; border: 0; border-radius: 10px; background: #2563EB; color: #fff; font-weight: 700; cursor: pointer; }
+          @media print { .print-btn { display: none; } body { padding: 0; } }
+        </style></head><body>
+        <button class="print-btn" onclick="window.print()">PDF로 저장 / 인쇄</button>
+        <header><div><div class="brand">${esc(appName || 'ZERO COUNT')}</div><h1>${esc(session.name)} 재고조사 결과</h1></div>
+          <div class="meta">시작 ${fmtDateTime(session.createdAt)}<br>${session.finishedAt ? '완료 ' + fmtDateTime(session.finishedAt) : '진행 중'}</div></header>
+        <div class="kpis"><div class="kpi"><span>전체 항목</span><b>${sum.total}</b></div><div class="kpi"><span>조사 완료</span><b>${sum.done}</b></div>
+          <div class="kpi"><span>미조사</span><b>${sum.left}</b></div><div class="kpi"><span>진행률</span><b>${sum.pct}%</b></div>
+          <div class="kpi"><span>차이 발생</span><b>${sum.diff}</b></div></div>
+        <table><thead><tr><th>제품명</th><th>거래처</th><th class="n">전산</th><th class="n">실물</th><th class="n">차이</th></tr></thead><tbody>${tr}</tbody></table>
+        <script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 300); });<\/script>
+        </body></html>`;
+      const w = window.open('', '_blank');
+      if (!w) return false;
+      w.document.open(); w.document.write(html); w.document.close();
+      return true;
+    };
+
+    // ============================================
+    // 4-4. 바코드 스캐너 (카메라 + 직접 입력 / 스캐너 기기)
+    // ============================================
+    function ScanModal({ title, hint, onCode, onClose, children }) {
+      const [camState, setCamState] = useState('loading'); // loading | on | error
+      const [camError, setCamError] = useState('');
+      const [manual, setManual] = useState('');
+      const last = React.useRef({ code: '', t: 0 });
+      const onCodeRef = React.useRef(onCode);
+      onCodeRef.current = onCode;
+      const regionId = React.useRef('zc-scan-' + Math.random().toString(36).slice(2)).current;
+
+      useEffect(() => {
+        let scanner = null, cancelled = false;
+        (async () => {
+          try {
+            if (!window.isSecureContext || !navigator.mediaDevices) throw Object.assign(new Error('insecure'), { name: 'InsecureContext' });
+            await loadScript(SCANNER_SRC);
+            if (cancelled) return;
+            const F = window.Html5QrcodeSupportedFormats;
+            const formats = F ? [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.ITF, F.QR_CODE] : undefined;
+            scanner = new window.Html5Qrcode(regionId, { verbose: false, formatsToSupport: formats });
+            await scanner.start(
+              { facingMode: 'environment' },
+              { fps: 10, qrbox: (w, h) => ({ width: Math.floor(Math.min(w * 0.82, 340)), height: Math.floor(Math.min(h * 0.5, 170)) }) },
+              (text) => {
+                const now = Date.now();
+                if (text === last.current.code && now - last.current.t < 2500) return;
+                last.current = { code: text, t: now };
+                try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) {}
+                onCodeRef.current(text);
+              },
+              () => {}
+            );
+            if (cancelled) { scanner.stop().catch(() => {}); return; }
+            setCamState('on');
+          } catch (e) {
+            const name = (e && e.name) || '';
+            setCamError(
+              name === 'NotAllowedError' || /permission/i.test(String(e)) ? '카메라 권한이 꺼져 있습니다. 브라우저 설정에서 카메라를 허용하거나 아래에 바코드 번호를 입력하세요.'
+              : name === 'InsecureContext' ? '이 주소에서는 카메라를 쓸 수 없습니다. 아래에 바코드 번호를 입력하거나 바코드 스캐너 기기를 쓰세요.'
+              : name === 'NotFoundError' || /no camera|NotFound/i.test(String(e)) ? '카메라를 찾지 못했습니다. 아래에 바코드 번호를 입력하거나 바코드 스캐너 기기를 쓰세요.'
+              : '카메라를 시작하지 못했습니다. 아래에 바코드 번호를 입력해 주세요.'
+            );
+            setCamState('error');
+          }
+        })();
+        return () => {
+          cancelled = true;
+          if (scanner) { try { scanner.stop().then(() => scanner.clear()).catch(() => {}); } catch (e) {} }
+        };
+      }, []);
+
+      const submitManual = (e) => {
+        e.preventDefault();
+        const code = manual.trim();
+        if (!code) return;
+        onCodeRef.current(code);
+        setManual('');
+      };
+
+      return (
+        <div className="zc-scan" role="dialog" aria-modal="true" aria-label="바코드 스캐너">
+          <div className="zc-scan-top">
+            <span className="zc-scan-brand"><span className="f-brand-mark" style={{ width: 26, height: 26, borderRadius: 8 }}><Icon name="logo" size={15} strokeWidth={2} /></span>ZERO COUNT</span>
+            <button className="zc-scan-close" onClick={onClose} aria-label="스캐너 닫기"><Icon name="close" size={22} /></button>
+          </div>
+          <div className="zc-scan-body">
+            <p className="zc-scan-title">{title}</p>
+            {hint && <p className="zc-scan-hint">{hint}</p>}
+            <div className="zc-cam">
+              <div id={regionId} className="zc-cam-region" />
+              {camState !== 'on' && (
+                <div className="zc-cam-overlay">
+                  {camState === 'loading' ? <p>카메라를 켜는 중…</p> : <p>{camError}</p>}
+                </div>
+              )}
+              <div className="zc-frame" aria-hidden="true"><i /><i /><i /><i /></div>
+            </div>
+            <form className="zc-manual" onSubmit={submitManual}>
+              <Icon name="scan" size={18} />
+              <input
+                id="zc-manual-code"
+                value={manual}
+                onChange={e => setManual(e.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="바코드 번호 입력 · 스캐너 기기로 읽기"
+              />
+              <button type="submit">확인</button>
+            </form>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 4-5. 엑셀 가져오기 미리보기
+    // ============================================
+    function ImportPreviewModal({ plan, fileName, onApply, onClose }) {
+      const { adds, updates, same } = plan;
+      return (
+        <div className="zc-modal-bg" onClick={onClose}>
+          <div className="zc-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="엑셀 가져오기 미리보기">
+            <div className="zc-modal-head">
+              <div><h3>엑셀 가져오기</h3><p>{fileName}</p></div>
+              <button className="f-icon-btn" onClick={onClose} aria-label="닫기"><Icon name="close" size={20} /></button>
+            </div>
+            <div className="zc-import-kpis">
+              <div className="tone-blue"><span>새 품목</span><b>{adds.length}</b></div>
+              <div className="tone-orange"><span>변경</span><b>{updates.length}</b></div>
+              <div className="tone-green"><span>변경 없음</span><b>{same}</b></div>
+            </div>
+            <div className="zc-import-list">
+              {updates.slice(0, 60).map(u => (
+                <div key={'u' + u.id} className="zc-import-row"><span className="f-badge is-low" style={{ marginLeft: 0 }}>변경</span><div><b>{u.name}</b><small>{u.text}</small></div></div>
+              ))}
+              {adds.slice(0, 60).map(a => (
+                <div key={'a' + a.id} className="zc-import-row"><span className="f-badge is-pending" style={{ marginLeft: 0 }}>추가</span><div><b>{a.name}</b><small>{a.company} · 현재고 {a.currentStock} · 적정선 {a.safeStock}{a.barcode ? ' · ' + a.barcode : ''}</small></div></div>
+              ))}
+              {updates.length + adds.length === 0 && <p className="f-chart-empty">바뀌는 내용이 없습니다. 엑셀의 값이 지금 품목과 같아요.</p>}
+              {updates.length + adds.length > 120 && <p className="f-chart-empty">외 {updates.length + adds.length - 120}건</p>}
+            </div>
+            <p className="zc-modal-note">같은 품목은 바코드, 없으면 제품명으로 찾습니다. 엑셀에서 비어 있는 칸은 바꾸지 않고, 엑셀에 없는 품목은 지우지 않습니다.</p>
+            <div className="zc-modal-actions">
+              <button className="zc-btn-ghost" onClick={onClose}>취소</button>
+              <button className="zc-btn-primary" disabled={updates.length + adds.length === 0} onClick={onApply}>
+                {adds.length + updates.length}건 적용하기
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 4-6. 조사 완료 확인
+    // ============================================
+    function FinishCountModal({ summary, onFinish, onClose }) {
+      return (
+        <div className="zc-modal-bg" onClick={onClose}>
+          <div className="zc-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="재고조사 완료">
+            <div className="zc-modal-head">
+              <div><h3>재고조사를 완료할까요?</h3><p>조사 완료 {summary.done}개 · 미조사 {summary.left}개 · 차이 {summary.diff}개</p></div>
+              <button className="f-icon-btn" onClick={onClose} aria-label="닫기"><Icon name="close" size={20} /></button>
+            </div>
+            <p className="zc-modal-note" style={{ marginTop: 0 }}>
+              '실물 수량 반영'을 누르면 조사한 품목의 현재 재고가 실물 수량으로 바뀝니다. 미조사 품목은 그대로 둡니다.
+            </p>
+            <div className="zc-modal-actions" style={{ flexWrap: 'wrap' }}>
+              <button className="zc-btn-ghost" onClick={() => onFinish(false)}>기록만 남기고 완료</button>
+              <button className="zc-btn-primary" onClick={() => onFinish(true)}>실물 수량 반영하고 완료</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ============================================
     // 5. MAIN APP
     // ============================================
@@ -1934,12 +2485,14 @@
       useEffect(() => { safeStorage.set('filo_completed_orders', completedOrders); }, [completedOrders]);
 
       // 브랜딩 (사용자 커스터마이즈)
-      const DEFAULT_BRANDING = { appName: 'FILO', tagline: '살롱 약제 재고 · 발주', logoImage: '' };
+      const DEFAULT_BRANDING = { appName: 'ZERO COUNT', tagline: '살롱 재고 · 재고조사', logoImage: '' };
       const [branding, setBranding] = useState(() => {
         const saved = safeStorage.get('filo_branding', null);
         if (!saved) return DEFAULT_BRANDING;
         // 예전 기본값을 그대로 쓰던 경우만 새 기본값으로 교체 (직접 바꾼 이름은 유지)
-        if (saved.appName === 'FILO SYSTEM' && saved.tagline === 'Intelligent Premium Salon Automation') {
+        const untouched = (saved.appName === 'FILO SYSTEM' && saved.tagline === 'Intelligent Premium Salon Automation')
+          || (saved.appName === 'FILO' && saved.tagline === '살롱 약제 재고 · 발주');
+        if (untouched) {
           return { ...DEFAULT_BRANDING, logoImage: saved.logoImage || '' };
         }
         return saved;
@@ -1951,7 +2504,7 @@
 
       // 페이지 타이틀 동기화
       useEffect(() => {
-        document.title = branding.appName === 'FILO' ? 'FILO 약제 재고' : branding.appName;
+        document.title = branding.appName === 'ZERO COUNT' ? 'ZERO COUNT' : `${branding.appName} · ZERO COUNT`;
       }, [branding.appName]);
 
       // ESC 키로 모든 편집/모달 닫기
@@ -1975,8 +2528,24 @@
       }, []);
 
       const [newProd, setNewProd] = useState({
-        name: '', company: '', phone: '', category: '', safeStock: 0, currentStock: 0, image: ''
+        name: '', barcode: '', company: '', phone: '', category: '', safeStock: 0, currentStock: 0, image: ''
       });
+
+      // ----- 재고조사 세션 -----
+      const [counts, setCounts] = useState(() => safeStorage.get('filo_counts', []));
+      useEffect(() => { safeStorage.set('filo_counts', counts); }, [counts]);
+      const [openCountId, setOpenCountId] = useState(null);     // 보고 있는 조사 (없으면 목록 또는 진행 중 조사)
+      const [countFilter, setCountFilter] = useState('all');
+      const [countSearch, setCountSearch] = useState('');
+      const [showFinishCount, setShowFinishCount] = useState(false);
+      const activeCount = counts.find(c => c.status === 'active') || null;
+
+      // ----- 바코드 스캔 / 엑셀 가져오기 -----
+      const [scanMode, setScanMode] = useState(null);           // 'count' | 'quick' | 'assign' | null
+      const [scanResult, setScanResult] = useState(null);       // { code, productId } 또는 { code, missing: true }
+      const [scanQty, setScanQty] = useState(0);
+      const [importPlan, setImportPlan] = useState(null);       // { plan, fileName }
+      const [busy, setBusy] = useState(false);
 
       // 영속화 + 용량 초과 감지
       useEffect(() => {
@@ -1991,14 +2560,6 @@
       }, [products]);
       useEffect(() => { safeStorage.set('filo_theme', currentThemeKey); }, [currentThemeKey]);
 
-      // 테마 메타컬러 동기화 (iOS 상태바)
-      useEffect(() => {
-        const meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) {
-          const colorMap = { noir: '#0B0B0C', bottega: '#0F1411', ivory: '#F7F6F3' };
-          meta.setAttribute('content', colorMap[currentThemeKey] || '#0B0B0C');
-        }
-      }, [currentThemeKey]);
 
       const theme = themes[currentThemeKey];
 
@@ -2028,6 +2589,116 @@
       // ----- 햅틱 피드백 (모바일 지원시) -----
       const haptic = (ms = 10) => {
         try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
+      };
+
+      // ----- 재고조사 핸들러 -----
+      const createCount = () => {
+        if (activeCount) { setOpenCountId(activeCount.id); return; }
+        if (products.length === 0) { showToast('먼저 품목을 등록하세요', 'error'); return; }
+        const d = new Date();
+        const sameMonth = counts.filter(c => new Date(c.createdAt).getMonth() === d.getMonth() && new Date(c.createdAt).getFullYear() === d.getFullYear()).length;
+        const snapshot = {};
+        products.forEach(p => { snapshot[p.id] = { system: p.currentStock, name: p.name, company: p.company, category: p.category || '', barcode: p.barcode || '' }; });
+        const session = {
+          id: Date.now(), name: `${d.getMonth() + 1}월 재고조사${sameMonth ? ' ' + (sameMonth + 1) + '차' : ''}`,
+          createdAt: Date.now(), finishedAt: null, status: 'active', applied: false, snapshot, actual: {}
+        };
+        setCounts(prev => [session, ...prev]);
+        setOpenCountId(session.id);
+        setCountFilter('all');
+        showToast(`'${session.name}'을 시작했습니다`, 'success');
+      };
+      const setCountActual = (sessionId, productId, qty) => {
+        setCounts(prev => prev.map(c => {
+          if (c.id !== sessionId || c.status !== 'active') return c;
+          const actual = { ...c.actual };
+          if (qty === null || qty === '' || isNaN(Number(qty))) delete actual[productId];
+          else {
+            const p = products.find(x => x.id === productId);
+            actual[productId] = { qty: Math.max(0, Math.round(Number(qty))), t: Date.now(), system: c.snapshot[productId] ? undefined : (p ? p.currentStock : 0) };
+          }
+          return { ...c, actual };
+        }));
+      };
+      const renameCount = (sessionId, name) => {
+        setCounts(prev => prev.map(c => c.id === sessionId ? { ...c, name: name.slice(0, 40) } : c));
+      };
+      const finishCount = (apply) => {
+        if (!activeCount) return;
+        const rows = buildCountRows(activeCount, products);
+        if (apply) {
+          const map = new Map(rows.filter(r => r.actual != null && !r.removed).map(r => [r.id, r.actual]));
+          products.forEach(p => {
+            if (map.has(p.id) && map.get(p.id) !== p.currentStock) logHistory(p.id, p.name, map.get(p.id) - p.currentStock, 'count');
+          });
+          setProducts(prev => prev.map(p => map.has(p.id) ? { ...p, currentStock: map.get(p.id) } : p));
+        }
+        setCounts(prev => prev.map(c => c.id === activeCount.id ? { ...c, status: 'done', finishedAt: Date.now(), applied: !!apply } : c));
+        setShowFinishCount(false);
+        showToast(apply ? '실물 수량을 반영하고 조사를 완료했습니다' : '조사를 완료했습니다', 'success');
+      };
+      const deleteCount = (sessionId) => {
+        if (!window.confirm('이 재고조사 기록을 삭제할까요? 재고 수량은 바뀌지 않습니다.')) return;
+        setCounts(prev => prev.filter(c => c.id !== sessionId));
+        setOpenCountId(null);
+      };
+
+      // ----- 바코드 스캔 처리 -----
+      const findByBarcode = (code) => {
+        const c = String(code).trim();
+        return products.find(p => p.barcode && String(p.barcode) === c) || null;
+      };
+      const openScan = (mode) => { setScanResult(null); setScanMode(mode); };
+      const closeScan = () => { setScanMode(null); setScanResult(null); };
+      const handleScanCode = (code) => {
+        if (scanMode === 'assign') {
+          const dup = findByBarcode(code);
+          setNewProd(prev => ({ ...prev, barcode: String(code).trim() }));
+          showToast(dup ? `이미 '${dup.name}'에 쓰인 바코드입니다` : '바코드를 입력했습니다', dup ? 'error' : 'success');
+          closeScan();
+          return;
+        }
+        const p = findByBarcode(code);
+        if (!p) { setScanResult({ code, missing: true }); return; }
+        if (scanMode === 'count' && activeCount) {
+          const a = activeCount.actual[p.id];
+          const snap = activeCount.snapshot[p.id];
+          setScanQty(a ? a.qty : (snap ? snap.system : p.currentStock));
+        }
+        setScanResult({ code, productId: p.id });
+      };
+      const registerMissingBarcode = (code) => {
+        closeScan();
+        setNewProd(prev => ({ ...prev, barcode: String(code).trim() }));
+        setViewMode('manage');
+        showToast('바코드를 넣어 두었습니다. 나머지 정보를 입력하세요', 'success');
+      };
+
+      // ----- 엑셀 가져오기 / 내보내기 -----
+      const handleExcelUpload = async (e) => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        setBusy(true);
+        try {
+          const rows = await readSheetRows(file);
+          setImportPlan({ plan: planImport(rows, products), fileName: file.name });
+        } catch (err) {
+          showToast(err.message || '파일을 읽지 못했습니다', 'error');
+        } finally { setBusy(false); }
+      };
+      const applyImport = () => {
+        if (!importPlan) return;
+        const { adds, updates } = importPlan.plan;
+        const upd = new Map(updates.map(u => [u.id, u.vals]));
+        setProducts(prev => [...prev.map(p => upd.has(p.id) ? { ...p, ...upd.get(p.id) } : p), ...adds]);
+        setImportPlan(null);
+        if (isDemo) setIsDemo(false);
+        showToast(`새 품목 ${adds.length}개, 변경 ${updates.length}개를 적용했습니다`, 'success');
+      };
+      const runExport = async (fn) => {
+        setBusy(true);
+        try { await fn(); } catch (err) { showToast(err.message || '파일을 만들지 못했습니다', 'error'); } finally { setBusy(false); }
       };
 
       // ----- 핸들러들 -----
@@ -2301,7 +2972,7 @@
           }
           const now = new Date();
           const payload = {
-            app: 'filo',
+            app: 'zerocount',
             version: 1,
             exportedAt: now.toISOString(),
             data
@@ -2311,7 +2982,7 @@
           const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
-          a.download = `filo_backup_${ts}.json`;
+          a.download = `zerocount_backup_${ts}.json`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -2340,10 +3011,10 @@
             showToast('백업 파일이 아닙니다 (JSON 형식 오류)', 'error');
             return;
           }
-          const data = parsed && parsed.app === 'filo' && parsed.data && typeof parsed.data === 'object' ? parsed.data : null;
+          const data = parsed && (parsed.app === 'zerocount' || parsed.app === 'filo') && parsed.data && typeof parsed.data === 'object' ? parsed.data : null;
           const keys = data ? Object.keys(data).filter(k => k.startsWith('filo_') && !BACKUP_EXCLUDE.includes(k)) : [];
           if (!data || keys.length === 0) {
-            showToast('FILO 백업 파일이 아닙니다', 'error');
+            showToast('ZERO COUNT 백업 파일이 아닙니다', 'error');
             return;
           }
           const count = Array.isArray(data.filo_products) ? data.filo_products.length : 0;
@@ -2490,9 +3161,13 @@
           alert('필수 항목들을 채워주세요.');
           return;
         }
+        const bc = (newProd.barcode || '').trim();
+        const dup = bc && products.find(p => p.barcode && String(p.barcode) === bc);
+        if (dup) { showToast(`바코드가 '${dup.name}'와 겹칩니다`, 'error'); return; }
         const item = {
           id: Date.now(),
           name: newProd.name.trim(),
+          barcode: bc,
           company: newProd.company.trim(),
           phone: newProd.phone.replace(/[^0-9]/g, ''),
           category: (newProd.category || '').trim(),
@@ -2501,8 +3176,9 @@
           image: newProd.image.trim()
         };
         setProducts(prev => [...prev, item]);
-        setNewProd({ name: '', company: '', phone: '', category: '', safeStock: 0, currentStock: 0, image: '' });
-        alert('제품 마스터 데이터가 안전하게 추가되었습니다.');
+        setNewProd({ name: '', barcode: '', company: '', phone: '', category: '', safeStock: 0, currentStock: 0, image: '' });
+        if (isDemo) setIsDemo(false);
+        showToast(`'${item.name}'을 등록했습니다`, 'success');
       };
 
       const handleDeleteProduct = (id) => {
@@ -2539,7 +3215,8 @@
       // 발주서 텍스트 생성 (SMS / 복사 공통)
       const buildOrderText = (company, info) => {
         const itemString = info.items.map(item => `- ${item.name}: ${item.qty}개`).join('\n');
-        return `[${branding.appName} 살롱 발주 요청]\n\n안녕하세요 사장님,\n아래 제품 발주 요청드립니다.\n\n${itemString}\n\n확인 후 배송 부탁드립니다. 감사합니다.`;
+        const salonLabel = branding.appName && branding.appName !== 'ZERO COUNT' ? `${branding.appName} ` : '';
+        return `[${salonLabel}발주 요청]\n\n안녕하세요 사장님,\n아래 제품 발주 요청드립니다.\n\n${itemString}\n\n확인 후 배송 부탁드립니다. 감사합니다.`;
       };
 
       // SMS 딥링크 — 사용자 커스텀 앱 이름 반영 + 이력 로깅
@@ -2667,7 +3344,7 @@
         const startMs = todayStart.getTime();
         const allHistory = safeStorage.get('filo_history', []);
         return allHistory
-          .filter(h => h.t >= startMs && h.delta < 0) // 차감(사용)만
+          .filter(h => h.t >= startMs && h.delta < 0 && h.source !== 'count') // 차감(사용)만, 재고조사 보정 제외
           .map(h => ({ ...h, productName: h.productName || h.name || '알 수 없음' }))
           .sort((a, b) => b.t - a.t);
       }, [products, showTodayUsage]); // products 변경 시(차감 시) 재계산
@@ -2693,8 +3370,8 @@
           lastEnd = thisStart;
         }
 
-        const thisEntries = allHistory.filter(h => h.t >= thisStart && h.delta < 0);
-        const lastEntries = allHistory.filter(h => h.t >= lastStart && h.t < lastEnd && h.delta < 0);
+        const thisEntries = allHistory.filter(h => h.t >= thisStart && h.delta < 0 && h.source !== 'count');
+        const lastEntries = allHistory.filter(h => h.t >= lastStart && h.t < lastEnd && h.delta < 0 && h.source !== 'count');
 
         const thisMonthQty = thisEntries.reduce((s, h) => s + Math.abs(h.delta), 0);
         const lastMonthQty = lastEntries.reduce((s, h) => s + Math.abs(h.delta), 0);
@@ -2865,7 +3542,7 @@
               return { start: d.getTime(), label: `${d.getMonth() + 1}.${d.getDate()}`, qty: 0 };
             });
             safeStorage.get('filo_history', []).forEach(h => {
-              if (!(h.delta < 0) || h.t < days[0].start) return;
+              if (!(h.delta < 0) || h.source === 'count' || h.t < days[0].start) return;
               for (let i = days.length - 1; i >= 0; i--) {
                 if (h.t >= days[i].start) { days[i].qty += -h.delta; break; }
               }
@@ -2917,9 +3594,26 @@
                 )}
 
 
+                {activeCount ? (() => {
+                  const sm = countSummary(buildCountRows(activeCount, products));
+                  return (
+                    <button className="zc-active-card" onClick={() => { setViewMode('stocktake'); setOpenCountId(activeCount.id); }}>
+                      <div className="zc-active-left">
+                        <span className="f-badge is-pending" style={{ marginLeft: 0 }}>재고조사 진행중</span>
+                        <b>{activeCount.name}</b>
+                        <small>전체 {sm.total} · 조사 완료 {sm.done} · 미조사 {sm.left} · 차이 {sm.diff}</small>
+                      </div>
+                      <div className="zc-active-right">
+                        <span className="zc-pct">{sm.pct}%</span>
+                        <span className="zc-progress"><i style={{ width: `${sm.pct}%` }} /></span>
+                      </div>
+                    </button>
+                  );
+                })() : null}
+
                 <div className="f-kpis">
                   <div className="f-kpi tone-blue">
-                    <span className="f-kpi-icon"><Icon name="logo" size={20} /></span>
+                    <span className="f-kpi-icon"><Icon name="box" size={20} /></span>
                     <div><p className="f-kpi-label">등록 품목</p><p className="f-kpi-value">{total}<small>개</small></p></div>
                   </div>
                   <div className="f-kpi tone-green">
@@ -3020,7 +3714,7 @@
                 <div className="f-quick-grid">
                   {[
                     { key: 'quick', label: '빠른 차감', tone: 'tone-blue' },
-                    { key: 'stocktake', label: '재고조사', tone: 'tone-green' },
+                    { key: 'stocktake', label: activeCount ? '재고조사 이어서' : '재고조사', tone: 'tone-green' },
                     { key: 'dashboard', label: '발주', tone: 'tone-orange' },
                     { key: 'manage', label: '품목 관리', tone: 'tone-blue' },
                   ].map(q => (
@@ -3039,7 +3733,8 @@
             let filtered = searchQuery.trim()
               ? products.filter(p =>
                   p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  p.company.toLowerCase().includes(searchQuery.toLowerCase()))
+                  p.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  (p.barcode && String(p.barcode).includes(searchQuery.trim())))
               : products;
 
             // 2단계: 카테고리 필터
@@ -3147,6 +3842,10 @@
                       onChange={e => setSearchQuery(e.target.value)}
                     />
                   </label>
+                  <button onClick={() => openScan('quick')} className="f-ghost-btn" aria-label="바코드로 찾기">
+                    <Icon name="scan" size={18} />
+                    <span className="hidden sm:inline">스캔</span>
+                  </button>
                   <button
                     onClick={handleUndo}
                     disabled={undoStack.length === 0}
@@ -3239,95 +3938,227 @@
             );
           })()}
 
-                    {/* TAB 1: 재고조사 */}
+          {/* TAB 1: 재고조사 (조사 세션) */}
           {viewMode === 'stocktake' && (() => {
-            const stockFiltered = stockSearch.trim()
-              ? products.filter(p =>
-                  p.name.toLowerCase().includes(stockSearch.toLowerCase()) ||
-                  p.company.toLowerCase().includes(stockSearch.toLowerCase()))
-              : products;
+            const viewing = counts.find(c => c.id === openCountId) || null;
+            const session = viewing || null;
+
+            // ---------- 목록 화면 ----------
+            if (!session) {
+              return (
+                <div className="max-w-5xl mx-auto">
+                  <header className="f-page-head">
+                    <div className="min-w-0">
+                      <p className="f-eyebrow">Stock count</p>
+                      <h2 className="f-title">재고조사</h2>
+                    </div>
+                    <button className="zc-btn-primary" onClick={createCount}>
+                      <Icon name="plus" size={18} strokeWidth={2.2} /> {activeCount ? '진행 중인 조사 열기' : '재고조사 생성'}
+                    </button>
+                  </header>
+                  <p className={`text-sm ${theme.subText} mb-5`} style={{ marginTop: -6 }}>조사를 만들면 지금의 전산 재고를 기록해 두고, 실물 수량을 입력하는 대로 차이를 계산합니다.</p>
+
+                  {activeCount && (() => {
+                    const sm = countSummary(buildCountRows(activeCount, products));
+                    return (
+                      <button className="zc-active-card" onClick={() => setOpenCountId(activeCount.id)}>
+                        <div className="zc-active-left">
+                          <span className="f-badge is-pending" style={{ marginLeft: 0 }}>진행중</span>
+                          <b>{activeCount.name}</b>
+                          <small>{fmtDateTime(activeCount.createdAt)} 시작 · 조사 {sm.done}/{sm.total} · 차이 {sm.diff}</small>
+                        </div>
+                        <div className="zc-active-right">
+                          <span className="zc-pct">{sm.pct}%</span>
+                          <span className="zc-progress"><i style={{ width: `${sm.pct}%` }} /></span>
+                        </div>
+                      </button>
+                    );
+                  })()}
+
+                  <section className="f-panel">
+                    <div className="f-panel-head"><div><h3 className="f-panel-title">재고조사 목록</h3><p className="f-panel-sub">전체 {counts.length}건</p></div></div>
+                    {counts.length === 0 ? (
+                      <div className="zc-empty">
+                        <span className="f-kpi-icon tone-blue"><Icon name="stocktake" size={22} /></span>
+                        <b>아직 재고조사 기록이 없어요</b>
+                        <p>'재고조사 생성'을 누르고 약장을 돌며 바코드를 찍거나 수량을 입력하세요. 전산 재고와 다른 품목은 자동으로 표시됩니다.</p>
+                      </div>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table className="f-table">
+                          <thead><tr><th>번호</th><th>조사명</th><th className="f-hide-sm">기간</th><th>상태</th><th>진행률</th><th className="f-hide-sm">차이</th></tr></thead>
+                          <tbody>
+                            {counts.map((c, i) => {
+                              const sm = countSummary(buildCountRows(c, products));
+                              return (
+                                <tr key={c.id} className="zc-click" onClick={() => setOpenCountId(c.id)}>
+                                  <td className="f-num" style={{ color: 'var(--f-sub)' }}>{counts.length - i}</td>
+                                  <td className="f-td-name">{c.name}</td>
+                                  <td className="f-hide-sm f-num" style={{ color: 'var(--f-sub)' }}>{fmtShortDate(c.createdAt)}{c.finishedAt ? ' ~ ' + fmtShortDate(c.finishedAt) : ' ~'}</td>
+                                  <td><span className={`f-badge ${c.status === 'active' ? 'is-pending' : 'is-ok'}`} style={{ marginLeft: 0 }}>{c.status === 'active' ? '진행중' : '완료'}</span></td>
+                                  <td><span className="zc-cell-progress"><span className="zc-progress"><i style={{ width: `${sm.pct}%`, background: c.status === 'done' ? 'var(--f-ok)' : undefined }} /></span><span className="f-num">{sm.pct}%</span></span></td>
+                                  <td className="f-hide-sm f-num">{sm.diff}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </section>
+                </div>
+              );
+            }
+
+            // ---------- 조사 상세 화면 ----------
+            const rows = buildCountRows(session, products);
+            const sm = countSummary(rows);
+            const isActive = session.status === 'active';
+            const q = countSearch.trim().toLowerCase();
+            const shown = rows
+              .filter(r => countFilter === 'all' ? true : countFilter === 'left' ? r.actual == null : countFilter === 'done' ? r.actual != null : (r.diff != null && r.diff !== 0))
+              .filter(r => !q || r.name.toLowerCase().includes(q) || r.company.toLowerCase().includes(q) || (r.barcode && r.barcode.includes(q)));
+            const R = 42, C = 2 * Math.PI * R;
 
             return (
-            <div className="max-w-4xl mx-auto">
-              <header className="mb-5">
-                <p className="f-eyebrow">Stock count</p>
-                <h2 className="f-title">재고조사</h2>
-                <p className={`text-sm ${theme.subText} mt-1.5`}>약장과 창고를 보면서 실제로 남은 수량으로 맞춰 주세요.</p>
-              </header>
-
-              {/* 검색바 */}
-              <div className="mb-4">
-                <input
-                  type="search"
-                  placeholder="제품명 또는 거래처로 검색..."
-                  value={stockSearch}
-                  onChange={e => setStockSearch(e.target.value)}
-                  className={`w-full px-4 py-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
-                />
-              </div>
-
-              <div className="space-y-3">
-                {stockFiltered.length === 0 && (
-                  <div className={`text-center py-12 border ${theme.surface} ${theme.subText} text-sm`}>
-                    {stockSearch ? '검색 결과 없음' : '제품을 먼저 등록해주세요'}
+              <div className="max-w-5xl mx-auto">
+                <button className="zc-back" onClick={() => { setOpenCountId(null); setCountSearch(''); }}>
+                  <Icon name="back" size={18} /> 재고조사 목록
+                </button>
+                <header className="f-page-head" style={{ alignItems: 'flex-start' }}>
+                  <div className="min-w-0 flex-1">
+                    <p className="f-eyebrow">{isActive ? '진행 중' : session.applied ? '완료 · 재고 반영됨' : '완료 · 기록만'} · {fmtDateTime(session.createdAt)} 시작</p>
+                    {isActive ? (
+                      <input
+                        id="count-name"
+                        className="zc-title-input"
+                        value={session.name}
+                        onChange={e => renameCount(session.id, e.target.value)}
+                        aria-label="조사 이름"
+                      />
+                    ) : <h2 className="f-title">{session.name}</h2>}
                   </div>
+                  {!isActive && (
+                    <button className="f-icon-btn" onClick={() => deleteCount(session.id)} aria-label="조사 기록 삭제" title="조사 기록 삭제"><Icon name="close" size={18} /></button>
+                  )}
+                </header>
+
+                <div className="zc-progress-grid">
+                  <section className="f-panel zc-progress-card">
+                    <div className="f-donut" style={{ width: 108, height: 108 }}>
+                      <svg width="108" height="108" viewBox="0 0 108 108" aria-hidden="true">
+                        <circle cx="54" cy="54" r={R} fill="none" stroke="var(--f-surface-2)" strokeWidth="12" />
+                        <circle cx="54" cy="54" r={R} fill="none" stroke={isActive ? 'var(--f-accent)' : 'var(--f-ok)'} strokeWidth="12" strokeLinecap="round"
+                          strokeDasharray={`${(sm.pct / 100) * C} ${C}`} />
+                      </svg>
+                      <div className="f-donut-center"><div><b style={{ fontSize: 22 }}>{sm.pct}%</b><small>진행률</small></div></div>
+                    </div>
+                    <ul className="f-legend">
+                      <li><i style={{ background: 'var(--f-sub)' }} />전체 항목<b>{sm.total}</b></li>
+                      <li><i style={{ background: 'var(--f-accent)' }} />조사 완료<b>{sm.done}</b></li>
+                      <li><i style={{ background: 'var(--f-line-strong)' }} />미조사<b>{sm.left}</b></li>
+                    </ul>
+                  </section>
+                  <section className={`f-kpi ${sm.diff ? 'tone-red' : 'tone-green'}`}>
+                    <span className="f-kpi-icon"><Icon name={sm.diff ? 'alert' : 'check'} size={20} /></span>
+                    <div>
+                      <p className="f-kpi-label">재고 차이</p>
+                      <p className="f-kpi-value">{sm.diff}<small>개 품목</small></p>
+                      <p className="f-panel-sub" style={{ marginTop: 4 }}>실물 − 전산 합계 {sm.diffQty > 0 ? '+' : ''}{sm.diffQty}개</p>
+                    </div>
+                  </section>
+                </div>
+
+                {isActive && (
+                  <button className="zc-scan-cta" onClick={() => openScan('count')}>
+                    <span className="zc-scan-cta-icon"><Icon name="scan" size={24} /></span>
+                    <span><b>바코드 스캔으로 조사하기</b><small>찍을 때마다 실물 수량을 바로 입력합니다</small></span>
+                    <Icon name="arrow" size={18} />
+                  </button>
                 )}
-                {stockFiltered.map(product => {
-                  const isShortage = product.currentStock < product.safeStock;
-                  return (
-                    <div key={product.id} className={`flex flex-wrap items-center justify-between gap-3 p-4 border transition-all ${theme.surface}`}>
-                      <div className="flex items-center gap-3 grow basis-[220px] min-w-0">
-                        <ProductThumb product={product} size={44} />
-                        <div className="min-w-0">
-                          <span className={`text-xs ${theme.subText} block`}>{product.company}</span>
-                          <h3 className="text-base font-semibold leading-snug tracking-tight [overflow-wrap:anywhere]">{product.name}</h3>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className={`text-sm ${theme.subText}`}>적정선: {product.safeStock}개</span>
-                            {isShortage && (
-                              orderingProductNames.has(product.name) ? (
-                                <span className="f-badge is-pending" style={{ marginLeft: 0 }}>입고 대기</span>
-                              ) : (
-                                <span className="f-badge is-low" style={{ marginLeft: 0 }}>발주 필요</span>
-                              )
+
+                <div className="f-chips" role="group" aria-label="조사 항목 필터">
+                  {[
+                    ['all', '전체', sm.total], ['left', '미조사', sm.left], ['done', '조사 완료', sm.done], ['diff', '차이 있음', sm.diff],
+                  ].map(([k, label, n]) => (
+                    <button key={k} className={`f-chip ${countFilter === k ? 'is-active' : ''}`} onClick={() => setCountFilter(k)}>
+                      {label} <span className="f-num">{n}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="f-toolbar">
+                  <label className="f-search">
+                    <Icon name="search" size={18} />
+                    <input
+                      id="count-search"
+                      type="search"
+                      placeholder="제품명 · 거래처 · 바코드"
+                      value={countSearch}
+                      onChange={e => setCountSearch(e.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <ul className="f-list">
+                  {shown.length === 0 && <li className="f-empty">{q ? '검색 결과가 없습니다' : '해당하는 품목이 없습니다'}</li>}
+                  {shown.map(r => {
+                    const st = r.actual == null ? 'left' : r.diff === 0 ? 'match' : r.diff > 0 ? 'over' : 'under';
+                    return (
+                      <li key={r.id} className={`zc-count-row is-${st}`}>
+                        <div className="zc-count-info">
+                          <b>{r.name}</b>
+                          <small>{r.company}{r.barcode ? ` · ${r.barcode}` : ''}{r.removed ? ' · 삭제된 품목' : ''}{r.added ? ' · 조사 중 추가' : ''}</small>
+                        </div>
+                        <div className="zc-count-nums">
+                          <div className="zc-num-box"><span>전산</span><b className="f-num">{r.system}</b></div>
+                          <div className="zc-num-box is-input">
+                            <label htmlFor={`count-${r.id}`}>실물</label>
+                            {isActive && !r.removed ? (
+                              <input
+                                id={`count-${r.id}`}
+                                type="number"
+                                inputMode="numeric"
+                                min="0"
+                                placeholder="–"
+                                value={r.actual == null ? '' : r.actual}
+                                onChange={e => setCountActual(session.id, r.id, e.target.value === '' ? null : e.target.value)}
+                              />
+                            ) : <b className="f-num">{r.actual == null ? '–' : r.actual}</b>}
+                          </div>
+                          <div className="zc-diff">
+                            {st === 'left' ? (
+                              isActive && !r.removed
+                                ? <button className="zc-same-btn" onClick={() => setCountActual(session.id, r.id, r.system)} title="전산 재고와 같음">일치</button>
+                                : <span className="zc-diff-pill is-left">미조사</span>
+                            ) : (
+                              <span className={`zc-diff-pill is-${st}`}>{st === 'match' ? '일치' : st === 'over' ? `+${r.diff}` : `−${Math.abs(r.diff)}`}</span>
                             )}
                           </div>
                         </div>
-                      </div>
+                      </li>
+                    );
+                  })}
+                </ul>
 
-                      <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
-                        <button
-                          onClick={() => handleQuickAdjust(product.id, -1)}
-                          disabled={product.currentStock === 0}
-                          className={`w-10 h-10 text-lg border ${theme.border} hover:bg-[color:var(--f-surface-2)] active:scale-95 transition-all disabled:opacity-25 disabled:cursor-not-allowed flex items-center justify-center`}
-                          aria-label="차감"
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min="0"
-                          value={product.currentStock}
-                          onChange={(e) => handleStockChange(product.id, e.target.value)}
-                          className={`w-16 h-10 text-center text-lg f-num focus:outline-none font-semibold border ${theme.inputBg}`}
-                        />
-                        <button
-                          onClick={() => handleQuickAdjust(product.id, 1)}
-                          className={`w-10 h-10 text-lg border ${theme.border} hover:bg-[color:var(--f-surface-2)] active:scale-95 transition-all flex items-center justify-center`}
-                          aria-label="추가"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                <div className="zc-count-actions">
+                  <button className="zc-btn-ghost" disabled={busy} onClick={() => runExport(() => exportCountXlsx(session, rows))}>
+                    <Icon name="sheet" size={18} /> 엑셀 다운로드
+                  </button>
+                  <button className="zc-btn-ghost" onClick={() => { if (!printCountReport(session, rows, branding.appName)) showToast('팝업이 막혀 있습니다. 브라우저에서 팝업을 허용해 주세요', 'error'); }}>
+                    <Icon name="printer" size={18} /> PDF 저장
+                  </button>
+                  {isActive && (
+                    <button className="zc-btn-primary" onClick={() => setShowFinishCount(true)}>
+                      <Icon name="check" size={18} /> 조사 완료
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
             );
           })()}
 
-          {/* TAB 2: 발주 대시보드 */}
+                    {/* TAB 2: 발주 대시보드 */}
           {viewMode === 'dashboard' && (() => {
             const allEntries = Object.entries(groupedOrders);
             const pending = allEntries.filter(([c, info]) => !completedOrders[makeOrderKey(c, info.items)]);
@@ -3518,6 +4349,23 @@
                       onChange={e => setNewProd({...newProd, name: e.target.value})}
                       className={`w-full p-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
                     />
+                  </div>
+                  <div>
+                    <label htmlFor="new-barcode" className="block text-sm uppercase tracking-wider mb-1 opacity-70">바코드 (선택)</label>
+                    <div className="flex gap-2">
+                      <input
+                        id="new-barcode"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="스캔하거나 번호 입력"
+                        value={newProd.barcode}
+                        onChange={e => setNewProd({...newProd, barcode: e.target.value})}
+                        className={`flex-1 min-w-0 p-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                      />
+                      <button type="button" onClick={() => openScan('assign')} className="zc-scan-btn" aria-label="바코드 스캔">
+                        <Icon name="scan" size={18} /> 스캔
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">거래처 및 제조사명 *</label>
@@ -3712,7 +4560,7 @@
                             <div className="min-w-0">
                               <p className="font-semibold leading-snug [overflow-wrap:anywhere]">{product.name}</p>
                               <p className={`text-xs ${theme.subText} font-mono truncate`}>
-                                {product.company} · {formatPhone(product.phone)} · 재고 {product.currentStock}/{product.safeStock}
+                                {product.company}{product.phone ? ` · ${formatPhone(product.phone)}` : ''} · 재고 {product.currentStock}/{product.safeStock}{product.barcode ? ` · ${product.barcode}` : ''}
                               </p>
                             </div>
                           </div>
@@ -3812,46 +4660,32 @@
                 </div>
               </div>
 
-              {/* CSV Import / Export 섹션 (전체 너비) */}
+              {/* 엑셀 가져오기 / 내보내기 (전체 너비) */}
               <div className="md:col-span-3">
-                <div className={`border p-5 ${theme.surface}`}>
-                  <div className="flex items-baseline justify-between mb-4">
-                    <h3 className="text-base font-light tracking-wide">데이터 백업 및 이관</h3>
-                    <span className={`text-xs ${theme.subText} font-mono tracking-widest uppercase`}>CSV · Excel 호환</span>
+                <section className="f-panel">
+                  <div className="f-panel-head">
+                    <div>
+                      <h3 className="f-panel-title">엑셀로 한 번에 등록 · 변경</h3>
+                      <p className="f-panel-sub">정리해 둔 엑셀(.xlsx)이나 CSV를 올리면 새 품목은 추가하고, 이미 있는 품목은 바뀐 값만 고칩니다.</p>
+                    </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* Export */}
-                    <button
-                      onClick={downloadCSV}
-                      disabled={products.length === 0}
-                      className={`px-4 py-3 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 transition-all text-left disabled:opacity-20 disabled:cursor-not-allowed`}
-                    >
-                      <div className="font-medium mb-0.5">↓ CSV 내보내기</div>
-                      <div className={`text-xs ${theme.subText} font-light`}>
-                        현재 {products.length}개 제품 데이터를 엑셀 파일로 저장
-                      </div>
-                    </button>
-
-                    {/* Import */}
-                    <label className="px-4 py-3 text-sm tracking-wider border border-current opacity-80 hover:opacity-100 transition-all text-left cursor-pointer block">
-                      <div className="font-medium mb-0.5">↑ CSV 불러오기</div>
-                      <div className={`text-xs ${theme.subText} font-light`}>
-                        엑셀에서 작성한 제품 목록을 한 번에 등록
-                      </div>
-                      <input
-                        type="file"
-                        accept=".csv,text/csv"
-                        onChange={handleCSVUpload}
-                        className="hidden"
-                      />
+                  <div className="zc-excel-grid">
+                    <label className={`zc-excel-card tone-blue ${busy ? 'is-busy' : ''}`}>
+                      <span className="f-kpi-icon"><Icon name="upload" size={20} /></span>
+                      <div><b>엑셀 · CSV 업로드</b><small>미리보기에서 확인 후 적용</small></div>
+                      <input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} className="hidden" disabled={busy} />
                     </label>
+                    <button className="zc-excel-card tone-green" disabled={busy || products.length === 0} onClick={() => runExport(() => exportProductsXlsx(products, false))}>
+                      <span className="f-kpi-icon"><Icon name="download" size={20} /></span>
+                      <div><b>엑셀로 내보내기</b><small>현재 {products.length}개 품목</small></div>
+                    </button>
+                    <button className="zc-excel-card tone-orange" disabled={busy} onClick={() => runExport(() => exportProductsXlsx(products, true))}>
+                      <span className="f-kpi-icon"><Icon name="sheet" size={20} /></span>
+                      <div><b>엑셀 양식 받기</b><small>제목 줄이 들어 있는 빈 양식</small></div>
+                    </button>
                   </div>
-
-                  <div className={`mt-3 text-xs ${theme.subText} font-mono`}>
-                    CSV 형식: 제품명, 거래처, 전화번호, 현재고, 적정선, 이미지URL
-                  </div>
-                </div>
+                  <p className="f-chart-empty">열 제목: 제품명(필수), 바코드, 카테고리, 거래처, 전화번호, 현재고, 적정선. 바코드 열은 엑셀에서 '텍스트' 형식으로 두면 앞자리 0이 지워지지 않습니다.</p>
+                </section>
               </div>
 
             </div>
@@ -4168,6 +5002,74 @@
               cycleLabel={cycleLabel}
               onClose={() => setShowStats(false)}
             />
+          )}
+
+          {/* 바코드 스캐너 */}
+          {scanMode && (() => {
+            const p = scanResult && scanResult.productId ? products.find(x => x.id === scanResult.productId) : null;
+            const titles = {
+              count: ['바코드를 스캔하거나', '번호를 입력하세요'],
+              quick: ['차감할 약의 바코드를', '스캔하세요'],
+              assign: ['등록할 약의 바코드를', '스캔하세요'],
+            };
+            const hint = scanMode === 'count' && activeCount ? activeCount.name : null;
+            return (
+              <ScanModal title={<>{titles[scanMode][0]}<br />{titles[scanMode][1]}</>} hint={hint} onCode={handleScanCode} onClose={closeScan}>
+                {scanResult && scanResult.missing && (
+                  <div className="zc-scan-result">
+                    <div className="zc-scan-item"><span className="zc-scan-thumb"><Icon name="alert" size={20} /></span>
+                      <div className="min-w-0"><small>등록되지 않은 바코드</small><b className="f-num">{scanResult.code}</b></div></div>
+                    <button className="zc-scan-submit" onClick={() => registerMissingBarcode(scanResult.code)}>이 바코드로 품목 등록</button>
+                  </div>
+                )}
+                {p && scanMode === 'count' && activeCount && (() => {
+                  const snap = activeCount.snapshot[p.id];
+                  const system = snap ? snap.system : p.currentStock;
+                  return (
+                    <div className="zc-scan-result">
+                      <div className="zc-scan-item">
+                        <ProductThumb product={p} size={44} />
+                        <div className="min-w-0 flex-1"><small>{p.company} · 전산 {system}</small><b>{p.name}</b></div>
+                        <div className="zc-scan-step">
+                          <button onClick={() => setScanQty(q => Math.max(0, q - 1))} aria-label="1 줄이기"><Icon name="minus" size={20} strokeWidth={2} /></button>
+                          <input id="scan-qty" type="number" inputMode="numeric" min="0" value={scanQty} onChange={e => setScanQty(Math.max(0, Number(e.target.value) || 0))} aria-label="실물 수량" />
+                          <button onClick={() => setScanQty(q => q + 1)} aria-label="1 늘리기"><Icon name="plus" size={20} strokeWidth={2} /></button>
+                        </div>
+                      </div>
+                      <button className="zc-scan-submit" onClick={() => {
+                        setCountActual(activeCount.id, p.id, scanQty);
+                        showToast(`${p.name} 실물 ${scanQty}개 (${scanQty - system === 0 ? '일치' : (scanQty - system > 0 ? '+' : '') + (scanQty - system)})`, 'success');
+                        setScanResult(null);
+                      }}>
+                        등록하기 <Icon name="check" size={18} />
+                      </button>
+                    </div>
+                  );
+                })()}
+                {p && scanMode === 'quick' && (
+                  <div className="zc-scan-result">
+                    <div className="zc-scan-item">
+                      <ProductThumb product={p} size={44} />
+                      <div className="min-w-0 flex-1"><small>{p.company} · 적정선 {p.safeStock}</small><b>{p.name}</b></div>
+                      <div className="zc-scan-step">
+                        <button onClick={() => handleQuickAdjust(p.id, -1)} disabled={p.currentStock === 0} aria-label="1개 차감"><Icon name="minus" size={20} strokeWidth={2} /></button>
+                        <strong className="f-num">{p.currentStock}</strong>
+                        <button onClick={() => handleQuickAdjust(p.id, 1)} aria-label="1개 추가"><Icon name="plus" size={20} strokeWidth={2} /></button>
+                      </div>
+                    </div>
+                    <button className="zc-scan-submit" onClick={() => setScanResult(null)}>다음 약 스캔 <Icon name="arrow" size={18} /></button>
+                  </div>
+                )}
+              </ScanModal>
+            );
+          })()}
+
+          {importPlan && (
+            <ImportPreviewModal plan={importPlan.plan} fileName={importPlan.fileName} onApply={applyImport} onClose={() => setImportPlan(null)} />
+          )}
+
+          {showFinishCount && activeCount && (
+            <FinishCountModal summary={countSummary(buildCountRows(activeCount, products))} onFinish={finishCount} onClose={() => setShowFinishCount(false)} />
           )}
 
           {/* 사용 가이드 모달 (첫 방문 자동 + 설정에서 수동) */}
