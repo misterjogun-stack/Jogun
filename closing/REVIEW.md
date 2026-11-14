@@ -44,6 +44,11 @@
   - 부가세: 일반은 상·하반기, 간이는 1년 단위. 카드 발행세액공제 연 1,000만원 한도를 한 번만 적용
   - 누적 손님 수·평균 객단가
 
+## 브랜드 (메인 마크)
+- 원본: `brand/zerobalance-logo-original.png`, 배경을 투명하게 자른 마크·워드마크: `brand/zb-mark.png`, `brand/zb-wordmark.png`
+- 적용: 헤더 로고(어두운 타일 + ZB, ZERO/BALANCE 두 줄), 첫 화면 히어로, 더보기 푸터, 정산 이미지(위쪽 마크 + 아래 로고), 홈 화면 아이콘·파비콘
+- 앱 안의 마크는 파일 하나로 쓰도록 HTML 안에 넣어 둠(인터넷 없어도 보임)
+
 ## v2.0 점검 업데이트
 - **이름 변경**: CLOSING → ZeroBalance(제로밸런스). 로고 '=' 마크, 정산 이미지·백업 파일 이름, 홈 화면 앱 이름
 - **문의 · 개선 제안**: 더보기에 종류(불편한 점·필요한 기능·오류 신고·기타) + 내용 → '복사하고 인스타 DM 열기'(ig.me/m/soowan_jg). 앱 버전·기기 종류만 함께 붙고 매출 숫자는 안 보냄. 설정과 더보기 메뉴에서도 바로 이동
@@ -60,7 +65,8 @@
 - **AI 모델 이름**(`gemini-3.8-flash`): 2026년 11월 기준 Google 문서상 최신 Flash 모델로 확인함
 
 ## 배포 시 확인
-- `manifest.webmanifest`의 `name`·`short_name`을 `ZeroBalance`로 바꾸기 (이 저장소에는 없는 파일)
+- **아이콘·manifest 올리기**: `closing/` 안의 `manifest.webmanifest`, `icon-180.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `favicon-32.png`를 사이트에 같이 올리기 (기존 파일 교체)
+- 이미 홈 화면에 추가한 아이폰은 아이콘이 자동으로 안 바뀜 → 홈 화면에서 지우고 다시 추가 (기록은 브라우저에 남아 있지만, 지우기 전에 백업 권장)
 - 서비스 워커(`sw.js`)가 예전 화면을 캐시하고 있으면 한두 번 새로고침 후 새 버전이 보임
 - `--tab-lift: 52px` — 원래 코드처럼 하단 탭을 'Powered by Netlify' 배지 위로 올림. 배지가 없으면 `0px`로 바꾸면 화면이 넓어짐
 - Pretendard 폰트는 jsdelivr CDN에서 불러옴. 오프라인이면 기기 기본 글꼴로 표시됨
