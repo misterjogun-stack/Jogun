@@ -49,7 +49,7 @@
   <script src="vendor/react-dom.production.min.js"></script>
 
   <!-- 미리 빌드한 스타일 (filo/tools 에서 npm run build) -->
-  <link rel="stylesheet" href="app.css?v=41d09a373c" />
+  <link rel="stylesheet" href="app.css?v=40dba112c8" />
 
   <style>
     /* ============================================
@@ -700,6 +700,46 @@
 
     .zc-empty-img { width: 128px; height: 128px; margin-bottom: 4px; filter: drop-shadow(0 12px 24px rgba(37, 99, 235, 0.25)); }
     .zc-empty .zc-btn-primary { margin-top: 6px; }
+    .zc-receive-list { display: grid; gap: 8px; max-height: 340px; overflow: auto; }
+    .zc-receive-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--f-surface-2); }
+    .zc-receive-row b { display: block; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+    .zc-receive-row small { font-size: 12px; color: var(--f-sub); }
+    .zc-light-step { background: var(--f-surface); border: 1px solid var(--f-line-strong); }
+    .zc-light-step button { color: var(--f-ink); }
+    .zc-light-step button:hover { background: var(--f-surface-2); }
+    #root .zc-light-step input { color: var(--f-ink); font-size: 18px !important; }
+    .zc-label-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .zc-label-opts label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--f-sub); }
+    .zc-label-opts select { height: 40px; padding: 0 10px; border: 1px solid var(--f-line-strong); background: var(--f-field); color: var(--f-ink); border-radius: 10px; font-size: 14px; }
+    .zc-label-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .zc-label-tools button { height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--f-line-strong); font-size: 12px; font-weight: 600; color: var(--f-ink); }
+    .zc-label-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--f-surface-2); cursor: pointer; }
+    .zc-label-row input { width: 18px; height: 18px; accent-color: var(--f-accent); flex-shrink: 0; }
+    .zc-label-row b { display: block; font-size: 13.5px; font-weight: 600; }
+    .zc-label-row small { font-size: 11.5px; color: var(--f-sub); font-family: var(--f-font-mono); }
+    @media (min-width: 900px) { .zc-excel-grid.zc-excel-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    @media (min-width: 640px) and (max-width: 899px) { .zc-excel-grid.zc-excel-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .zc-seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--f-surface-2); flex-shrink: 0; }
+    .zc-seg button { height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: var(--f-sub); }
+    .zc-seg button.is-on { background: var(--f-surface); color: var(--f-accent); box-shadow: var(--f-shadow); }
+    .zc-reco-list { display: grid; gap: 6px; }
+    .zc-reco-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border-radius: 12px; background: var(--f-surface-2); }
+    .zc-reco-row b { font-size: 14px; font-weight: 650; }
+    .zc-reco-row small { display: block; font-size: 12px; color: var(--f-sub); }
+    .zc-reco-change { font-size: 15px; color: var(--f-sub); white-space: nowrap; }
+    .zc-reco-change b { color: var(--f-accent); font-size: 17px; }
+    .zc-cost-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 560px) { .zc-cost-grid { grid-template-columns: 1fr; } }
+    .zc-cost-grid > div { padding: 12px 14px; border-radius: 12px; background: var(--f-surface-2); min-width: 0; }
+    .zc-cost-grid span { display: block; font-size: 12px; font-weight: 600; color: var(--f-sub); }
+    .zc-cost-grid b { display: block; font: 700 20px/1.3 var(--f-font-display); letter-spacing: -0.02em; overflow-wrap: anywhere; }
+    .zc-cost-grid small { display: block; font-size: 11.5px; font-weight: 600; margin-top: 2px; }
+    .zc-cost-grid small.is-up { color: var(--f-alert); }
+    .zc-cost-grid small.is-down { color: var(--f-ok); }
+    .zc-cost-top { margin-top: 14px; }
+    .zc-cost-row { display: grid; grid-template-columns: minmax(0, 9em) minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 13px; padding: 4px 0; }
+    .zc-cost-row i { display: block; height: 8px; border-radius: 99px; background: var(--f-accent); opacity: .85; }
+    .zc-cost-row b { font: 600 13px var(--f-font-display); }
     .zc-usage-row { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 8px; border-radius: 8px; font-size: 14px; }
     .zc-usage-row:hover { background: var(--f-surface-2); }
     .zc-usage-cancel { flex-shrink: 0; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--f-alert); background: var(--f-alert-soft); }
@@ -725,6 +765,6 @@
       window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
     }
   </script>
-  <script defer src="app.js?v=ffb739607e"></script>
+  <script defer src="app.js?v=88aad3dbce"></script>
 </body>
 </html>

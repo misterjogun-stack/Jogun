@@ -235,6 +235,7 @@
         category: product.category || '',
         currentStock: product.currentStock,
         safeStock: product.safeStock,
+        price: product.price || '',
         image: product.image
       });
       const [uploading, setUploading] = useState(false);
@@ -267,6 +268,7 @@
           category: (draft.category || '').trim(),
           currentStock: Math.max(0, Number(draft.currentStock) || 0),
           safeStock: Math.max(1, Number(draft.safeStock) || 1),
+          price: Math.max(0, Math.round(Number(String(draft.price).replace(/,/g, '')) || 0)),
           image: draft.image
         });
       };
@@ -413,6 +415,19 @@
                   className={`w-full p-2 text-sm text-center focus:outline-none border ${theme.inputBg}`}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-wider mb-1 opacity-60">단가 (원)</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                placeholder="모르면 비워 두세요"
+                value={draft.price}
+                onChange={e => setDraft({...draft, price: e.target.value})}
+                className={`w-full p-2 text-sm focus:outline-none border ${theme.inputBg}`}
+              />
             </div>
 
             <div className="flex gap-2 pt-1">
@@ -1394,7 +1409,7 @@
     // ============================================
     // 4-2. 엑셀 가져오기 / 내보내기
     // ============================================
-    const PRODUCT_HEADERS = ['제품명', '바코드', '카테고리', '거래처', '전화번호', '현재고', '적정선'];
+    const PRODUCT_HEADERS = ['제품명', '바코드', '카테고리', '거래처', '전화번호', '현재고', '적정선', '단가'];
     const COLUMN_ALIASES = {
       name: ['제품명', '상품명', '품목명', '품목', '이름', 'name', 'product'],
       barcode: ['바코드', '바코드번호', 'barcode', 'ean', '상품코드'],
@@ -1403,6 +1418,7 @@
       phone: ['전화번호', '거래처전화번호', '연락처', 'phone'],
       currentStock: ['현재고', '재고', '현재재고', '수량', '재고수량', 'stock'],
       safeStock: ['적정선', '안전재고', '적정재고', '최소재고', 'safe'],
+      price: ['단가', '가격', '원가', '매입가', 'price'],
     };
     const normHeader = (h) => String(h == null ? '' : h).replace(/\s+/g, '').toLowerCase();
     const cellText = (v) => (v == null ? '' : String(v).trim());
@@ -1444,7 +1460,7 @@
       const byName = new Map(products.map(p => [p.name.trim(), p]));
       const adds = [], updates = [];
       let same = 0;
-      const LABEL = { name: '제품명', barcode: '바코드', category: '카테고리', company: '거래처', phone: '전화번호', currentStock: '현재고', safeStock: '적정선' };
+      const LABEL = { name: '제품명', barcode: '바코드', category: '카테고리', company: '거래처', phone: '전화번호', currentStock: '현재고', safeStock: '적정선', price: '단가' };
       rows.forEach((r, i) => {
         const vals = { name: cellText(r.name) };
         const bc = cellText(r.barcode).replace(/\s/g, '');
@@ -1454,6 +1470,7 @@
         const ph = cellText(r.phone).replace(/[^0-9]/g, ''); if (ph) vals.phone = ph;
         const cur = toCount(r.currentStock, 0); if (cur !== null) vals.currentStock = cur;
         const safe = toCount(r.safeStock, 1); if (safe !== null) vals.safeStock = safe;
+        const price = toCount(r.price, 0); if (price !== null) vals.price = price;
         const existing = (bc && byBarcode.get(bc)) || byName.get(vals.name);
         if (existing) {
           const changes = Object.keys(vals).filter(k => String(existing[k] == null ? '' : existing[k]) !== String(vals[k]));
@@ -1468,7 +1485,7 @@
             id: Date.now() + i, name: vals.name, barcode: vals.barcode || '', category: vals.category || '',
             company: vals.company || '미지정 거래처', phone: vals.phone || '',
             currentStock: vals.currentStock == null ? 0 : vals.currentStock,
-            safeStock: vals.safeStock == null ? 1 : vals.safeStock, image: ''
+            safeStock: vals.safeStock == null ? 1 : vals.safeStock, price: vals.price == null ? 0 : vals.price, image: ''
           });
         }
       });
@@ -1489,10 +1506,10 @@
     const exportProductsXlsx = async (products, template) => {
       const XLSX = await getXLSX();
       const rows = template
-        ? [['아이롱 펌제 1제 (건강모용)', '8801234567890', '펌제', '동양상사', '010-0000-1234', 12, 20]]
-        : products.map(p => [p.name, p.barcode || '', p.category || '', p.company, p.phone ? formatPhone(p.phone) : '', p.currentStock, p.safeStock]);
+        ? [['아이롱 펌제 1제 (건강모용)', '8801234567890', '펌제', '동양상사', '010-0000-1234', 12, 20, 18000]]
+        : products.map(p => [p.name, p.barcode || '', p.category || '', p.company, p.phone ? formatPhone(p.phone) : '', p.currentStock, p.safeStock, priceOf(p) || '']);
       const ws = XLSX.utils.aoa_to_sheet([PRODUCT_HEADERS, ...rows]);
-      ws['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 15 }, { wch: 8 }, { wch: 8 }];
+      ws['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 15 }, { wch: 8 }, { wch: 8 }, { wch: 10 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '품목');
       XLSX.writeFile(wb, template ? 'zerocount_items_template.xlsx' : `zerocount_items_${stamp()}.xlsx`);
@@ -1514,7 +1531,7 @@
         const system = snap ? snap.system : (a && a.system != null ? a.system : (p ? p.currentStock : 0));
         const actual = a ? a.qty : null;
         return {
-          id, name: info.name, company: info.company || '', category: info.category || '', barcode: info.barcode || '',
+          id, name: info.name, company: info.company || '', category: info.category || '', barcode: info.barcode || '', price: priceOf(p || snap),
           system, actual, diff: actual == null ? null : actual - system, countedAt: a ? a.t : null,
           removed: !p, added: !snap,
         };
@@ -1525,21 +1542,23 @@
       const done = rows.filter(r => r.actual != null).length;
       const diffRows = rows.filter(r => r.diff != null && r.diff !== 0);
       return { total, done, left: total - done, pct: total ? Math.round((done / total) * 100) : 0, diff: diffRows.length,
-        diffQty: diffRows.reduce((a, r) => a + r.diff, 0) };
+        diffQty: diffRows.reduce((a, r) => a + r.diff, 0),
+        diffAmount: diffRows.reduce((a, r) => a + r.diff * (r.price || 0), 0),
+        hasPrice: rows.some(r => r.price > 0) };
     };
 
     const exportCountXlsx = async (session, rows) => {
       const XLSX = await getXLSX();
       const sum = countSummary(rows);
-      const head = ['제품명', '바코드', '카테고리', '거래처', '전산 재고', '실물 재고', '차이', '조사 시각'];
+      const head = ['제품명', '바코드', '카테고리', '거래처', '전산 재고', '실물 재고', '차이', '차이 금액', '조사 시각'];
       const body = rows.map(r => [r.name, r.barcode, r.category, r.company, r.system, r.actual == null ? '' : r.actual,
-        r.diff == null ? '미조사' : r.diff, r.countedAt ? fmtDateTime(r.countedAt) : '']);
+        r.diff == null ? '미조사' : r.diff, r.diff == null || !r.price ? '' : r.diff * r.price, r.countedAt ? fmtDateTime(r.countedAt) : '']);
       const ws = XLSX.utils.aoa_to_sheet([head, ...body]);
-      ws['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 9 }, { wch: 9 }, { wch: 8 }, { wch: 17 }];
+      ws['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 9 }, { wch: 9 }, { wch: 8 }, { wch: 11 }, { wch: 17 }];
       const info = XLSX.utils.aoa_to_sheet([
         ['조사명', session.name], ['시작', fmtDateTime(session.createdAt)], ['완료', session.finishedAt ? fmtDateTime(session.finishedAt) : '진행 중'],
         ['전체 항목', sum.total], ['조사 완료', sum.done], ['미조사', sum.left], ['진행률', `${sum.pct}%`],
-        ['차이 발생 품목', sum.diff], ['차이 합계(실물-전산)', sum.diffQty],
+        ['차이 발생 품목', sum.diff], ['차이 합계(실물-전산)', sum.diffQty], ['차이 금액(원)', sum.hasPrice ? sum.diffAmount : '단가 미입력'],
       ]);
       info['!cols'] = [{ wch: 18 }, { wch: 26 }];
       const wb = XLSX.utils.book_new();
@@ -1746,6 +1765,165 @@
     }
 
     // ============================================
+    // 4-7. 금액 표시
+    // ============================================
+    const won = (n) => `${Math.round(n || 0).toLocaleString('ko-KR')}원`;
+    const priceOf = (p) => Math.max(0, Number(p && p.price) || 0);
+
+    // ============================================
+    // 4-8. 바코드 라벨 (Code 128 B)
+    // ============================================
+    const CODE128_PATTERNS = ['212222','222122','222221','121223','121322','131222','122213','122312','132212','221213','221312','231212','112232','122132','122231','113222','123122','123221','223211','221132','221231','213212','223112','312131','311222','321122','321221','312212','322112','322211','212123','212321','232121','111323','131123','131321','112313','132113','132311','211313','231113','231311','112133','112331','132131','113123','113321','133121','313121','211331','231131','213113','213311','213131','311123','311321','331121','312113','312311','332111','314111','221411','431111','111224','111422','121124','121421','141122','141221','112214','112412','122114','122411','142112','142211','241211','221114','413111','241112','134111','111242','121142','121241','114212','124112','124211','411212','421112','421211','212141','214121','412121','111143','111341','131141','114113','114311','411113','411311','113141','114131','311141','411131','211412','211214','211232','2331112'];
+    // 문자열을 막대 폭 배열로 바꾼다 (막대·빈칸 번갈아, 모듈 단위)
+    const code128Widths = (text) => {
+      const vals = [104];
+      for (const ch of String(text)) {
+        const c = ch.charCodeAt(0);
+        if (c < 32 || c > 126) throw new Error('바코드에 쓸 수 없는 글자가 있습니다');
+        vals.push(c - 32);
+      }
+      let sum = vals[0];
+      for (let i = 1; i < vals.length; i++) sum += vals[i] * i;
+      vals.push(sum % 103);
+      vals.push(106);
+      return vals.map(v => CODE128_PATTERNS[v]).join('').split('').map(Number);
+    };
+    const code128Svg = (text, heightMm = 14) => {
+      const widths = code128Widths(text);
+      const quiet = 10;
+      const total = widths.reduce((a, b) => a + b, 0) + quiet * 2;
+      let x = quiet, rects = '';
+      widths.forEach((w, i) => { if (i % 2 === 0) rects += `<rect x="${x}" y="0" width="${w}" height="40"/>`; x += w; });
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} 40" preserveAspectRatio="none" style="width:100%;height:${heightMm}mm;display:block" shape-rendering="crispEdges"><rect width="${total}" height="40" fill="#fff"/><g fill="#000">${rects}</g></svg>`;
+    };
+    const LABEL_SHEETS = {
+      a4_24: { name: 'A4 24칸 (70×37mm)', cols: 3, rows: 8, w: 70, h: 37.125, bar: 12 },
+      a4_10: { name: 'A4 10칸 (105×59mm)', cols: 2, rows: 5, w: 105, h: 59.4, bar: 18 },
+    };
+    const printLabels = (items, sheetKey) => {
+      const sh = LABEL_SHEETS[sheetKey] || LABEL_SHEETS.a4_24;
+      const esc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const perPage = sh.cols * sh.rows;
+      const pages = [];
+      for (let i = 0; i < items.length; i += perPage) pages.push(items.slice(i, i + perPage));
+      const cells = (list) => list.map(p => `<div class="lb"><b>${esc(p.name)}</b><small>${esc([p.category, p.company].filter(Boolean).join(' · '))}</small>${code128Svg(p.barcode, sh.bar)}<code>${esc(p.barcode)}</code></div>`).join('');
+      const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>바코드 라벨</title><style>
+        @page { size: A4; margin: 0; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: #000; }
+        .page { width: 210mm; height: 297mm; display: grid; grid-template-columns: repeat(${sh.cols}, ${sh.w}mm); grid-auto-rows: ${sh.h}mm; page-break-after: always; overflow: hidden; }
+        .page:last-child { page-break-after: auto; }
+        .lb { padding: 3mm 4mm; display: flex; flex-direction: column; justify-content: center; gap: 1mm; overflow: hidden; }
+        .lb b { font-size: ${sh.cols === 3 ? 9.5 : 13}pt; line-height: 1.2; max-height: 2.4em; overflow: hidden; }
+        .lb small { font-size: ${sh.cols === 3 ? 7 : 9}pt; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lb code { font: 600 ${sh.cols === 3 ? 8 : 10}pt ui-monospace, monospace; letter-spacing: .08em; text-align: center; }
+        .tip { font: 13px sans-serif; padding: 12px 16px; background: #EAF1FF; color: #1D4ED8; }
+        @media print { .tip { display: none; } }
+        @media screen { body { background: #e5e7eb; } .page { background: #fff; margin: 12px auto; box-shadow: 0 2px 10px rgba(0,0,0,.15); } .lb { outline: 1px dashed #cbd5e1; outline-offset: -1px; } }
+      </style></head><body>
+        <div class="tip">인쇄 창에서 용지는 A4, 배율은 '실제 크기(100%)', 여백은 '없음'으로 맞춰 주세요. 점선은 화면에서만 보입니다.</div>
+        ${pages.map(pg => `<div class="page">${cells(pg)}</div>`).join('')}
+        <script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 400); });<\/script>
+      </body></html>`;
+      const w = window.open('', '_blank');
+      if (!w) return false;
+      w.document.open(); w.document.write(html); w.document.close();
+      return true;
+    };
+
+    // ============================================
+    // 4-9. 입고 처리 창
+    // ============================================
+    function ReceiveModal({ order, onApply, onClose }) {
+      const [rows, setRows] = useState(() => order.items.map(it => ({ name: it.name, ordered: it.qty, qty: it.qty })));
+      const total = rows.reduce((a, r) => a + (Number(r.qty) || 0), 0);
+      const setQty = (i, v) => setRows(prev => prev.map((r, j) => j === i ? { ...r, qty: v === '' ? '' : Math.max(0, Math.round(Number(v) || 0)) } : r));
+      return (
+        <div className="zc-modal-bg" onClick={onClose}>
+          <div className="zc-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="입고 처리">
+            <div className="zc-modal-head">
+              <div><h3>{order.company} 입고 처리</h3><p>받은 수량을 확인하고 적용하면 재고에 더해집니다.</p></div>
+              <button className="f-icon-btn" onClick={onClose} aria-label="닫기"><Icon name="close" size={20} /></button>
+            </div>
+            <div className="zc-receive-list">
+              {rows.map((r, i) => (
+                <div key={r.name} className="zc-receive-row">
+                  <div className="min-w-0 flex-1"><b>{r.name}</b><small>발주 {r.ordered}개</small></div>
+                  <div className="zc-scan-step zc-light-step">
+                    <button onClick={() => setQty(i, Math.max(0, (Number(r.qty) || 0) - 1))} aria-label={`${r.name} 받은 수량 1 줄이기`}><Icon name="minus" size={18} strokeWidth={2} /></button>
+                    <input id={`receive-${i}`} type="number" inputMode="numeric" min="0" value={r.qty} onChange={e => setQty(i, e.target.value)} aria-label={`${r.name} 받은 수량`} />
+                    <button onClick={() => setQty(i, (Number(r.qty) || 0) + 1)} aria-label={`${r.name} 받은 수량 1 늘리기`}><Icon name="plus" size={18} strokeWidth={2} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="zc-modal-note">입고는 사용량 통계에 들어가지 않습니다. 안 온 품목은 0으로 두면 됩니다.</p>
+            <div className="zc-modal-actions">
+              <button className="zc-btn-ghost" onClick={onClose}>취소</button>
+              <button className="zc-btn-primary" disabled={total === 0} onClick={() => onApply(rows.map(r => ({ name: r.name, qty: Number(r.qty) || 0 })))}>
+                {total}개 입고 처리
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // 4-10. 바코드 라벨 출력 창
+    // ============================================
+    function LabelModal({ products, onPrint, onClose }) {
+      const [selected, setSelected] = useState(() => new Set(products.map(p => p.id)));
+      const [sheet, setSheet] = useState('a4_24');
+      const [copies, setCopies] = useState(1);
+      const missing = products.filter(p => selected.has(p.id) && !p.barcode).length;
+      const toggle = (id) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+      const count = selected.size * copies;
+      return (
+        <div className="zc-modal-bg" onClick={onClose}>
+          <div className="zc-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="바코드 라벨 출력">
+            <div className="zc-modal-head">
+              <div><h3>바코드 라벨 출력</h3><p>라벨을 약통에 붙이면 바코드 없는 약도 스캔으로 조사할 수 있어요.</p></div>
+              <button className="f-icon-btn" onClick={onClose} aria-label="닫기"><Icon name="close" size={20} /></button>
+            </div>
+            <div className="zc-label-opts">
+              <label htmlFor="label-sheet">라벨지
+                <select id="label-sheet" value={sheet} onChange={e => setSheet(e.target.value)}>
+                  {Object.entries(LABEL_SHEETS).map(([k, v]) => <option key={k} value={k}>{v.name}</option>)}
+                </select>
+              </label>
+              <label htmlFor="label-copies">품목당 장수
+                <select id="label-copies" value={copies} onChange={e => setCopies(Number(e.target.value))}>
+                  {[1, 2, 3, 4, 6].map(n => <option key={n} value={n}>{n}장</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="zc-label-tools">
+              <button onClick={() => setSelected(new Set(products.map(p => p.id)))}>전체 선택</button>
+              <button onClick={() => setSelected(new Set(products.filter(p => !p.barcode).map(p => p.id)))}>바코드 없는 품목만</button>
+              <button onClick={() => setSelected(new Set())}>선택 해제</button>
+            </div>
+            <div className="zc-import-list" style={{ maxHeight: 260 }}>
+              {products.map(p => (
+                <label key={p.id} className="zc-label-row">
+                  <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
+                  <span className="min-w-0 flex-1"><b>{p.name}</b><small>{p.barcode ? p.barcode : '바코드 없음 · 새 번호를 붙입니다'}</small></span>
+                </label>
+              ))}
+            </div>
+            {missing > 0 && <p className="zc-modal-note">바코드가 없는 {missing}개 품목에는 ZC00001 형식의 번호를 새로 붙여 품목 정보에 저장합니다.</p>}
+            <div className="zc-modal-actions">
+              <button className="zc-btn-ghost" onClick={onClose}>취소</button>
+              <button className="zc-btn-primary" disabled={selected.size === 0} onClick={() => onPrint([...selected], sheet, copies)}>
+                <Icon name="printer" size={18} /> 라벨 {count}장 출력
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
     // 5. MAIN APP
     // ============================================
     function App() {
@@ -1914,7 +2092,7 @@
       }, []);
 
       const [newProd, setNewProd] = useState({
-        name: '', barcode: '', company: '', phone: '', category: '', safeStock: 0, currentStock: 0, image: ''
+        name: '', barcode: '', company: '', phone: '', category: '', safeStock: 0, currentStock: 0, price: '', image: ''
       });
 
       // ----- 재고조사 세션 -----
@@ -1925,6 +2103,12 @@
       const [countSearch, setCountSearch] = useState('');
       const [showFinishCount, setShowFinishCount] = useState(false);
       const activeCount = counts.find(c => c.status === 'active') || null;
+
+      // ----- 입고 처리 · 바코드 라벨 · 적정선 추천 -----
+      const [receiveOrder, setReceiveOrder] = useState(null);   // { company, items }
+      const [showLabels, setShowLabels] = useState(false);
+      const [recoDays, setRecoDays] = useState(() => safeStorage.get('filo_reco_days', 7));
+      useEffect(() => { safeStorage.set('filo_reco_days', recoDays); }, [recoDays]);
 
       // ----- 바코드 스캔 / 엑셀 가져오기 -----
       const [scanMode, setScanMode] = useState(null);           // 'count' | 'quick' | 'assign' | null
@@ -2003,7 +2187,7 @@
         const d = new Date();
         const sameMonth = counts.filter(c => new Date(c.createdAt).getMonth() === d.getMonth() && new Date(c.createdAt).getFullYear() === d.getFullYear()).length;
         const snapshot = {};
-        products.forEach(p => { snapshot[p.id] = { system: p.currentStock, name: p.name, company: p.company, category: p.category || '', barcode: p.barcode || '' }; });
+        products.forEach(p => { snapshot[p.id] = { system: p.currentStock, name: p.name, company: p.company, category: p.category || '', barcode: p.barcode || '', price: priceOf(p) }; });
         const session = {
           id: Date.now(), name: `${d.getMonth() + 1}월 재고조사${sameMonth ? ' ' + (sameMonth + 1) + '차' : ''}`,
           createdAt: Date.now(), finishedAt: null, status: 'active', applied: false, snapshot, actual: {}
@@ -2104,6 +2288,47 @@
       const runExport = async (fn) => {
         setBusy(true);
         try { await fn(); } catch (err) { showToast(err.message || '파일을 만들지 못했습니다', 'error'); } finally { setBusy(false); }
+      };
+
+      // ----- 입고 처리: 받은 수량을 재고에 더하고 발주를 마무리 -----
+      const applyReceive = (company, rows) => {
+        const got = rows.filter(r => r.qty > 0);
+        const byName = new Map(got.map(r => [r.name, r.qty]));
+        products.forEach(p => {
+          if (p.company === company && byName.has(p.name)) {
+            logHistory(p.id, p.name, byName.get(p.name), 'restock');
+          }
+        });
+        setProducts(prev => prev.map(p => byName.has(p.name) && p.company === company ? { ...p, currentStock: p.currentStock + byName.get(p.name) } : p));
+        setCompletedOrders(prev => {
+          const next = { ...prev };
+          Object.keys(next).forEach(k => { if (k.startsWith(company + '::')) delete next[k]; });
+          return next;
+        });
+        logOrderHistory(company, { phone: (products.find(p => p.company === company) || {}).phone, items: got }, 'receive');
+        setReceiveOrder(null);
+        showToast(`${company} ${got.reduce((a, r) => a + r.qty, 0)}개 입고 처리했습니다`, 'success');
+      };
+
+      // ----- 바코드 라벨: 번호 없는 품목에 ZC 번호를 붙이고 출력 -----
+      const handlePrintLabels = (ids, sheetKey, copies) => {
+        const used = new Set(products.map(p => p.barcode).filter(Boolean));
+        let seq = products.reduce((m, p) => { const mm = /^ZC(\d{5})$/.exec(p.barcode || ''); return mm ? Math.max(m, Number(mm[1])) : m; }, 0);
+        const assigned = {};
+        ids.forEach(id => {
+          const p = products.find(x => x.id === id);
+          if (p && !p.barcode) {
+            let code; do { seq += 1; code = 'ZC' + String(seq).padStart(5, '0'); } while (used.has(code));
+            used.add(code); assigned[id] = code;
+          }
+        });
+        const next = products.map(p => assigned[p.id] ? { ...p, barcode: assigned[p.id] } : p);
+        if (Object.keys(assigned).length) setProducts(next);
+        const list = [];
+        ids.forEach(id => { const p = next.find(x => x.id === id); if (p) for (let i = 0; i < copies; i++) list.push(p); });
+        if (!printLabels(list, sheetKey)) { showToast('팝업이 막혀 있습니다. 브라우저에서 팝업을 허용해 주세요', 'error'); return; }
+        setShowLabels(false);
+        showToast(Object.keys(assigned).length ? `${Object.keys(assigned).length}개 품목에 새 바코드를 붙였습니다` : '라벨을 열었습니다', 'success');
       };
 
       // ----- 핸들러들 -----
@@ -2581,10 +2806,11 @@
           category: (newProd.category || '').trim(),
           safeStock: Math.max(1, Number(newProd.safeStock) || 1),
           currentStock: Math.max(0, Number(newProd.currentStock) || 0),
+          price: Math.max(0, Math.round(Number(newProd.price) || 0)),
           image: newProd.image.trim()
         };
         setProducts(prev => [...prev, item]);
-        setNewProd({ name: '', barcode: '', company: '', phone: '', category: '', safeStock: 0, currentStock: 0, image: '' });
+        setNewProd({ name: '', barcode: '', company: '', phone: '', category: '', safeStock: 0, currentStock: 0, price: '', image: '' });
         if (isDemo) setIsDemo(false);
         showToast(`'${item.name}'을 등록했습니다`, 'success');
       };
@@ -2757,6 +2983,55 @@
           .sort((a, b) => b.t - a.t);
       }, [products, showTodayUsage, historyTick]); // 차감 · 정정 · 취소 시 재계산
       const todayQty = todayUsage.reduce((a, u) => a + Math.abs(u.delta), 0);
+
+      // ----- 적정선 추천: 최근 4주 빠른 차감 기록 기준 -----
+      const safeStockReco = useMemo(() => {
+        const DAY = 86400000, now = Date.now(), from = now - 28 * DAY;
+        const hist = safeStorage.get('filo_history', []);
+        const firstSeen = {}, used = {};
+        hist.forEach(h => {
+          if (h.id == null) return;
+          if (firstSeen[h.id] == null || h.t < firstSeen[h.id]) firstSeen[h.id] = h.t;
+          if (h.source === 'quick' && h.delta < 0 && h.t >= from) used[h.id] = (used[h.id] || 0) + -h.delta;
+        });
+        return products.map(p => {
+          const qty = used[p.id] || 0;
+          const days = firstSeen[p.id] == null ? 0 : Math.min(28, (now - Math.max(firstSeen[p.id], from)) / DAY);
+          if (days < 7 || qty < 3) return null;
+          const perDay = qty / days;
+          const rec = Math.max(1, Math.ceil(perDay * recoDays));
+          return { id: p.id, name: p.name, current: p.safeStock, rec, qty, days: Math.round(days), perDay };
+        }).filter(r => r && r.rec !== r.current);
+      }, [products, historyTick, recoDays]);
+      const applyReco = (list) => {
+        const m = new Map(list.map(r => [r.id, r.rec]));
+        setProducts(prev => prev.map(p => m.has(p.id) ? { ...p, safeStock: m.get(p.id) } : p));
+        showToast(`${list.length}개 품목의 적정선을 바꿨습니다`, 'success');
+      };
+
+      // ----- 약제비: 재고 금액 · 이번 달 / 지난 달 사용 금액 -----
+      const costStats = useMemo(() => {
+        const priced = products.filter(p => priceOf(p) > 0);
+        if (!priced.length) return null;
+        const priceById = new Map(products.map(p => [p.id, priceOf(p)]));
+        const now = new Date();
+        const thisStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+        const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+        let thisMonth = 0, lastMonth = 0; const byItem = {};
+        safeStorage.get('filo_history', []).forEach(h => {
+          if (!(h.delta < 0) || h.source === 'count') return;
+          const amt = -h.delta * (priceById.get(h.id) || 0);
+          if (!amt) return;
+          if (h.t >= thisStart) { thisMonth += amt; byItem[h.id] = (byItem[h.id] || 0) + amt; }
+          else if (h.t >= lastStart) lastMonth += amt;
+        });
+        const top = Object.entries(byItem).sort((a, b) => b[1] - a[1]).slice(0, 5)
+          .map(([id, amt]) => ({ name: (products.find(p => String(p.id) === id) || {}).name || '삭제된 품목', amt }));
+        return {
+          stockValue: priced.reduce((a, p) => a + p.currentStock * priceOf(p), 0),
+          thisMonth, lastMonth, top, priced: priced.length, total: products.length,
+        };
+      }, [products, historyTick]);
 
       // 월별 통계 계산
       const monthlyStats = useMemo(() => {
@@ -3106,6 +3381,42 @@
                     {weekTotal === 0 && <p className="f-chart-empty">아직 사용 기록이 없어요. 빠른 차감에서 − 를 누르면 여기에 쌓입니다.</p>}
                   </section>
                 </div>
+
+                {costStats ? (
+                  <section className="f-panel" style={{ marginBottom: 16 }}>
+                    <div className="f-panel-head">
+                      <div><h3 className="f-panel-title">약제비</h3><p className="f-panel-sub">단가를 넣은 {costStats.priced}개 품목 기준 · 빠른 차감 사용량 × 단가</p></div>
+                    </div>
+                    <div className="zc-cost-grid">
+                      <div><span>재고 금액</span><b className="f-num">{won(costStats.stockValue)}</b></div>
+                      <div><span>이번 달 사용</span><b className="f-num">{won(costStats.thisMonth)}</b>
+                        {costStats.lastMonth > 0 && <small className={costStats.thisMonth > costStats.lastMonth ? 'is-up' : 'is-down'}>지난 달 {won(costStats.lastMonth)} 대비 {costStats.thisMonth >= costStats.lastMonth ? '+' : '−'}{Math.abs(Math.round((costStats.thisMonth - costStats.lastMonth) / costStats.lastMonth * 100))}%</small>}
+                      </div>
+                      <div><span>지난 달 사용</span><b className="f-num">{won(costStats.lastMonth)}</b></div>
+                    </div>
+                    {costStats.top.length > 0 && (
+                      <div className="zc-cost-top">
+                        <p className="f-panel-sub" style={{ marginBottom: 6 }}>이번 달 약제비가 많은 약</p>
+                        {costStats.top.map((t, i) => (
+                          <div key={t.name + i} className="zc-cost-row">
+                            <span className="truncate">{t.name}</span>
+                            <i style={{ width: `${Math.max(4, (t.amt / costStats.top[0].amt) * 100)}%` }} />
+                            <b className="f-num">{won(t.amt)}</b>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {costStats.priced < costStats.total && <p className="f-chart-empty">단가가 없는 품목 {costStats.total - costStats.priced}개는 계산에서 빠졌습니다.</p>}
+                  </section>
+                ) : (
+                  <button className="zc-active-card" style={{ borderStyle: 'dashed' }} onClick={() => setViewMode('manage')}>
+                    <div className="zc-active-left">
+                      <b>약제비를 보려면 단가를 넣어 주세요</b>
+                      <small>품목 관리에서 단가를 넣거나 엑셀의 '단가' 열로 한 번에 올리면, 재고 금액과 이번 달 약제비가 여기에 보여요.</small>
+                    </div>
+                    <Icon name="arrow" size={18} />
+                  </button>
+                )}
 
                 <section className="f-panel" style={{ marginBottom: 16 }}>
                   <div className="f-panel-head">
@@ -3503,7 +3814,7 @@
                     <div>
                       <p className="f-kpi-label">재고 차이</p>
                       <p className="f-kpi-value">{sm.diff}<small>개 품목</small></p>
-                      <p className="f-panel-sub" style={{ marginTop: 4 }}>실물 − 전산 합계 {sm.diffQty > 0 ? '+' : ''}{sm.diffQty}개</p>
+                      <p className="f-panel-sub" style={{ marginTop: 4 }}>실물 − 전산 합계 {sm.diffQty > 0 ? '+' : ''}{sm.diffQty}개{sm.hasPrice ? ` · ${sm.diffAmount > 0 ? '+' : sm.diffAmount < 0 ? '−' : ''}${won(Math.abs(sm.diffAmount))}` : ''}</p>
                     </div>
                   </section>
                 </div>
@@ -3728,23 +4039,33 @@
                   {completed.length > 0 && (
                     <div className="pt-4">
                       <h3 className={`text-xs ${theme.subText} tracking-[0.3em] uppercase font-mono mb-3`}>
-                        완료 처리됨 ({completed.length})
+                        입고 대기 ({completed.length})
                       </h3>
                       <div className="space-y-2">
                         {completed.map(([company, info]) => (
-                          <div key={company} className={`flex items-center justify-between p-3 border ${theme.surface} opacity-50 hover:opacity-100 transition-all`}>
-                            <div className="flex-1 min-w-0">
+                          <div key={company} className={`flex flex-wrap items-center justify-between gap-2 p-3 border ${theme.surface} transition-all`}>
+                            <div className="flex-1 min-w-[170px]">
                               <p className="text-base font-light truncate">{company}</p>
                               <p className={`text-xs ${theme.subText} font-mono`}>
                                 {info.items.length}개 품목 · {info.items.reduce((a, b) => a + b.qty, 0)}개 발주
                               </p>
                             </div>
-                            <button
-                              onClick={() => handleUnmarkOrderComplete(company, info)}
-                              className="ml-3 px-3 py-1.5 text-xs tracking-wider border border-current opacity-60 hover:opacity-100 transition-all whitespace-nowrap"
-                            >
-                              완료 해제
-                            </button>
+                            <div className="flex gap-2 ml-auto">
+                              <button
+                                onClick={() => handleUnmarkOrderComplete(company, info)}
+                                className="zc-btn-ghost"
+                                style={{ height: 38, fontSize: 13 }}
+                              >
+                                발주 취소
+                              </button>
+                              <button
+                                onClick={() => setReceiveOrder({ company, items: info.items })}
+                                className="zc-btn-primary"
+                                style={{ height: 38, fontSize: 13 }}
+                              >
+                                <Icon name="box" size={16} /> 입고 처리
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -3895,6 +4216,19 @@
                     </div>
                   </div>
                   <div>
+                    <label htmlFor="new-price" className="block text-sm uppercase tracking-wider mb-1 opacity-70">단가 (원, 선택)</label>
+                    <input
+                      id="new-price"
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      placeholder="예: 18000 · 넣으면 약제비가 계산돼요"
+                      value={newProd.price}
+                      onChange={e => setNewProd({...newProd, price: e.target.value})}
+                      className={`w-full p-2.5 text-sm focus:outline-none border ${theme.inputBg}`}
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm uppercase tracking-wider mb-1 opacity-70">제품 이미지 (선택)</label>
                     <div className="space-y-2">
                       {newProd.image && (
@@ -3999,7 +4333,7 @@
                             <div className="min-w-0">
                               <p className="font-semibold leading-snug [overflow-wrap:anywhere]">{product.name}</p>
                               <p className={`text-xs ${theme.subText} font-mono truncate`}>
-                                {product.company}{product.phone ? ` · ${formatPhone(product.phone)}` : ''} · 재고 {product.currentStock}/{product.safeStock}{product.barcode ? ` · ${product.barcode}` : ''}
+                                {product.company}{product.phone ? ` · ${formatPhone(product.phone)}` : ''} · 재고 {product.currentStock}/{product.safeStock}{product.barcode ? ` · ${product.barcode}` : ''}{priceOf(product) ? ` · ${won(priceOf(product))}` : ''}
                               </p>
                             </div>
                           </div>
@@ -4099,16 +4433,54 @@
                 </div>
               </div>
 
+              {/* 적정선 추천 (전체 너비) */}
+              <div className="md:col-span-3">
+                <section className="f-panel">
+                  <div className="f-panel-head" style={{ flexWrap: 'wrap' }}>
+                    <div>
+                      <h3 className="f-panel-title">적정선 추천</h3>
+                      <p className="f-panel-sub">최근 4주 동안 빠른 차감으로 쓴 양을 보고, 다음 입고까지 버틸 만큼을 추천합니다.</p>
+                    </div>
+                    <div className="zc-seg" role="group" aria-label="추천 기준">
+                      {[[7, '1주 치'], [14, '2주 치']].map(([d, l]) => (
+                        <button key={d} className={recoDays === d ? 'is-on' : ''} onClick={() => setRecoDays(d)}>{l}</button>
+                      ))}
+                    </div>
+                  </div>
+                  {safeStockReco.length === 0 ? (
+                    <p className="f-chart-empty" style={{ marginTop: 0 }}>추천할 품목이 없어요. 빠른 차감 기록이 7일 이상, 3개 이상 쌓인 품목부터 추천이 나옵니다.</p>
+                  ) : (
+                    <>
+                      <div className="zc-reco-list">
+                        {safeStockReco.map(r => (
+                          <div key={r.id} className="zc-reco-row">
+                            <div className="min-w-0 flex-1">
+                              <b>{r.name}</b>
+                              <small>최근 {r.days}일 {r.qty}개 사용 · 하루 약 {r.perDay < 1 ? r.perDay.toFixed(1) : Math.round(r.perDay * 10) / 10}개</small>
+                            </div>
+                            <span className="zc-reco-change f-num">{r.current} → <b>{r.rec}</b></span>
+                            <button className="zc-btn-ghost" style={{ height: 36, fontSize: 13 }} onClick={() => applyReco([r])}>적용</button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="zc-modal-actions" style={{ marginTop: 12 }}>
+                        <button className="zc-btn-primary" onClick={() => applyReco(safeStockReco)}>{safeStockReco.length}개 모두 적용</button>
+                      </div>
+                    </>
+                  )}
+                </section>
+              </div>
+
               {/* 엑셀 가져오기 / 내보내기 (전체 너비) */}
               <div className="md:col-span-3">
                 <section className="f-panel">
                   <div className="f-panel-head">
                     <div>
-                      <h3 className="f-panel-title">엑셀로 한 번에 등록 · 변경</h3>
+                      <h3 className="f-panel-title">엑셀 · 바코드 라벨</h3>
                       <p className="f-panel-sub">정리해 둔 엑셀(.xlsx)이나 CSV를 올리면 새 품목은 추가하고, 이미 있는 품목은 바뀐 값만 고칩니다.</p>
                     </div>
                   </div>
-                  <div className="zc-excel-grid">
+                  <div className="zc-excel-grid zc-excel-grid-4">
                     <label className={`zc-excel-card tone-blue ${busy ? 'is-busy' : ''}`}>
                       <span className="f-kpi-icon"><Icon name="upload" size={20} /></span>
                       <div><b>엑셀 · CSV 업로드</b><small>미리보기에서 확인 후 적용</small></div>
@@ -4122,8 +4494,12 @@
                       <span className="f-kpi-icon"><Icon name="sheet" size={20} /></span>
                       <div><b>엑셀 양식 받기</b><small>제목 줄이 들어 있는 빈 양식</small></div>
                     </button>
+                    <button className="zc-excel-card tone-blue" disabled={products.length === 0} onClick={() => setShowLabels(true)}>
+                      <span className="f-kpi-icon"><Icon name="scan" size={20} /></span>
+                      <div><b>바코드 라벨 출력</b><small>바코드 없는 약에 붙일 라벨</small></div>
+                    </button>
                   </div>
-                  <p className="f-chart-empty">열 제목: 제품명(필수), 바코드, 카테고리, 거래처, 전화번호, 현재고, 적정선. 바코드 열은 엑셀에서 '텍스트' 형식으로 두면 앞자리 0이 지워지지 않습니다.</p>
+                  <p className="f-chart-empty">열 제목: 제품명(필수), 바코드, 카테고리, 거래처, 전화번호, 현재고, 적정선, 단가. 바코드 열은 엑셀에서 '텍스트' 형식으로 두면 앞자리 0이 지워지지 않습니다.</p>
                 </section>
               </div>
 
@@ -4503,6 +4879,14 @@
               </ScanModal>
             );
           })()}
+
+          {receiveOrder && (
+            <ReceiveModal order={receiveOrder} onApply={(rows) => applyReceive(receiveOrder.company, rows)} onClose={() => setReceiveOrder(null)} />
+          )}
+
+          {showLabels && (
+            <LabelModal products={[...products].sort((a, b) => a.name.localeCompare(b.name, 'ko'))} onPrint={handlePrintLabels} onClose={() => setShowLabels(false)} />
+          )}
 
           {importPlan && (
             <ImportPreviewModal plan={importPlan.plan} fileName={importPlan.fileName} onApply={applyImport} onClose={() => setImportPlan(null)} />
