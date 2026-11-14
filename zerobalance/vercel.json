@@ -1,5 +1,8 @@
 {
   "trailingSlash": true,
+  "redirects": [
+    { "source": "/:path*", "has": [ { "type": "host", "value": "zerobalance-one.vercel.app" } ], "destination": "https://zerobalance-salon.vercel.app/:path*", "permanent": true }
+  ],
   "headers": [
     { "source": "/app/sw.js", "headers": [ { "key": "Cache-Control", "value": "no-cache" }, { "key": "Service-Worker-Allowed", "value": "/app/" } ] },
     { "source": "/(.*)", "headers": [ { "key": "X-Content-Type-Options", "value": "nosniff" }, { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" } ] }
