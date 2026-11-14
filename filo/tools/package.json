@@ -2,7 +2,10 @@
   "name": "zerocount-build",
   "private": true,
   "description": "앱 소스(app/app.jsx)를 브라우저용 app.js · app.css로 미리 변환합니다. 사용법: cd filo/tools && npm install && npm run build",
-  "scripts": { "build": "node build.mjs" },
+  "scripts": {
+    "build": "node build.mjs",
+    "standalone": "node build-standalone.mjs"
+  },
   "devDependencies": {
     "@babel/core": "7.26.10",
     "@babel/preset-react": "7.26.3",
