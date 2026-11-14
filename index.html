@@ -2,407 +2,369 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#F1EFF5" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111012" />
   <title>JOGUN — 헤어 디자이너 조군</title>
   <meta name="description" content="헤어 디자이너 조군의 개인 브랜드 JOGUN. 커트, 펌, 컬러, 클리닉 시술과 예약 문의." />
   <meta property="og:title" content="JOGUN — 헤어 디자이너 조군" />
-  <meta property="og:description" content="손질이 쉬운 컷, 오래 가는 컬러. 예약 문의는 여기서 바로 정리해 보낼 수 있습니다." />
+  <meta property="og:description" content="오늘은 커트, 펌, 컬러, 클리닉. 예약 문의는 여기서 바로 정리해 보낼 수 있습니다." />
   <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%232A1B3D'/%3E%3Cpath d='M38 12v28a10 10 0 0 1-20 0' fill='none' stroke='%23F3E08A' stroke-width='8'/%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23111012'/%3E%3Cpath d='M38 12v28a10 10 0 0 1-20 0' fill='none' stroke='%23F3E08A' stroke-width='8'/%3E%3C/svg%3E" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
 
   <style>
     /* ───────── Tokens ───────── */
     :root {
-      --ink: #2A1B3D;          /* 토너 바이올렛 잉크 */
-      --ink-soft: #5B4D6E;     /* 보조 텍스트 */
-      --bleach: #F3E08A;       /* 블리치 옐로 */
-      --porcelain: #F1EFF5;    /* 샴푸볼 포슬린 */
-      --toner: #8E79C9;        /* 보라 샴푸 라일락 */
-      --silver: #B9B6C4;       /* 가위 실버 */
+      --black: #111012;
+      --white: #FFFFFF;
+      --paper: #F3F1F5;
+      --bleach: #F3E08A;      /* 블리치 옐로: 예약 영역과 버튼에만 사용 */
+      --toner: #8E79C9;
+      --gray: #A09BAA;        /* 검정 위 보조 텍스트 (대비 7:1 이상) */
+      --gray-ink: #5A5463;    /* 흰 바탕 위 보조 텍스트 */
+      --line-dark: rgba(255, 255, 255, .16);
+      --line-light: #D4D0DA;
       --focus: #5B3FA8;
 
-      --font-display: "Bricolage Grotesque", "Pretendard Variable", Pretendard, sans-serif;
+      --font-wide: "Archivo", "Pretendard Variable", Pretendard, sans-serif;
       --font-body: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
 
-      --gutter: clamp(20px, 5vw, 72px);
-      --section-y: clamp(72px, 11vw, 150px);
-      --cut: 100%;             /* 히어로 컷 라인 가로 위치 (JS가 갱신) */
-      --cut-y: 64%;            /* 잘린 머리카락 끝선의 세로 위치 */
+      --gutter: clamp(20px, 5vw, 64px);
+      --section-y: clamp(72px, 12vw, 140px);
     }
 
     *, *::before, *::after { box-sizing: border-box; }
     html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
     body {
-      margin: 0;
-      background: var(--porcelain);
-      color: var(--ink);
-      font-family: var(--font-body);
-      font-size: 1.0625rem;
-      line-height: 1.7;
-      -webkit-font-smoothing: antialiased;
-      word-break: keep-all;
-      overflow-wrap: break-word;
+      margin: 0; background: var(--black); color: var(--white);
+      font-family: var(--font-body); font-size: 1.0625rem; line-height: 1.7;
+      -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: break-word;
     }
     h1, h2, h3, p { margin: 0; }
     a { color: inherit; }
     button, input, select, textarea { font: inherit; color: inherit; }
-
-    :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
-    .on-dark :focus-visible { outline-color: var(--bleach); }
+    :focus-visible { outline: 3px solid var(--bleach); outline-offset: 3px; }
+    .light :focus-visible, .on-bleach :focus-visible { outline-color: var(--focus); }
 
     .sr-only {
       position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
       overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
     }
+    .wrap { max-width: 1200px; margin-inline: auto; padding-inline: var(--gutter); }
+    .wide { font-family: var(--font-wide); font-stretch: 125%; font-weight: 800; letter-spacing: -.01em; }
 
-    .wrap { max-width: 1280px; margin-inline: auto; padding-inline: var(--gutter); }
-
-    /* ───────── Button: 날 모양의 평행사변형 ───────── */
+    /* ───────── Pill 버튼 ───────── */
+    .pill {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5em;
+      min-height: 44px; padding: 0 1.4em;
+      font-family: var(--font-wide); font-stretch: 125%; font-weight: 700; font-size: .8rem; letter-spacing: .04em;
+      color: inherit; text-decoration: none; background: transparent;
+      border: 1.5px solid currentColor; border-radius: 999px; cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+    .pill:hover { background: var(--white); color: var(--black); }
     .btn {
-      position: relative; isolation: isolate;
       display: inline-flex; align-items: center; justify-content: center;
-      padding: .95em 2.1em;
-      font-weight: 700; font-size: 1rem; letter-spacing: -.01em;
-      text-decoration: none; border: 0; background: none; cursor: pointer;
-      color: var(--porcelain);
+      min-height: 52px; padding: 0 2em;
+      font-weight: 800; font-size: 1rem; letter-spacing: -.01em;
+      color: var(--black); background: var(--bleach); text-decoration: none;
+      border: 0; border-radius: 999px; cursor: pointer;
+      transition: background .2s, color .2s;
     }
-    .btn::before {
-      content: ""; position: absolute; inset: 0; z-index: -1;
-      background: var(--ink);
-      transform: skewX(-14deg);
-      transition: background .2s;
-    }
-    .btn:hover::before { background: #3D2A57; }
-    .btn--bleach { color: var(--ink); }
-    .btn--bleach::before { background: var(--bleach); }
-    .btn--bleach:hover::before { background: #F8EBA8; }
-    .btn--line { color: var(--ink); }
-    .btn--line::before { background: transparent; box-shadow: inset 0 0 0 2px var(--ink); }
-    .btn--line:hover::before { background: rgba(42, 27, 61, .08); }
-    .btn[aria-disabled="true"] { cursor: default; color: var(--ink-soft); }
-    .btn[aria-disabled="true"]::before { background: transparent; box-shadow: inset 0 0 0 2px var(--silver); }
+    .btn:hover { background: var(--white); }
+    .btn--dark { background: var(--black); color: var(--white); }
+    .btn--dark:hover { background: #2B2733; }
+    .btn--line { background: transparent; color: inherit; box-shadow: inset 0 0 0 1.5px currentColor; }
+    .btn--line:hover { background: var(--white); color: var(--black); }
+    .btn[aria-disabled="true"] { background: transparent; color: var(--gray); box-shadow: inset 0 0 0 1.5px var(--gray); cursor: default; }
+    .light .btn[aria-disabled="true"], .on-bleach .btn[aria-disabled="true"] { color: var(--gray-ink); box-shadow: inset 0 0 0 1.5px var(--gray-ink); }
 
-    /* ───────── Header ───────── */
+    /* ───────── 헤더: 배경색에 따라 자동으로 반전 ───────── */
     .site-header {
-      position: absolute; inset: 0 0 auto 0; z-index: 10;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 22px var(--gutter);
+      position: fixed; inset: 0 0 auto 0; z-index: 50; color: #fff; mix-blend-mode: difference;
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+      padding: 14px var(--gutter); pointer-events: none;
     }
-    .logo {
-      font-family: var(--font-display); font-weight: 800; font-size: 1.35rem;
-      font-variation-settings: "wdth" 75, "opsz" 36;
-      letter-spacing: -.02em; text-decoration: none;
-    }
-    .site-nav { display: flex; align-items: center; gap: clamp(16px, 3vw, 40px); }
-    .site-nav a { text-decoration: none; font-weight: 600; font-size: .95rem; }
-    .site-nav a:not(.btn):hover { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; }
-    .site-nav .btn { padding: .6em 1.5em; font-size: .92rem; }
-    @media (max-width: 640px) { .site-nav a:not(.btn) { display: none; } }
+    .site-header > * { pointer-events: auto; }
+    .site-header .pill:first-child { justify-self: start; }
+    .site-header .pill:hover { background: #fff; color: #000; }
+    .logo { font-size: 1.15rem; text-decoration: none; justify-self: center; }
+    .site-header .right { justify-self: end; }
 
-    /* ───────── Hero: 컷 인터랙션 ───────── */
+    /* ───────── 전체화면 메뉴 ───────── */
+    .menu-dialog {
+      position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none;
+      margin: 0; padding: 14px var(--gutter) 32px; border: 0;
+      background: var(--black); color: var(--white);
+    }
+    .menu-dialog[open] { display: flex; flex-direction: column; animation: menu-in .35s ease-out; }
+    @keyframes menu-in { from { opacity: 0; } to { opacity: 1; } }
+    .menu-dialog .top { display: flex; justify-content: space-between; align-items: center; }
+    .menu-dialog nav { margin-block: auto; display: grid; }
+    .menu-dialog nav a {
+      font-weight: 800; font-size: clamp(2.6rem, 12vw, 6rem); letter-spacing: -.045em; line-height: 1.25;
+      text-decoration: none; padding-block: .06em; border-bottom: 1px solid var(--line-dark);
+    }
+    .menu-dialog nav a:hover { color: var(--bleach); }
+    .menu-dialog .foot { color: var(--gray); font-size: .9rem; }
+
+    /* ───────── Hero ───────── */
     .hero {
-      position: relative; overflow: hidden;
-      min-height: max(100svh, 720px);
-      background: var(--porcelain);
+      min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 96px var(--gutter) 72px;
     }
-    .layer { position: absolute; inset: 0; pointer-events: none; }
-    .layer--after {
-      background: var(--bleach);
-      clip-path: inset(0 0 0 var(--cut));
+    .statement { font-weight: 800; letter-spacing: -.04em; line-height: 1.2; font-size: clamp(2.6rem, 11.5vw, 6.4rem); }
+    .statement .l1, .statement .l3 { display: block; }
+    .statement .l2 {
+      display: flex; align-items: center; justify-content: center; gap: .12em;
+      margin-block: .12em;
+      font-family: var(--font-wide); font-stretch: 125%; font-weight: 800; letter-spacing: -.02em;
+      font-size: 1.28em; line-height: 1.1;
     }
-    .strands { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-    .layer--before .strands { -webkit-mask-image: linear-gradient(#000 58%, transparent 97%); mask-image: linear-gradient(#000 58%, transparent 97%); }
-
-    .wordmark {
-      position: absolute; left: var(--gutter); bottom: calc(100% - var(--cut-y));
-      font-family: var(--font-display); font-weight: 800;
-      font-variation-settings: "wdth" 75, "opsz" 96;
-      font-size: clamp(5.5rem, 27vw, 27rem);
-      line-height: .8; letter-spacing: -.035em;
-      margin: 0; user-select: none;
+    .statement .bracket { font-weight: 300; transform: scaleY(1.25); }
+    .words { display: inline-grid; }
+    .words > span {
+      grid-area: 1 / 1; justify-self: center;
+      clip-path: polygon(0 0, 0 0, -20% 100%, -20% 100%);            /* 아직 안 나옴 */
+      transition: clip-path .8s cubic-bezier(.65, 0, .35, 1);
     }
-    .layer--before .wordmark { color: transparent; -webkit-text-stroke: 2px var(--ink); }
-    .layer--after .wordmark { color: var(--ink); }
-
-    /* 컷 라인 아래의 기준선 */
-    .layer--after::after {
-      content: ""; position: absolute; left: 0; right: 0; top: var(--cut-y);
-      height: 2px; background: var(--ink);
-    }
-
-    .cut-input {
-      position: absolute; z-index: 6; left: 0; top: 0; width: 100%; height: var(--cut-y);
-      margin: 0; opacity: 0; cursor: ew-resize; -webkit-appearance: none; appearance: none;
-      touch-action: pan-y;
-    }
-    .cut-input::-webkit-slider-thumb { -webkit-appearance: none; width: 48px; height: 100vh; }
-    .cut-input::-moz-range-thumb { width: 48px; height: 100vh; border: 0; background: transparent; }
-
-    .handle {
-      position: absolute; z-index: 5; top: 0; bottom: 0; left: var(--cut);
-      width: 0; pointer-events: none;
-    }
-    .handle::before {
-      content: ""; position: absolute; top: 0; bottom: 0; left: -1px; width: 2px; background: var(--ink);
-    }
-    .knob {
-      position: absolute; top: var(--cut-y); left: 0; width: 60px; height: 60px;
-      transform: translate(-50%, -50%);
-      display: grid; place-items: center;
-      background: var(--ink); color: var(--bleach); border-radius: 50%;
-    }
-    .cut-input:focus-visible ~ .handle .knob { outline: 3px solid var(--focus); outline-offset: 4px; }
-
-    .hero-copy {
-      position: absolute; z-index: 7; left: var(--gutter); right: var(--gutter); bottom: clamp(28px, 5vh, 56px);
-      max-width: 32rem;
-    }
-    .hero-copy .lede {
-      font-weight: 800; font-size: clamp(1.5rem, 3.2vw, 2.1rem);
-      line-height: 1.25; letter-spacing: -.03em;
-    }
-    .hero-copy .sub { margin-top: .7em; color: var(--ink-soft); font-size: 1rem; max-width: 26rem; }
-    .hero-actions { margin-top: 1.4em; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 26px; }
-    .hint { margin-top: 1.2em; font-size: .85rem; color: var(--ink-soft); }
-    @media (max-width: 640px) {
-      :root { --cut-y: 50%; }
-      .hero { min-height: max(100svh, 780px); }
-      .wordmark { font-size: 36vw; }
-      .layer--before .wordmark { -webkit-text-stroke-width: 1.5px; }
-    }
+    .words > span.is-on  { clip-path: polygon(-20% 0, 120% 0, 120% 100%, -20% 100%); }  /* 보이는 중 */
+    .words > span.is-off { clip-path: polygon(120% 0, 120% 0, 120% 100%, 100% 100%); }   /* 잘려 나감 */
+    .words > span.is-reset { transition: none; }
+    .hero .sub { margin-top: 2rem; color: var(--gray); max-width: 22rem; font-size: 1rem; }
+    .hero .cta { margin-top: 1.8rem; }
 
     /* ───────── Section 공통 ───────── */
     .section { padding-block: var(--section-y); }
-    .section-head {
-      display: grid; gap: 20px 6vw; align-items: end;
-      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-      margin-bottom: clamp(36px, 6vw, 72px);
+    .light { background: var(--paper); color: var(--black); }
+    .on-bleach { background: var(--bleach); color: var(--black); }
+    .section-head { margin-bottom: clamp(32px, 6vw, 64px); display: grid; gap: 16px 6vw; grid-template-columns: minmax(0, 1fr); }
+    .section-head h2, .big-h {
+      font-weight: 800; font-size: clamp(2.4rem, 9vw, 4.8rem); line-height: 1.05; letter-spacing: -.045em;
     }
-    .section-head h2 {
-      font-weight: 800; font-size: clamp(2.2rem, 6vw, 4.5rem);
-      line-height: 1.02; letter-spacing: -.04em;
+    .section-head p { color: var(--gray); max-width: 32rem; }
+    .light .section-head p { color: var(--gray-ink); }
+    @media (min-width: 821px) {
+      .section-head { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: end; }
     }
-    .section-head p { color: var(--ink-soft); max-width: 34rem; }
-    @media (max-width: 820px) { .section-head { grid-template-columns: 1fr; } }
 
-    /* ───────── 시술 메뉴 ───────── */
-    .menu { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--ink); }
-    .menu li {
-      display: grid; gap: 8px 6vw; align-items: baseline;
-      grid-template-columns: minmax(0, 5fr) minmax(0, 5fr) minmax(0, 1.4fr);
-      padding-block: clamp(22px, 3vw, 38px);
-      border-bottom: 1px solid var(--silver);
+    /* ───────── 시술 메뉴 (아코디언) ───────── */
+    .svc { border-top: 2px solid var(--black); }
+    .svc details { border-bottom: 1px solid var(--line-light); }
+    .svc summary {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding-block: clamp(20px, 3.4vw, 34px); cursor: pointer; list-style: none;
     }
-    .menu h3 {
-      font-weight: 800; font-size: clamp(1.8rem, 4.2vw, 3.2rem);
-      line-height: 1.1; letter-spacing: -.04em;
-    }
-    .menu .desc { color: var(--ink-soft); max-width: 30rem; }
-    .menu .time { font-weight: 600; white-space: nowrap; }
-    .menu-note { margin-top: 22px; color: var(--ink-soft); font-size: .95rem; }
-    @media (max-width: 820px) {
-      .menu li { grid-template-columns: 1fr; }
-    }
+    .svc summary::-webkit-details-marker { display: none; }
+    .svc summary h3 { font-weight: 800; font-size: clamp(2rem, 7vw, 3.6rem); letter-spacing: -.045em; line-height: 1.1; }
+    .svc .plus { position: relative; flex: none; width: 36px; height: 36px; border: 1.5px solid currentColor; border-radius: 50%; }
+    .svc .plus::before, .svc .plus::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14px; height: 2px; background: currentColor; transform: translate(-50%, -50%); transition: transform .3s; }
+    .svc .plus::after { transform: translate(-50%, -50%) rotate(90deg); }
+    .svc details[open] .plus::after { transform: translate(-50%, -50%) rotate(0deg); }
+    .svc .body { display: grid; gap: 6px 6vw; padding: 0 0 clamp(22px, 3vw, 34px); max-width: 40rem; }
+    .svc .desc { color: var(--gray-ink); }
+    .svc .time { font-weight: 700; }
+    .svc-note { margin-top: 22px; color: var(--gray-ink); font-size: .95rem; }
 
     /* ───────── 컬러 차트 ───────── */
-    .section--dark { background: var(--ink); color: var(--porcelain); }
-    .section--dark .section-head p { color: #CFC7DE; }
-    .chart {
-      display: flex; gap: 6px; height: clamp(380px, 62vh, 580px);
-    }
+    .chart { display: flex; gap: 6px; height: clamp(380px, 62vh, 580px); }
     .swatch {
-      position: relative; flex: 1 1 0; min-width: 0;
-      padding: 0; border: 0; text-align: left; cursor: pointer; overflow: hidden;
+      position: relative; flex: 1 1 0; min-width: 0; padding: 0; border: 0; text-align: left; overflow: hidden;
+      cursor: pointer; background: var(--black);
       transition: flex-grow .55s cubic-bezier(.2, .8, .2, 1);
-      background: var(--ink);
     }
     .swatch[aria-expanded="true"] { flex-grow: 6; cursor: default; }
     .swatch > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     .swatch .level {
       position: absolute; left: 14px; bottom: 6px; display: block;
-      font-family: var(--font-display); font-weight: 800;
-      font-variation-settings: "wdth" 75, "opsz" 96;
-      font-size: clamp(2.6rem, 5vw, 4.4rem); line-height: 1; letter-spacing: -.04em;
+      font-family: var(--font-wide); font-stretch: 125%; font-weight: 800;
+      font-size: clamp(1.4rem, 3.2vw, 2.4rem); line-height: 1.2; letter-spacing: -.02em;
     }
     .swatch .detail {
-      position: absolute; left: 14px; right: 14px; top: 16px; display: block;
-      opacity: 0; transform: translateY(6px);
-      transition: opacity .25s, transform .25s;
-      min-width: 15rem;
+      position: absolute; left: 14px; right: 14px; top: 16px; display: block; min-width: 15rem;
+      opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s;
     }
     .swatch[aria-expanded="true"] .detail { opacity: 1; transform: none; transition-delay: .25s; }
     .swatch .name { display: block; font-weight: 800; font-size: 1.5rem; letter-spacing: -.03em; line-height: 1.2; }
     .swatch .note { display: block; margin-top: .4em; font-size: .95rem; line-height: 1.55; max-width: 22rem; }
-    .swatch[data-tone="dark"] { color: var(--porcelain); }
-    .swatch[data-tone="light"] { color: var(--ink); }
-    .chart-note { margin-top: 22px; color: #CFC7DE; font-size: .95rem; }
+    .swatch[data-tone="dark"] { color: var(--white); }
+    .swatch[data-tone="light"] { color: var(--black); }
+    .chart-note { margin-top: 22px; color: var(--gray); font-size: .95rem; }
     @media (max-width: 720px) {
       .chart { flex-direction: column; height: auto; }
-      .swatch { flex: 0 0 60px; transition: flex-basis .5s cubic-bezier(.2, .8, .2, 1); }
-      .swatch[aria-expanded="true"] { flex: 0 0 190px; }
-      .swatch .level { font-size: 2.4rem; left: auto; right: 14px; bottom: auto; top: 8px; }
-      .swatch .detail { min-width: 0; right: 70px; top: 12px; }
+      .swatch { flex: 0 0 56px; transition: flex-basis .5s cubic-bezier(.2, .8, .2, 1); }
+      .swatch[aria-expanded="true"] { flex: 0 0 180px; }
+      .swatch .level { left: auto; right: 14px; bottom: auto; top: 14px; }
+      .swatch .detail { min-width: 0; right: 80px; top: 12px; }
       .swatch .note { font-size: .9rem; }
     }
 
     /* ───────── 소개 ───────── */
-    .about {
-      display: grid; gap: 28px 6vw;
-      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    .about .big-h { max-width: 14ch; }
+    .about .body { margin-top: 32px; display: grid; gap: 1.2em; max-width: 34rem; color: var(--gray-ink); }
+    .about .body strong { color: var(--black); font-weight: 800; }
+    .insta {
+      margin-top: clamp(40px, 6vw, 72px); padding: clamp(24px, 4vw, 44px);
+      background: var(--black); color: var(--white);
+      display: grid; gap: 20px; justify-items: start;
     }
-    .about h2 {
-      font-weight: 800; font-size: clamp(2.2rem, 6vw, 4.5rem);
-      line-height: 1.02; letter-spacing: -.04em;
-    }
-    .about .body { display: grid; gap: 1.2em; max-width: 34rem; }
-    .about .body strong { font-weight: 800; }
-    @media (max-width: 820px) { .about { grid-template-columns: 1fr; } }
+    .insta .t { font-family: var(--font-wide); font-stretch: 125%; font-weight: 800; font-size: 1.2rem; }
+    .insta .m { font-weight: 800; font-size: clamp(1.5rem, 4.4vw, 2.4rem); letter-spacing: -.035em; line-height: 1.25; max-width: 22rem; }
 
     /* ───────── 예약 문의 ───────── */
-    .section--bleach { background: var(--bleach); }
-    .booking {
-      display: grid; gap: 48px 6vw; align-items: start;
-      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-    }
-    .booking h2 {
-      font-weight: 800; font-size: clamp(2.2rem, 6vw, 4.5rem);
-      line-height: 1.02; letter-spacing: -.04em;
-    }
-    .booking .lead { margin-top: 20px; max-width: 28rem; }
-    .channels { margin-top: 32px; display: grid; gap: 12px; justify-items: start; }
-    .info { margin: 32px 0 0; display: grid; gap: 6px 20px; grid-template-columns: auto 1fr; font-size: .95rem; }
-    .info dt { font-weight: 700; }
+    .booking { display: grid; gap: 44px 6vw; align-items: start; grid-template-columns: minmax(0, 1fr); }
+    @media (min-width: 821px) { .booking { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); } }
+    .booking .lead { margin-top: 18px; max-width: 28rem; }
+    .channels { margin-top: 28px; display: grid; gap: 12px; justify-items: start; }
+    .info { margin: 30px 0 0; display: grid; gap: 6px 20px; grid-template-columns: auto 1fr; font-size: .95rem; }
+    .info dt { font-weight: 800; }
     .info dd { margin: 0; }
-    .pending { color: var(--ink-soft); }
-    @media (max-width: 820px) { .booking { grid-template-columns: 1fr; } }
+    .pending { color: var(--gray-ink); }
 
     .composer { display: grid; gap: 28px; }
     .field { border: 0; padding: 0; margin: 0; min-width: 0; }
-    .field > legend, .field > label.lbl { display: block; padding: 0; margin-bottom: 10px; font-weight: 800; letter-spacing: -.02em; }
+    .field > legend, .field > .lbl { display: block; padding: 0; margin-bottom: 10px; font-weight: 800; letter-spacing: -.02em; }
     .chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .chip { position: relative; }
     .chip input { position: absolute; opacity: 0; width: 1px; height: 1px; }
     .chip span {
-      display: inline-block; padding: .55em 1.1em; cursor: pointer;
-      border: 2px solid var(--ink); font-weight: 600;
+      display: inline-flex; align-items: center; min-height: 44px; padding: 0 1.2em; cursor: pointer;
+      border: 1.5px solid var(--black); border-radius: 999px; font-weight: 700;
       transition: background .15s, color .15s;
     }
-    .chip input:checked + span { background: var(--ink); color: var(--bleach); }
+    .chip input:checked + span { background: var(--black); color: var(--bleach); }
     .chip input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 3px; }
-    .input {
-      width: 100%; padding: .6em .1em; background: transparent;
-      border: 0; border-bottom: 2px solid var(--ink); border-radius: 0;
-    }
-    .input::placeholder { color: var(--ink-soft); opacity: .8; }
+    .input { width: 100%; padding: .6em .1em; background: transparent; border: 0; border-bottom: 2px solid var(--black); border-radius: 0; }
+    .input::placeholder { color: var(--gray-ink); opacity: .85; }
     textarea.input { resize: vertical; min-height: 4.5em; }
-    select.input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%); background-position: calc(100% - 14px) 55%, calc(100% - 8px) 55%; background-size: 6px 6px; background-repeat: no-repeat; padding-right: 2em; cursor: pointer; }
+    select.input {
+      appearance: none; padding-right: 2em; cursor: pointer;
+      background-image: linear-gradient(45deg, transparent 50%, var(--black) 50%), linear-gradient(135deg, var(--black) 50%, transparent 50%);
+      background-position: calc(100% - 14px) 55%, calc(100% - 8px) 55%; background-size: 6px 6px; background-repeat: no-repeat;
+    }
     .preview {
-      margin: 0; padding: 18px 20px; white-space: pre-wrap;
-      background: rgba(255, 255, 255, .55); border-left: 6px solid var(--ink);
-      font-size: .98rem; line-height: 1.65;
+      margin: 0; padding: 18px 20px; white-space: pre-wrap; border-radius: 18px;
+      background: rgba(255, 255, 255, .6); font-size: .98rem; line-height: 1.65;
     }
     .composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
-    .status { min-height: 1.6em; font-weight: 600; font-size: .95rem; }
+    .status { min-height: 1.6em; font-weight: 700; font-size: .95rem; }
 
     /* ───────── Footer ───────── */
-    .site-footer { background: var(--ink); color: var(--porcelain); padding-block: 40px 48px; }
-    .site-footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 32px; align-items: baseline; }
-    .site-footer .logo { font-size: 1.6rem; }
-    .site-footer small { color: #CFC7DE; font-size: .85rem; }
+    .site-footer { padding-block: clamp(48px, 8vw, 96px) 40px; }
+    .site-footer .mark { font-size: clamp(3.4rem, 17vw, 14rem); line-height: .9; letter-spacing: -.04em; }
+    .site-footer .links { margin-top: 36px; display: flex; flex-wrap: wrap; gap: 8px 24px; font-weight: 600; }
+    .site-footer .links a { text-decoration: none; }
+    .site-footer .links a:hover { text-decoration: underline; text-underline-offset: 5px; }
+    .site-footer small { display: block; margin-top: 28px; color: var(--gray); font-size: .85rem; }
+
+    /* ───────── TOP 버튼 ───────── */
+    .to-top {
+      position: fixed; z-index: 40; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom));
+      width: 52px; height: 52px; display: grid; place-items: center;
+      font-family: var(--font-wide); font-stretch: 125%; font-weight: 800; font-size: .62rem; letter-spacing: .05em;
+      color: #fff; background: transparent; border: 2px solid currentColor; border-radius: 50%; mix-blend-mode: difference;
+      cursor: pointer; opacity: 0; visibility: hidden; transform: translateY(8px);
+      transition: opacity .25s, transform .25s, visibility .25s;
+    }
+    .to-top.is-shown { opacity: 1; visibility: visible; transform: none; }
 
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
-      *, *::before, *::after { transition-duration: .01ms !important; transition-delay: 0s !important; }
+      *, *::before, *::after { transition-duration: .01ms !important; transition-delay: 0s !important; animation: none !important; }
     }
   </style>
 </head>
 <body>
 
   <header class="site-header">
-    <a class="logo" href="#top" aria-label="JOGUN 홈">JOGUN</a>
-    <nav class="site-nav" aria-label="주요 메뉴">
+    <button class="pill" type="button" id="menu-open" aria-haspopup="dialog">MENU</button>
+    <a class="logo wide" href="#top" aria-label="JOGUN 홈">JOGUN</a>
+    <a class="pill right" href="#booking">예약</a>
+  </header>
+
+  <dialog class="menu-dialog" id="menu-dialog" aria-label="메뉴">
+    <div class="top">
+      <span class="logo wide">JOGUN</span>
+      <button class="pill" type="button" id="menu-close">CLOSE</button>
+    </div>
+    <nav aria-label="주요 메뉴">
       <a href="#menu">시술 메뉴</a>
       <a href="#color">컬러 차트</a>
       <a href="#about">소개</a>
-      <a class="btn" href="#booking">예약 문의</a>
+      <a href="#booking">예약 문의</a>
     </nav>
-  </header>
+    <p class="foot">헤어 디자이너 조군의 개인 브랜드</p>
+  </dialog>
 
   <main id="top">
     <!-- ═════ Hero ═════ -->
-    <section class="hero" id="hero" aria-labelledby="hero-title">
-      <h1 id="hero-title" class="sr-only">JOGUN — 헤어 디자이너 조군</h1>
-
-      <div class="layer layer--before" aria-hidden="true">
-        <svg class="strands" id="strands-before" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
-        <p class="wordmark">JOGUN</p>
-      </div>
-      <div class="layer layer--after" aria-hidden="true">
-        <svg class="strands" id="strands-after" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
-        <p class="wordmark">JOGUN</p>
-      </div>
-
-      <input class="cut-input" id="cut" type="range" min="4" max="96" step="0.1" value="96"
-             aria-label="시술 전후 비교 선. 좌우로 움직이면 머리 길이가 정리됩니다" />
-      <div class="handle" aria-hidden="true">
-        <span class="knob">
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.7"/><circle cx="6" cy="18" r="2.7"/><path d="M8.2 7.6 21 17.4M8.2 16.4 21 6.6"/></svg>
+    <section class="hero" aria-labelledby="hero-title">
+      <h1 id="hero-title" class="statement">
+        <span class="sr-only">JOGUN — 헤어 디자이너 조군. 커트, 펌, 컬러, 클리닉.</span>
+        <span aria-hidden="true">
+          <span class="l1">오늘은</span>
+          <span class="l2">
+            <span class="bracket">[</span>
+            <span class="words" id="words">
+              <span class="is-on">Cut</span><span>Perm</span><span>Color</span><span>Care</span>
+            </span>
+            <span class="bracket">]</span>
+          </span>
+          <span class="l3">by JOGUN</span>
         </span>
-      </div>
-
-      <div class="hero-copy">
-        <p class="lede">손질이 쉬운 컷,<br />오래 가는 컬러.</p>
-        <p class="sub">머리 길이와 고민을 알려 주시면 맞는 시술부터 정리해 드립니다.</p>
-        <div class="hero-actions">
-          <a class="btn" href="#booking">예약 문의하기</a>
-          <a class="btn btn--line" href="#menu">시술 메뉴 보기</a>
-        </div>
-        <p class="hint">가운데 선을 좌우로 끌어 보세요. 왼쪽은 다듬기 전, 오른쪽은 자른 뒤입니다.</p>
-      </div>
+      </h1>
+      <p class="sub">머리 길이와 고민을 알려 주시면 맞는 시술부터 정리해 드립니다.</p>
+      <a class="btn cta" href="#booking">예약 문의하기</a>
     </section>
 
     <!-- ═════ 시술 메뉴 ═════ -->
-    <section class="section" id="menu" aria-labelledby="menu-title">
+    <section class="section light" id="menu" aria-labelledby="menu-title">
       <div class="wrap">
         <div class="section-head">
           <h2 id="menu-title">시술 메뉴</h2>
           <p>시술은 상담에서 시작합니다. 현재 모발 상태와 평소 스타일링 시간을 먼저 확인하고, 할 수 있는 범위를 말씀드립니다.</p>
         </div>
-        <ul class="menu">
-          <li>
-            <h3>커트</h3>
-            <p class="desc">얼굴선과 숱을 보고 자릅니다. 샴푸 후 말리기만 해도 모양이 잡히는 것을 기준으로 합니다.</p>
-            <p class="time">약 60분</p>
-          </li>
-          <li>
-            <h3>펌</h3>
-            <p class="desc">모량과 손상도를 먼저 확인합니다. 컬 크기는 평소 스타일링에 쓰는 시간에 맞춰 정합니다.</p>
-            <p class="time">약 150분</p>
-          </li>
-          <li>
-            <h3>컬러·탈색</h3>
-            <p class="desc">현재 모발 레벨을 보고 가능한 밝기를 말씀드립니다. 손상이 크면 나눠서 진행합니다.</p>
-            <p class="time">약 120–240분</p>
-          </li>
-          <li>
-            <h3>클리닉</h3>
-            <p class="desc">시술 후 손상 정도에 맞춰 단계를 고릅니다. 집에서 관리하는 방법도 함께 알려 드립니다.</p>
-            <p class="time">약 40분</p>
-          </li>
-        </ul>
-        <p class="menu-note">가격은 상담 후 안내합니다. 소요 시간은 머리 길이와 모량에 따라 달라집니다.</p>
+        <div class="svc">
+          <details name="svc" open>
+            <summary><h3>커트</h3><span class="plus" aria-hidden="true"></span></summary>
+            <div class="body">
+              <p class="desc">얼굴선과 숱을 보고 자릅니다. 샴푸 후 말리기만 해도 모양이 잡히는 것을 기준으로 합니다.</p>
+              <p class="time">약 60분</p>
+            </div>
+          </details>
+          <details name="svc">
+            <summary><h3>펌</h3><span class="plus" aria-hidden="true"></span></summary>
+            <div class="body">
+              <p class="desc">모량과 손상도를 먼저 확인합니다. 컬 크기는 평소 스타일링에 쓰는 시간에 맞춰 정합니다.</p>
+              <p class="time">약 150분</p>
+            </div>
+          </details>
+          <details name="svc">
+            <summary><h3>컬러·탈색</h3><span class="plus" aria-hidden="true"></span></summary>
+            <div class="body">
+              <p class="desc">현재 모발 레벨을 보고 가능한 밝기를 말씀드립니다. 손상이 크면 나눠서 진행합니다.</p>
+              <p class="time">약 120–240분</p>
+            </div>
+          </details>
+          <details name="svc">
+            <summary><h3>클리닉</h3><span class="plus" aria-hidden="true"></span></summary>
+            <div class="body">
+              <p class="desc">시술 후 손상 정도에 맞춰 단계를 고릅니다. 집에서 관리하는 방법도 함께 알려 드립니다.</p>
+              <p class="time">약 40분</p>
+            </div>
+          </details>
+        </div>
+        <p class="svc-note">가격은 상담 후 안내합니다. 소요 시간은 머리 길이와 모량에 따라 달라집니다.</p>
       </div>
     </section>
 
     <!-- ═════ 컬러 차트 ═════ -->
-    <section class="section section--dark on-dark" id="color" aria-labelledby="color-title">
+    <section class="section" id="color" aria-labelledby="color-title">
       <div class="wrap">
         <div class="section-head">
           <h2 id="color-title">컬러 차트</h2>
@@ -414,22 +376,26 @@
     </section>
 
     <!-- ═════ 소개 ═════ -->
-    <section class="section" id="about" aria-labelledby="about-title">
-      <div class="wrap about">
-        <h2 id="about-title">조군은<br />이렇게 일합니다</h2>
+    <section class="section light about" id="about" aria-labelledby="about-title">
+      <div class="wrap">
+        <h2 class="big-h" id="about-title">다음 달에도<br />예쁜 머리.</h2>
         <div class="body">
-          <p>JOGUN은 헤어 디자이너 조군의 개인 브랜드입니다. 한 번에 많이 바꾸기보다, <strong>다음 달에도 예쁜 머리</strong>를 목표로 합니다.</p>
+          <p>JOGUN은 헤어 디자이너 조군의 개인 브랜드입니다. 한 번에 많이 바꾸기보다 <strong>손질하기 쉽고 오래 가는 머리</strong>를 목표로 합니다.</p>
           <p>시술 전에 모발 상태와 생활 패턴을 먼저 묻습니다. 아침에 머리 손질에 몇 분을 쓰는지, 얼마나 자주 방문할 수 있는지에 따라 같은 스타일도 다르게 자르기 때문입니다.</p>
-          <p>시술 과정은 영상으로 기록해 인스타그램에 올립니다. 마음에 드는 영상이 있다면 문의할 때 함께 보내 주세요.</p>
+        </div>
+        <div class="insta">
+          <p class="t">INSTAGRAM</p>
+          <p class="m">시술 과정은 영상으로 기록합니다.</p>
+          <div id="insta-slot"></div>
         </div>
       </div>
     </section>
 
     <!-- ═════ 예약 문의 ═════ -->
-    <section class="section section--bleach" id="booking" aria-labelledby="booking-title">
+    <section class="section on-bleach" id="booking" aria-labelledby="booking-title">
       <div class="wrap booking">
         <div>
-          <h2 id="booking-title">예약 문의</h2>
+          <h2 class="big-h" id="booking-title">예약 문의</h2>
           <p class="lead">아래에서 고르면 문의 내용이 정리됩니다. 복사해서 카카오톡이나 인스타그램 DM으로 보내 주세요.</p>
           <div class="channels" id="channels"></div>
           <dl class="info" id="info"></dl>
@@ -469,12 +435,12 @@
           </div>
 
           <div class="field">
-            <p class="lbl" style="margin-bottom:10px;font-weight:800;letter-spacing:-.02em">보낼 내용</p>
+            <p class="lbl">보낼 내용</p>
             <p class="preview" id="preview" aria-live="polite"></p>
           </div>
 
           <div class="composer-actions">
-            <button class="btn" type="button" id="copy">문의 내용 복사</button>
+            <button class="btn btn--dark" type="button" id="copy">문의 내용 복사</button>
             <p class="status" id="status" role="status"></p>
           </div>
         </form>
@@ -482,12 +448,20 @@
     </section>
   </main>
 
-  <footer class="site-footer on-dark">
+  <footer class="site-footer">
     <div class="wrap">
-      <a class="logo" href="#top">JOGUN</a>
+      <p class="mark wide" aria-hidden="true">JOGUN</p>
+      <nav class="links" aria-label="바로가기">
+        <a href="#menu">시술 메뉴</a>
+        <a href="#color">컬러 차트</a>
+        <a href="#about">소개</a>
+        <a href="#booking">예약 문의</a>
+      </nav>
       <small>© 2026 JOGUN. 헤어 디자이너 조군.</small>
     </div>
   </footer>
+
+  <button class="to-top" type="button" id="to-top" aria-label="맨 위로">TOP</button>
 
   <script>
     /* ═════════════════════════════════════════════
@@ -506,7 +480,40 @@
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const NS = "http://www.w3.org/2000/svg";
 
-      /* ───── 시드 난수 (새로고침해도 같은 머리카락) ───── */
+      /* ───── 메뉴 (전체화면 dialog) ───── */
+      const dlg = document.getElementById("menu-dialog");
+      document.getElementById("menu-open").addEventListener("click", () => dlg.showModal());
+      document.getElementById("menu-close").addEventListener("click", () => dlg.close());
+      dlg.querySelectorAll("nav a").forEach((a) => a.addEventListener("click", () => dlg.close()));
+
+      /* ───── TOP 버튼 ───── */
+      const topBtn = document.getElementById("to-top");
+      const onScroll = () => topBtn.classList.toggle("is-shown", window.scrollY > window.innerHeight * 0.8);
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+      topBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }));
+
+      /* ───── Hero: 대괄호 속 단어가 사선으로 잘리며 바뀜 ───── */
+      const words = [...document.querySelectorAll("#words > span")];
+      let cur = 0;
+      if (!reduceMotion && words.length > 1) {
+        setInterval(() => {
+          if (document.hidden) return;
+          const prev = words[cur];
+          cur = (cur + 1) % words.length;
+          const next = words[cur];
+          prev.classList.remove("is-on"); prev.classList.add("is-off");
+          next.classList.add("is-on");
+          setTimeout(() => {                       /* 다 잘려 나간 단어는 대기 상태로 되돌림 */
+            prev.classList.add("is-reset");
+            prev.classList.remove("is-off");
+            void prev.offsetWidth;
+            prev.classList.remove("is-reset");
+          }, 900);
+        }, 2600);
+      }
+
+      /* ───── 시드 난수 ───── */
       function mulberry32(a) {
         return function () {
           a |= 0; a = (a + 0x6D2B79F5) | 0;
@@ -515,21 +522,6 @@
           return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
         };
       }
-
-      /* ───── Hero 머리카락 ───── */
-      const STRANDS = 84;
-      const rand = mulberry32(11);
-      const strands = Array.from({ length: STRANDS }, (_, i) => ({
-        x: (i + 0.5) * (1000 / STRANDS) + (rand() - 0.5) * 5,
-        endY: 700 + rand() * 300,
-        amp: 6 + rand() * 24,
-        wave: 55 + rand() * 70,
-        phase: rand() * Math.PI * 2,
-        drift: (rand() - 0.5) * 36,
-        tidyAmp: 0.6 + rand() * 1.6,
-        tidyPhase: rand() * Math.PI * 2
-      }));
-
       function makePath(points, attrs) {
         const p = document.createElementNS(NS, "path");
         p.setAttribute("d", points.map((pt, i) => (i ? "L" : "M") + pt[0].toFixed(1) + " " + pt[1].toFixed(1)).join(" "));
@@ -538,62 +530,6 @@
         p.setAttribute("stroke-linejoin", "round");
         for (const k in attrs) p.setAttribute(k, attrs[k]);
         return p;
-      }
-
-      /* 다듬기 전: 길이가 제각각이고 엉켜 있음 */
-      const before = document.getElementById("strands-before");
-      strands.forEach((s) => {
-        const pts = [];
-        for (let y = 0; y <= s.endY; y += 14) {
-          const g = Math.pow(y / 1000, 1.25);
-          pts.push([s.x + s.amp * g * Math.sin(y / s.wave + s.phase) + s.drift * g * g, y]);
-        }
-        before.appendChild(makePath(pts, { stroke: "#2A1B3D", "stroke-opacity": 0.38, "stroke-width": 1.1 }));
-      });
-
-      /* 자른 뒤: 모두 같은 길이로 정리됨 (끝선은 CSS의 --cut-y를 따름) */
-      const after = document.getElementById("strands-after");
-      function buildAfter() {
-        const cutY = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cut-y")) * 10 || 640;
-        after.replaceChildren();
-        strands.forEach((s) => {
-          const pts = [];
-          for (let y = 0; y < cutY; y += 20) pts.push([s.x + s.tidyAmp * Math.sin(y / 150 + s.tidyPhase), y]);
-          pts.push([s.x + s.tidyAmp * Math.sin(cutY / 150 + s.tidyPhase), cutY]);
-          after.appendChild(makePath(pts, { stroke: "#8E79C9", "stroke-opacity": 0.62, "stroke-width": 1.6, "stroke-linecap": "butt" }));
-        });
-      }
-      buildAfter();
-      window.matchMedia("(max-width: 640px)").addEventListener("change", buildAfter);
-
-      /* ───── 컷 라인: 입력과 첫 진입 연출 ───── */
-      const hero = document.getElementById("hero");
-      const input = document.getElementById("cut");
-      const setCut = (v) => {
-        hero.style.setProperty("--cut", v + "%");
-        input.value = v;
-        input.setAttribute("aria-valuetext", "컷 라인 " + Math.round(v) + "퍼센트 위치");
-      };
-      input.addEventListener("input", () => { cancelIntro(); setCut(parseFloat(input.value)); });
-
-      let raf = 0;
-      function cancelIntro() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
-
-      const FROM = 96, TO = 42;
-      if (reduceMotion) {
-        setCut(TO);
-      } else {
-        setCut(FROM);
-        const DURATION = 2200, DELAY = 500;
-        const start = performance.now() + DELAY;
-        const ease = (t) => 1 - Math.pow(1 - t, 3);
-        const tick = (now) => {
-          const t = Math.min(Math.max((now - start) / DURATION, 0), 1);
-          setCut(FROM + (TO - FROM) * ease(t));
-          raf = t < 1 ? requestAnimationFrame(tick) : 0;
-        };
-        raf = requestAnimationFrame(tick);
-        ["pointerdown", "keydown"].forEach((ev) => input.addEventListener(ev, cancelIntro, { once: true }));
       }
 
       /* ───── 컬러 차트 ───── */
@@ -608,7 +544,6 @@
         [9,  "밀크 블론드",  "#E4CB93", "탈색 뒤 톤을 정리해야 하는 밝기. 시술을 나눠 진행할 수 있습니다."],
         [10, "플래티넘",     "#F0E4BC", "가장 밝은 단계. 여러 번에 나눠 하고, 시술 후 관리가 중요합니다."]
       ];
-
       function luminance(hex) {
         const n = parseInt(hex.slice(1), 16);
         const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
@@ -616,7 +551,6 @@
         });
         return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
       }
-
       function swatchSvg(hex, seed) {
         const r = mulberry32(seed);
         const svg = document.createElementNS(NS, "svg");
@@ -641,7 +575,6 @@
         }
         return svg;
       }
-
       const chart = document.getElementById("chart");
       const DEFAULT_OPEN = 5; /* 레벨 7 */
       TONES.forEach(([level, name, hex, note], i) => {
@@ -670,8 +603,6 @@
       });
 
       /* ───── 연락처 렌더 ───── */
-      const channels = document.getElementById("channels");
-      const info = document.getElementById("info");
       function channelButton(label, href, cls) {
         const a = document.createElement("a");
         a.className = "btn " + cls;
@@ -679,8 +610,12 @@
         else { a.setAttribute("aria-disabled", "true"); a.textContent = label + " 연결 준비 중"; }
         return a;
       }
-      channels.appendChild(channelButton("카카오톡", CONTACT.kakao, ""));
+      const channels = document.getElementById("channels");
+      channels.appendChild(channelButton("카카오톡", CONTACT.kakao, "btn--dark"));
       channels.appendChild(channelButton("인스타그램", CONTACT.instagram, "btn--line"));
+      document.getElementById("insta-slot").appendChild(channelButton("인스타그램", CONTACT.instagram, ""));
+
+      const info = document.getElementById("info");
       [["전화", CONTACT.phone], ["위치", CONTACT.address], ["운영 시간", CONTACT.hours]].forEach(([k, v]) => {
         const dt = document.createElement("dt"); dt.textContent = k;
         const dd = document.createElement("dd");
