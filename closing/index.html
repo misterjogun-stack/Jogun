@@ -5,17 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="CLOSING">
+<meta name="apple-mobile-web-app-title" content="ZeroBalance">
 <meta name="theme-color" content="#F3F5F9">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<title>CLOSING</title>
+<title>ZeroBalance · 제로밸런스</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-/* CLOSING · 네이비 히어로 + 화이트 카드 + 블루 포인트 */
+/* ZeroBalance(제로밸런스) · 네이비 히어로 + 화이트 카드 + 블루 포인트 */
 :root{
   --bg:#F3F5F9;--panel:#FFFFFF;--panel2:#F5F7FA;--ink:#131A26;--ink2:#333D4B;--mute:#6B7684;--mute2:#9AA3AF;--line:#E7EBF0;--line2:#D9DFE7;
   --pri:#2F6BFF;--pri2:#5B8CFF;--pri-soft:#EDF2FF;--pri-dark:#1D4ED8;
@@ -55,7 +55,8 @@ a{color:var(--pri)}
 .mnav b{font-size:14px;font-weight:700;min-width:94px;text-align:center}
 .iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;color:var(--ink2);box-shadow:var(--sh);flex:none}
 .backbtn{display:flex;align-items:center;gap:4px;background:none;border:0;padding:8px 0;font-weight:700;color:var(--ink2)}
-@media (max-width:379px){.logo span{display:none}}
+@media (max-width:419px){.logo{font-size:15px;letter-spacing:0}.mnav b{min-width:84px;font-size:13.5px}.mnav button{width:30px}}
+@media (max-width:369px){.logo span{display:none}}
 
 /* 하단 탭 */
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(255,255,255,.95);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-top:1px solid var(--line);padding-bottom:calc(env(safe-area-inset-bottom,0px) + var(--tab-lift))}
@@ -147,6 +148,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var
 .chk input{width:20px;height:20px;accent-color:var(--pri);margin:0;flex:none}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .chip{background:var(--panel);border:1px solid var(--line2);color:var(--ink2);padding:7px 12px;font-size:13px;font-weight:600;border-radius:var(--rp)}
+.chip[aria-pressed=true]{background:var(--pri-soft);border-color:var(--pri);color:var(--pri)}
 .chip:active{background:var(--pri-soft);border-color:var(--pri);color:var(--pri)}
 .item{display:grid;grid-template-columns:minmax(0,1fr) 124px 34px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .item:last-child{border-bottom:0}
@@ -178,6 +180,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var
 .flow b{display:block;font-size:15px}.flow span:not(.fn){display:block;font-size:13px;color:var(--mute);line-height:1.6}
 .filebtn{position:relative;overflow:hidden;cursor:pointer}
 .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.mwarn{margin:0;color:var(--warn);font-weight:600}.mwarn:empty{display:none}
 .sumbox span{font-size:14px;font-weight:700;color:var(--ink2)}
 .sumbox b{font-size:21px;font-weight:800;color:var(--pri);letter-spacing:-.03em}
 
@@ -356,12 +359,22 @@ pre.draft{white-space:pre-wrap;word-break:keep-all;font:14px/1.75 var(--sans);ma
 (()=>{
 'use strict';
 /* ---------- 상수 ---------- */
+/* 저장 키는 이름을 바꿔도 그대로 둬야 기존 기록이 유지돼요 */
 const KEY='misiryo-gagyebu-v1';
+const APP_NAME='ZeroBalance',APP_KO='제로밸런스',APP_VERSION='2.0',IG='soowan_jg',IG_DM='https://ig.me/m/soowan_jg',IG_PROFILE='https://www.instagram.com/soowan_jg/';
 const CH=[['cash','현금'],['cashReceipt','현금영수증'],['card','카드'],['account','계좌'],['naverPay','네이버페이'],['naverDeposit','네이버예약금'],['kakaoPay','카카오페이'],['local','지역상품권']];
 const RECEIPT_CH=['cashReceipt','card','naverPay','naverDeposit','kakaoPay','local']; // 발행세액공제 대상 추정
 const TABS=[['home','홈','home'],['input','입력','edit'],['pay','급여','users'],['tax','세금','receipt'],['more','더보기','grid']];
 const MAIN_CH=['card','cash','account'];
-const CARD_CREDIT_CAP=10000000; // 신용카드 등 발행세액공제 연 한도 (2026년 12월 31일까지 1.3%·1,000만원)
+/* 신용카드 등 발행세액공제: 2026년 12월 31일까지 1.3%·연 1,000만원.
+   2027년부터는 아직 확정 전(정부안 1.2%·500만원, 국회 법안 1.3%·1,000만원 유지) → 설정에서 바꿀 수 있게 함 */
+const CARD_CREDIT_CAP=10000000;
+const crRate=()=>Math.max(0,n(state.settings.cardRate))/100;
+const crCap=()=>Math.max(0,n(state.settings.cardCap))*10000;
+const crLabel=()=>pc(n(state.settings.cardRate))+'·연 '+fmt(n(state.settings.cardCap))+'만원';
+/* 최저시급 (고용노동부 고시) */
+const MINWAGE={2026:10320,2027:10700};
+const minWage=k=>MINWAGE[Number(String(k).slice(0,4))]||0;
 const SIMPLE_EXEMPT=48000000; // 간이과세자 납부의무 면제 기준 (연 공급대가)
 const DEFAULT_TIERS=[{upto:5000000,rate:30},{upto:8000000,rate:35},{upto:0,rate:40}];
 
@@ -393,6 +406,7 @@ const ICON={
   receipt:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M8 7h8M8 11h8M8 15h5"/>',
   grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  eq:'<path d="M5 9h14M5 15h14"/>',
   chevL:'<path d="m15 18-6-6 6-6"/>',chev:'<path d="m9 18 6-6-6-6"/>',
   wallet:'<path d="M20 7H5a2 2 0 0 1 0-4h13v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15V7"/><circle cx="16" cy="14" r="1.5"/>',
   trend:'<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
@@ -419,7 +433,7 @@ const defaults=()=>({v:1,
   settings:{shop:'',owner:'',years:3,taxType:'general',
     fees:{cash:0,cashReceipt:0,card:0.4,account:0,naverPay:2.0,naverDeposit:3.0,kakaoPay:2.0,local:0.5},
     ins:{pension:4.75,health:3.595,ltc:13.14,emp:0.9,empEr:1.15,accident:0.7},
-    basicDeduction:150},
+    basicDeduction:150,cardRate:1.3,cardCap:1000},
   staff:[],months:{},
   plan:{aiConsent:false,aiQ:''},
   stamp:{},
@@ -655,8 +669,13 @@ function calcStaff(st,key){
       total:pay-tax+tip-tipTax,cost:pay,employer:0,wh:tax+tipTax,
       pension:0,health:0,ltc:0,emp:0,itax:0,ltax:0,tax33:tax};
   }
-  const dim=daysIn(key);let gross=0,ratio=1,from=1,to=dim;
-  if(st.type==='hourly')gross=n(st.rate)*n(inp.hours);
+  const dim=daysIn(key);let gross=0,ratio=1,from=1,to=dim,juhyu=0,juHrs=0,juWeeks=0;
+  if(st.type==='hourly'){
+    gross=n(st.rate)*n(inp.hours);
+    /* 주휴수당: 1주 소정근로 15시간 이상이면 (1주 근로시간 ÷ 40 × 8)시간분을 주마다 지급 */
+    const wh=Math.min(40,n(st.weekHours));
+    if(st.juhyu&&wh>=15){juHrs=Math.round(wh/40*8*10)/10;juWeeks=n(inp.juWeeks)>0?n(inp.juWeeks):Math.round(dim/7*10)/10;juhyu=Math.round(n(st.rate)*juHrs*juWeeks);gross+=juhyu}
+  }
   else if(st.type==='daily')gross=n(st.rate)*n(inp.days);
   else{
     from=Math.min(dim,Math.max(1,Math.round(n(inp.startDay))||1));
@@ -665,20 +684,20 @@ function calcStaff(st,key){
     gross=Math.round(n(st.rate)*ratio);
   }
   gross=Math.max(0,gross+n(inp.extra)-n(inp.deduct));
-  const I=S.ins;let pension=0,health=0,ltc=0,emp=0,itax=0,ltax=0,tax33=0,employer=0;
+  const IR=S.ins;let pension=0,health=0,ltc=0,emp=0,itax=0,ltax=0,tax33=0,employer=0;
   if(st.deduct==='ins'){
-    pension=floor10(gross*n(I.pension)/100);
-    health=floor10(gross*n(I.health)/100);
-    ltc=floor10(health*n(I.ltc)/100);
-    emp=floor10(gross*n(I.emp)/100);
+    pension=floor10(gross*n(IR.pension)/100);
+    health=floor10(gross*n(IR.health)/100);
+    ltc=floor10(health*n(IR.ltc)/100);
+    emp=floor10(gross*n(IR.emp)/100);
     itax=floor10(n(inp.incomeTax));
     ltax=floor10(itax*0.1);
-    employer=floor10(gross*n(I.pension)/100)+floor10(gross*n(I.health)/100)+floor10(floor10(gross*n(I.health)/100)*n(I.ltc)/100)+floor10(gross*n(I.empEr)/100)+floor10(gross*n(I.accident)/100);
+    employer=floor10(gross*n(IR.pension)/100)+floor10(gross*n(IR.health)/100)+floor10(floor10(gross*n(IR.health)/100)*n(IR.ltc)/100)+floor10(gross*n(IR.empEr)/100)+floor10(gross*n(IR.accident)/100);
   }else if(st.deduct==='tax33'){
     tax33=floor10(gross*0.03)+floor10(gross*0.003);
   }
   const ded=pension+health+ltc+emp+itax+ltax+tax33;
-  return {kind:'worker',pay:gross,ratio,from,to,dim,pension,health,ltc,emp,itax,ltax,tax33,ded,takeHome:gross-ded,
+  return {kind:'worker',pay:gross,juhyu,juHrs,juWeeks,ratio,from,to,dim,pension,health,ltc,emp,itax,ltax,tax33,ded,takeHome:gross-ded,
     total:gross-ded,cost:gross,employer,tip:0,tipTax:0,tipHome:0,sales:0,net:0,base:0,incentive:0,
     wh:tax33+itax+ltax};
 }
@@ -697,7 +716,7 @@ function calcTax(key){
   const sales=salesTotal(m),pt=purchTotal(m),ex=expTotal(m),lab=laborOf(key),fee=feeTotal(m);
   const supply=sales/1.1,outVat=sales-supply,inVat=purchVat(m);
   const receiptSales=RECEIPT_CH.reduce((t,k)=>t+n(m.sales[k]),0);
-  const credit=Math.min(receiptSales*0.013,CARD_CREDIT_CAP/12);
+  const credit=Math.min(receiptSales*crRate(),crCap()/12);
   let rawVat;
   const exempt=S.taxType==='simple'&&sales*12<SIMPLE_EXEMPT;
   if(S.taxType==='simple'){rawVat=exempt?0:sales*0.30*0.10-purchTaxable(m)*0.005-credit}
@@ -774,6 +793,10 @@ function liveVal(key){
     case 'cust':{const c=custOf(k);if(p[1]==='avg')return c.cnt?wonT(c.avg):'-';return fmt(c.cnt)+'명'}
     case 'dayrow':{const x=p.slice(1).join(':');return wonT(dayTotal((M(x.slice(0,7)).days||{})[x]))}
     case 'daysum':{const ds=Object.values(M(k).days||{});return wonT(ds.reduce((a,o)=>a+dayTotal(o),0))}
+    case 'mw':{const st=state.staff.find(s=>s.id===p[1]);if(!st||st.kind!=='worker'||!n(st.rate))return '';const mw=minWage(k),y=k.slice(0,4);if(!mw)return '';
+      if(st.type==='hourly'&&n(st.rate)<mw)return `⚠ ${y}년 최저시급(${fmt(mw)}원)보다 낮아요. 시급을 확인해 주세요.`;
+      if((st.type||'monthly')==='monthly'&&n(st.rate)<mw*209)return `주 40시간 기준 ${y}년 최저 월급(${fmt(mw*209)}원)보다 적어요. 단시간 근무라면 괜찮아요.`;
+      return ''}
     case 'cal':{const x=p.slice(1).join(':'),v=dayTotal((M(x.slice(0,7)).days||{})[x]);return v?man(v):''}
   }
   return '';
@@ -788,7 +811,7 @@ function shell(){
   const settings=ui.view==='settings';
   const head_=`<header class="top"><div class="wrap">${
     settings?`<button class="backbtn" data-act="back">${I('chevL')}돌아가기</button><span style="font-weight:700">설정</span><span style="width:72px"></span>`
-    :`<div class="logo"><i>${I('check')}</i><span>CLOSING</span></div><div class="hr-right"><div class="mnav"><button data-act="mprev" aria-label="이전 달">${I('chevL')}</button><b class="num">${mlabel(ui.month)}</b><button data-act="mnext" aria-label="다음 달">${I('chev')}</button></div><button class="iconbtn" data-act="settings" aria-label="설정">${I('gear')}</button></div>`
+    :`<div class="logo"><i>${I('eq')}</i><span>ZeroBalance</span></div><div class="hr-right"><div class="mnav"><button data-act="mprev" aria-label="이전 달">${I('chevL')}</button><b class="num">${mlabel(ui.month)}</b><button data-act="mnext" aria-label="다음 달">${I('chev')}</button></div><button class="iconbtn" data-act="settings" aria-label="설정">${I('gear')}</button></div>`
   }</div></header>`;
   const body=settings?vSettings():(({home:vHome,input:vInput,pay:vPay,tax:vTax,aid:vAid,more:vMore}[ui.tab])||vHome)();
   const cur=ui.tab==='aid'?'more':ui.tab;
@@ -900,7 +923,7 @@ function vHome(){
   const ck=[[t.sales>0,'매출','sales'],[m.purchases.length+m.expenses.length>0,'지출 (매입·경비)','exp'],[state.staff.length>0,'급여 (직원 등록)','pay']],done=ck.filter(c=>c[0]).length;
   if(done<3)h+=`<div class="card"><div class="sec"><span>이번 달 입력 현황</span><span class="pill pri">${done} / 3</span></div><div class="prog"><i style="width:${done/3*100}%"></i></div>${ck.map(([ok,l,tab])=>`<div class="ck ${ok?'done':''}"><span class="dot">${I('check')}</span><span class="t">${l}</span>${ok?'<span class="pill ok">입력됨</span>':`<button class="btn sm ghost" data-act="tab" data-tab="${tab}">입력하기</button>`}</div>`).join('')}</div>`;
   const keys=[];for(let i=5;i>=0;i--)keys.push(shiftMonth(k,-i));
-  if(keys.filter(isActive).length>=2){
+  if(calcYear(k).months<2&&keys.filter(isActive).length>=2){
     const rows=keys.map(x=>({x,s:isActive(x)?salesTotal(M(x)):0,nt:isActive(x)?Math.max(0,calcTax(x).net):0}));
     const mx=Math.max(1,...rows.map(r=>r.s));
     h+=`<div class="card"><div class="sec">최근 6개월</div><div class="trend">${rows.map(r=>`<div class="col ${r.x===k?'on':''}"><div class="bars"><i style="height:${r.s/mx*100}%" title="매출 ${wonT(r.s)}"></i><i class="b" style="height:${r.nt/mx*100}%" title="남는 돈 ${wonT(r.nt)}"></i></div><span>${Number(r.x.split('-')[1])}월</span></div>`).join('')}</div><div class="note" style="margin-top:10px"><span class="sw" style="background:#D5E1FF"></span>매출 &nbsp; <span class="sw" style="background:var(--pri)"></span>남는 돈</div></div>`;
@@ -914,7 +937,7 @@ function safetyCards(){
   if(!STORE_AVAILABLE)h+=`<div class="card alert"><p class="at">${I('alert')}이 브라우저에서는 저장이 안 돼요</p><p class="note" style="margin:0">개인정보 보호(시크릿) 모드에서는 입력한 내용이 저장되지 않아요. 일반 모드의 Safari나 Chrome으로 열어 주세요.</p></div>`;
   if(installDue()){
     h+=`<div class="card alert"><p class="at">${I('alert')}홈 화면에 추가해 두세요</p><p class="note" style="margin:0">아이폰은 웹사이트에 한동안 들어가지 않으면 저장된 데이터를 지울 수 있어요. 홈 화면에 추가해서 쓰면 더 안전해요.</p>
-    ${IS_IOS_OTHER?`<ol class="steps"><li>오른쪽 아래 <b>⋯</b> 또는 공유 메뉴에서 <b>Safari로 열기</b></li><li>Safari 아래쪽 <b>공유</b> 버튼 → <b>홈 화면에 추가</b></li></ol>`:`<ol class="steps"><li>아래쪽 <b>공유</b> 버튼(네모에 위쪽 화살표)을 눌러요</li><li>목록에서 <b>홈 화면에 추가</b>를 눌러요</li><li>홈 화면의 <b>CLOSING</b> 아이콘으로 열어요</li></ol>`}
+    ${IS_IOS_OTHER?`<ol class="steps"><li>오른쪽 아래 <b>⋯</b> 또는 공유 메뉴에서 <b>Safari로 열기</b></li><li>Safari 아래쪽 <b>공유</b> 버튼 → <b>홈 화면에 추가</b></li></ol>`:`<ol class="steps"><li>아래쪽 <b>공유</b> 버튼(네모에 위쪽 화살표)을 눌러요</li><li>목록에서 <b>홈 화면에 추가</b>를 눌러요</li><li>홈 화면의 <b>ZeroBalance</b> 아이콘으로 열어요</li></ol>`}
     <div class="btns"><button class="btn sm ghost" data-act="installLater">나중에 할게요</button></div></div>`;
   }
   if(STORE_AVAILABLE&&backupDue()){
@@ -991,6 +1014,27 @@ function vDay(seg){
 }
 
 /* 더보기 */
+/* 문의 · 개선 제안 (인스타그램 DM) */
+const FB_CATS=['불편한 점','필요한 기능','오류 신고','기타'];
+function fbCard(){
+  const cat=ui.fbCat||FB_CATS[0];
+  return `<div id="fb"><div class="eyebrow sechead">문의 · 개선 제안</div><div class="ttl">써보시고 알려주세요</div><div class="sub">불편한 점, 필요한 기능, 오류 모두 인스타그램 DM으로 받아요. 남겨 주신 의견으로 다음 업데이트를 정해요.</div>
+  <div class="card"><div class="chips" role="group" aria-label="종류">${FB_CATS.map(c=>`<button class="chip" data-act="fbCat" data-val="${c}" aria-pressed="${c===cat}">${c}</button>`).join('')}</div>
+  <textarea class="inp" id="fbText" placeholder="${cat==='오류 신고'?'예) 급여 탭에서 정산내역 보내기를 누르면 화면이 멈춰요':cat==='필요한 기능'?'예) 월세처럼 매달 같은 지출을 자동으로 넣고 싶어요':'예) 오늘 마감 입력 칸이 작아서 누르기 불편해요'}">${esc(ui.fbText||'')}</textarea>
+  <button class="btn block" style="margin-top:12px" data-act="fbSend">${I('insta')}내용 복사하고 인스타 DM 열기</button>
+  <p class="note" style="margin:10px 0 0">누르면 적은 내용이 복사되고 @${IG} DM 창이 열려요. 대화창에 <b>붙여넣기</b>만 하면 돼요. 매출 같은 숫자는 함께 보내지 않아요.</p>
+  <div class="btns" style="margin-top:12px"><a class="btn sm ghost" href="${IG_DM}" target="_blank" rel="noopener">${I('send')}그냥 DM 열기</a><a class="btn sm ghost" href="${IG_PROFILE}" target="_blank" rel="noopener">${I('insta')}@${IG} 프로필</a></div></div></div>`;
+}
+function fbSend(){
+  const box=$('#fbText'),body=(box?box.value:'').trim(),cat=ui.fbCat||FB_CATS[0];
+  if(!body){toast('어떤 내용인지 한 줄만 적어 주세요.');if(box)box.focus();return}
+  const env=`${APP_NAME} v${APP_VERSION} · ${IS_IOS?'아이폰':/Android/.test(UA)?'안드로이드':DEV} · ${isStandalone()?'홈 화면 앱':'브라우저'}`;
+  const txt=`[${APP_KO} ${cat}]\n${body}\n\n— ${env}`;
+  const w=window.open(IG_DM,'_blank','noopener');
+  copyText(txt);
+  if(!w)setTimeout(()=>{location.href=IG_DM},400);
+  ui.fbText='';
+}
 function vMore(){
   const d=daysSince(meta.lastBackup);
   const M_=(act,ic,cls,t,dd)=>`<button class="menu" data-act="${act}"><span class="ic ${cls}">${I(ic)}</span><span class="mt"><b>${t}</b><span class="d">${dd}</span></span>${I('chev')}</button>`;
@@ -1005,11 +1049,11 @@ function vMore(){
     ['AI 상담을 쓰면 무엇이 전송되나요?','질문과 이번 달 매출·지출 합계, 직원 수만 Google Gemini로 전송돼요. 상호와 직원 이름은 보내지 않아요. 직접 발급한 Gemini API 키가 필요해요.']
   ];
   return head('더보기','도구와 도움말','자주 쓰지 않는 기능을 모아뒀어요.')+safetyCards()
-  +`<div class="card">${M_('goAid','spark','','절세 체크 · AI 상담','놓치기 쉬운 공제와 세금 줄이는 방법')}${M_('settings','gear','o','설정','상호, 과세유형, 수수료율, 4대보험 요율')}${M_('goBackup','shield','g','기기 맞추기 · 백업','폰↔매장 PC 맞추기 · 마지막으로 보낸 때 '+(d===Infinity?'없음':d===0?'오늘':d+'일 전'))}</div>`
+  +`<div class="card">${M_('goAid','spark','','절세 체크 · AI 상담','놓치기 쉬운 공제와 세금 줄이는 방법')}${M_('settings','gear','o','설정','상호, 과세유형, 수수료율, 4대보험 요율')}${M_('goFb','insta','r','문의 · 개선 제안','인스타그램 @'+IG+' DM으로 바로 연결')}${M_('goBackup','shield','g','기기 맞추기 · 백업','폰↔매장 PC 맞추기 · 마지막으로 보낸 때 '+(d===Infinity?'없음':d===0?'오늘':d+'일 전'))}</div>`
   +backupCard()
   +`<div class="eyebrow sechead">자주 묻는 질문</div><div class="ttl">궁금한 점</div><div class="faq">${Q.map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join('')}</div>`
-  +`<section class="hero" style="margin-top:28px;text-align:center"><h1 style="font-size:24px;margin-top:4px">써보시고 불편한 점을<br>알려주세요</h1><p>필요한 기능, 빼도 될 기능 모두 좋아요.</p><div class="btns col"><a class="btn white pill block" href="https://www.instagram.com/soowan_jg/" target="_blank" rel="noopener">${I('insta')}인스타그램 DM 보내기</a></div></section>`
-  +`<footer class="foot">CLOSING · 미용실 매출·급여·세금 마감 도구<br><a href="https://www.instagram.com/soowan_jg/" target="_blank" rel="noopener">${I('insta')}@soowan_jg</a></footer>`;
+  +fbCard()
+  +`<footer class="foot"><b style="color:var(--ink)">${APP_NAME}</b> · ${APP_KO} v${APP_VERSION}<br>미용실 매출·급여·세금 마감 도구<br><a href="${IG_DM}" target="_blank" rel="noopener">${I('insta')}문의 @${IG}</a></footer>`;
 }
 
 /* 매출 */
@@ -1096,9 +1140,16 @@ function staffCard(st){
       const unit=st.type==='hourly'?'시급 (원)':st.type==='daily'?'일당 (원)':'월 급여 (원)';
       h+=fld('급여 형태',IN.seg('staff','type',st.type||'monthly',[['monthly','월급'],['hourly','시급'],['daily','일당·스페어']],{id:st.id}))
       +fld(unit,IN.money('staff','rate',st.rate,{id:st.id}))
+      +`<p class="note mwarn" data-live="mw:${st.id}"></p>`
       +fld('공제 방식',IN.seg('staff','deduct',st.deduct||'ins',[['ins','4대보험'],['tax33','3.3%'],['none','공제 없음']],{id:st.id}))
       +`<div class="hr" style="margin:2px 0"></div><div class="sec" style="margin:0">${mlabel(k)} 근무</div>`;
-      if(st.type==='hourly')h+=fld('근무 시간',IN.num('pay','hours',inp.hours,{id:st.id}));
+      if(st.type==='hourly'){
+        h+=fld('근무 시간',IN.num('pay','hours',inp.hours,{id:st.id}));
+        h+=IN.chk('staff','juhyu',!!st.juhyu,'주휴수당 계산 (1주 15시간 이상 근무)',{id:st.id,rr:1});
+        if(st.juhyu){const r0=calcStaff(st,k);
+          h+=`<div class="g2">${fld('1주 근무시간 (계약)',IN.num('staff','weekHours',st.weekHours,{id:st.id},'예) 20'))}${fld('이번 달 주휴 주 수',IN.num('pay','juWeeks',inp.juWeeks,{id:st.id},String(Math.round(daysIn(k)/7*10)/10)))}</div>
+          <p class="note" style="margin:0">${n(st.weekHours)>=15?`1주 ${Math.min(40,n(st.weekHours))}시간 → 주휴 ${r0.juHrs}시간분을 주마다 더해요.`:'1주 근무시간이 15시간 이상이어야 주휴수당이 생겨요.'} 결근한 주가 있으면 주 수에서 빼 주세요. 비워 두면 이번 달 일수 ÷ 7로 계산해요.</p>`}
+      }
       else if(st.type==='daily')h+=fld('근무 일수',IN.num('pay','days',inp.days,{id:st.id}));
       else h+=`<div class="g2">${fld('입사일 (일, 월중 입사)',IN.num('pay','startDay',inp.startDay,{id:st.id},'1'))}${fld('퇴사일 (일, 월중 퇴사)',IN.num('pay','endDay',inp.endDay,{id:st.id},String(daysIn(k))))}</div><p class="note" style="margin:0">비워두면 한 달 전체로 계산해요. 월중 입퇴사는 달력 일수 기준 일할 계산이에요.</p>`;
       h+=`<div class="g2">${fld('추가 지급 (원)',IN.money('pay','extra',inp.extra,{id:st.id}))}${fld('차감 (원)',IN.money('pay','deduct',inp.deduct,{id:st.id}))}</div>`;
@@ -1110,6 +1161,7 @@ function staffCard(st){
       h+=P('담당 매출 합계','sales')+(st.feeDeduct!==false?P('수수료 차감 후','net'):'')+(st.vat!=='off'?P('부가세 제외','base0'):'')+(['pct','amt'].includes(st.mat)?P('재료비 공제','matDed:neg','mute'):'')+P('인센티브 기준금액','base')+P('적용 인센티브율','rateTxt','mute')+P('인센티브','incentive')+(n(st.prodRate)?P('점판 인센티브','prodInc'):'')+(st.baseWay==='max'?P('보장급 보전','topup'):(n(st.base)?P('기본급','fixed'):''))+P('지급 합계','pay','strong')+P('원천세 3.3%','tax')+P('급여 실수령','takeHome','strong');
       if(st.tip)h+=P('봉사료','tip')+P('봉사료 원천세 5.5%','tipTax')+P('봉사료 실수령','tipHome','strong');
     }else{
+      if(st.type==='hourly'&&st.juhyu)h+=P('주휴수당','juhyu');
       h+=P('지급 합계','pay','strong');
       if(st.deduct==='ins')h+=P('국민연금','pension')+P('건강보험','health')+P('장기요양','ltc')+P('고용보험','emp')+P('근로소득세','itax')+P('지방소득세','ltax');
       if(st.deduct==='tax33')h+=P('원천세 3.3%','tax33');
@@ -1150,14 +1202,14 @@ function calcYear(k){
     rows.push({key,act,sales:t.sales,profit:t.profit,cnt:c.cnt,avg:c.avg});
   }
   const months=rows.filter(r=>r.act).length;
-  let vat,vatRows=[],cap=CARD_CREDIT_CAP;
+  let vat,vatRows=[],cap=crCap();
   if(simple){
-    const ann=months?T.sales/months*12:0,exempt=ann<SIMPLE_EXEMPT,cr=Math.min(T.rcpt*0.013,cap);
+    const ann=months?T.sales/months*12:0,exempt=ann<SIMPLE_EXEMPT,cr=Math.min(T.rcpt*crRate(),cap);
     vat=exempt?0:Math.max(0,Math.round(T.sales*0.03-T.ptax*0.005-cr));
     vatRows=[{l:'1년분 (간이)',v:vat,cr,exempt}];
   }else{
     vat=0;
-    H.forEach((h,i)=>{if(i===1&&mo<7)return;const cr=Math.min(h.rcpt*0.013,cap);cap-=cr;const raw=h.out-h.inv-cr;vatRows.push({l:i?'7~'+mo+'월 (하반기)':'1~'+Math.min(6,mo)+'월 (상반기)',v:Math.round(raw),cr});vat+=Math.max(0,Math.round(raw))});
+    H.forEach((h,i)=>{if(i===1&&mo<7)return;const cr=Math.min(h.rcpt*crRate(),cap);cap-=cr;const raw=h.out-h.inv-cr;vatRows.push({l:i?'7~'+mo+'월 (하반기)':'1~'+Math.min(6,mo)+'월 (상반기)',v:Math.round(raw),cr});vat+=Math.max(0,Math.round(raw))});
   }
   const avgProfit=months?T.profit/months:0,annual=avgProfit*12;
   const taxable=Math.max(0,annual-n(S.basicDeduction)*10000),itYear=Math.round(incomeTaxAnnual(taxable)*1.1);
@@ -1192,7 +1244,7 @@ function vYear(seg){
   // 부가세
   h+=`<div class="card"><div class="sec">부가세 (${simple?'간이, 1년 단위':'일반, 반기 단위'})</div>
   ${Y.vatRows.map(v=>v.exempt?row(v.l+' · 납부면제 예상','0원'):row(v.l+(v.v<0?' · 환급 예상':''),wonT(Math.abs(v.v)),v.v<0?'':'')).join('')}
-  ${row('카드·전자결제 발행세액공제 (연 한도 1,000만원)','−'+wonT(Y.vatRows.reduce((a,v)=>a+v.cr,0)),'mute')}${row('납부 예상 합계',wonT(Y.vat),'strong')}
+  ${row('카드·전자결제 발행세액공제 ('+crLabel()+')','−'+wonT(Y.vatRows.reduce((a,v)=>a+v.cr,0)),'mute')}${row('납부 예상 합계',wonT(Y.vat),'strong')}
   <p class="note" style="margin:8px 0 0">${simple?'간이과세는 다음 해 1월 25일에 1년분을 신고해요.':'상반기분은 7월 25일, 하반기분은 다음 해 1월 25일에 신고해요. 4·10월 예정고지로 미리 낸 금액은 빼고 내요.'}</p></div>`;
   if(Y.cnt)h+=`<div class="card"><div class="sec">손님 · 객단가 (누적)</div>${row('누적 손님',fmt(Y.cnt)+'명')}${row('평균 객단가',wonT(Y.avg),'strong')}<p class="note" style="margin:8px 0 0">손님 수를 넣은 달·날짜만 모아서 계산해요.</p></div>`;
   return h+`<p class="note">추정 계산이에요. 최종 신고는 세무 담당자와 확인하세요.</p>`;
@@ -1204,6 +1256,7 @@ function vTax(){
   const waterfall=[['총매출',t.sales,'g'],['매입',-t.pt],['경비',-t.ex],['인건비',-t.lab.total],['수수료',-t.fee],['부가세',-t.vat],['소득세',-t.itMonthly],['남는 돈',t.net,'g']];
   const mx=Math.max(1,t.sales,...waterfall.map(w=>Math.abs(w[1])));
   return `${head('세금','이번 달 세금','매출 · 지출 · 급여만 입력하면 여기서 자동으로 잡혀요.')}${seg}
+  ${Number(k.slice(0,4))>=2027&&n(S.cardRate)===1.3&&n(S.cardCap)===1000?`<div class="card alert"><p class="at">${I('alert')}2027년 카드 공제율 확인</p><p class="note" style="margin:0 0 10px">2027년부터 카드 발행세액공제율·한도가 바뀔 수 있어요(정부안 1.2%·500만원). 지금은 1.3%·1,000만원으로 계산 중이에요.</p><button class="btn sm ghost" data-act="settings">설정에서 확인</button></div>`:''}
   <section class="hero"><span class="badge">${mlabel(k)} · ${simple?'간이':'일반'}과세</span><h2>예상 세금 (월 환산)</h2><div class="big num">${won(t.tax)}</div>
   <div class="hsub">매달 이만큼 세금 통장에 모아 두면 신고 때 편해요.</div>
   <div class="tiles"><div class="tile">${I('receipt')}<div class="tl">부가세</div><div class="tv sm num">${wonT(t.vat)}</div></div><div class="tile">${I('percent')}<div class="tl">종합소득세 (월)</div><div class="tv sm num">${wonT(t.itMonthly)}</div></div></div>
@@ -1212,7 +1265,7 @@ function vTax(){
   <div class="card"><div class="sec">부가세 계산</div>${simple
     ?row('총매출 × 부가가치율 30% × 10%',wonT(t.sales*0.03))+row('매입세액공제 (세금계산서 매입 × 0.5%)','−'+wonT(purchTaxable(M(k))*0.005))
     :row('매출세액 (매출의 1/11)',wonT(t.outVat))+row('매입세액','−'+wonT(t.inVat))}
-    ${row('카드·전자결제 발행세액공제 (1.3%)','−'+wonT(t.credit))}
+    ${row('카드·전자결제 발행세액공제 ('+pc(n(S.cardRate))+')','−'+wonT(t.credit))}
     ${t.exempt?row('간이과세 납부면제 (연 환산 4,800만원 미만)','0원'):''}${row(t.refund?'환급 예상':'납부 예상',wonT(t.refund||t.vat),'strong')}
     <p class="note" style="margin:8px 0 0">부가세는 반기(1·7월)에 신고해요. 이 화면은 한 달 기준으로 환산한 금액이에요. 발행세액공제는 연 한도가 있어요.</p></div>
   <div class="card"><div class="sec">종합소득세 (연 환산 추정)</div>
@@ -1285,8 +1338,8 @@ function aidAI(){
 }
 function aidSave(){
   const c=aidCtx(),t=c.t,S=state.settings,tips=[];
-  const credAnnual=Math.min(CARD_CREDIT_CAP,t.receiptSales*12*0.013);
-  if(t.receiptSales>0)tips.push(['카드·전자결제 발행세액공제',`카드, 현금영수증, 간편결제 매출이 월 ${wonT(t.receiptSales)}이에요. 부가세에서 연 ${wonT(credAnnual)} 안팎이 공제돼요. 2026년까지 공제율 1.3%, 연 한도 1,000만원이에요(직전연도 공급가액 10억원 이하 개인사업자). 2027년부터는 공제율·한도가 바뀔 수 있어요. 현금 매출도 현금영수증을 발행하면 공제 대상이 늘어요.`]);
+  const credAnnual=Math.min(crCap(),t.receiptSales*12*crRate());
+  if(t.receiptSales>0)tips.push(['카드·전자결제 발행세액공제',`카드, 현금영수증, 간편결제 매출이 월 ${wonT(t.receiptSales)}이에요. 부가세에서 연 ${wonT(credAnnual)} 안팎이 공제돼요. 지금 설정은 공제율 ${crLabel()} 기준이에요(직전연도 공급가액 10억원 이하 개인사업자). 2026년까지는 1.3%·1,000만원이고, 2027년부터는 아직 확정 전이라 바뀌면 설정에서 고쳐 주세요. 현금 매출도 현금영수증을 발행하면 공제 대상이 늘어요.`]);
   if(t.annualProfit>0){
     const ex=3000000,save=Math.round(ex*t.rate*1.1);
     tips.push(['노란우산공제',`연 ${wonT(ex)}을 납입한다고 가정하면 소득공제로 연 ${wonT(save)} 정도 세금이 줄어요. 한도는 소득 구간별로 달라서 가입 전에 확인하세요.`]);
@@ -1308,7 +1361,7 @@ function aidSave(){
 function vSettings(){
   const S=state.settings;
   const fees=CH.map(([c,l])=>fld(l+' 수수료 (%)',IN.pct('set','fees.'+c,S.fees[c]))).join('');
-  const I=S.ins;
+  const IR=S.ins;
   const aiCard=`<div class="card"><div class="sec">Gemini AI 연결</div><div class="stk">
     ${fld('API 키','<input class="inp txt" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Google AI Studio에서 발급" data-scope="ai" data-path="key" value="'+esc(ai.key)+'">')}
     ${fld('모델 이름',IN.text('ai','model',ai.model,{},AI_MODEL))}
@@ -1318,9 +1371,12 @@ function vSettings(){
   <div class="card"><div class="sec">매장 정보</div><div class="stk">${fld('상호',IN.text('set','shop',S.shop,{},'예) 수완 헤어'))}${fld('업력 (년, AI 상담에 참고)',IN.num('set','years',S.years))}
     ${fld('부가세 과세유형',IN.seg('set','taxType',S.taxType==='simple'?'simple':'general',[['general','일반과세'],['simple','간이과세']]))}${fld('기본공제 (만원, 본인 150만원)',IN.num('set','basicDeduction',S.basicDeduction))}</div></div>
   <div class="card"><div class="sec">결제 수수료율</div><div class="g2">${fees}</div><p class="note" style="margin:10px 0 0">카드는 연매출 3억원 이하 영세가맹점 신용카드 우대수수료(0.40%)가 기본값이에요. 3~5억 1.00%, 5~10억 1.15%, 10~30억 1.45%예요(2026년 2월 기준). 간편결제·예약금 수수료는 예시라서, 내 정산서에 찍힌 수수료율로 바꿔 주세요.</p></div>
-  <div class="card"><div class="sec">4대보험 요율 (%)</div><div class="g2">${fld('국민연금 (근로자분)',IN.pct('set','ins.pension',I.pension))}${fld('건강보험 (근로자분)',IN.pct('set','ins.health',I.health))}${fld('장기요양 (건강보험료 대비)',IN.pct('set','ins.ltc',I.ltc))}${fld('고용보험 (근로자분)',IN.pct('set','ins.emp',I.emp))}${fld('고용보험 (사업주분)',IN.pct('set','ins.empEr',I.empEr))}${fld('산재보험 (사업주분)',IN.pct('set','ins.accident',I.accident))}</div><p class="note" style="margin:10px 0 0">요율은 해마다 바뀌어요. 공단 고지서 기준으로 맞춰 주세요. 국민연금과 건강보험의 사업주분은 근로자분과 같다고 계산해요.</p></div>
+  <div class="card"><div class="sec">4대보험 요율 (%)</div><div class="g2">${fld('국민연금 (근로자분)',IN.pct('set','ins.pension',IR.pension))}${fld('건강보험 (근로자분)',IN.pct('set','ins.health',IR.health))}${fld('장기요양 (건강보험료 대비)',IN.pct('set','ins.ltc',IR.ltc))}${fld('고용보험 (근로자분)',IN.pct('set','ins.emp',IR.emp))}${fld('고용보험 (사업주분)',IN.pct('set','ins.empEr',IR.empEr))}${fld('산재보험 (사업주분)',IN.pct('set','ins.accident',IR.accident))}</div><p class="note" style="margin:10px 0 0">요율은 해마다 바뀌어요. 공단 고지서 기준으로 맞춰 주세요. 국민연금과 건강보험의 사업주분은 근로자분과 같다고 계산해요.</p></div>
+  <div class="card"><div class="sec">카드 발행세액공제</div><div class="g2">${fld('공제율 (%)',IN.pct('set','cardRate',S.cardRate))}${fld('연 한도 (만원)',IN.num('set','cardCap',S.cardCap))}</div>
+    <p class="note" style="margin:10px 0 0">카드·현금영수증·간편결제 매출에 대해 부가세에서 빼 주는 금액이에요. 2026년 12월 31일까지는 <b>1.3%·연 1,000만원</b>이에요. 2027년부터는 아직 확정 전이에요(정부안 1.2%·500만원, 국회 법안 1.3%·1,000만원 유지). 확정되면 여기서 바꿔 주세요.</p></div>
   ${aiCard}
   <div class="card"><div class="sec">홈 화면에 추가</div><ol class="install" style="margin:0;padding-left:20px"><li>아이폰은 <b>Safari</b>로 이 주소를 열어요.</li><li>아래쪽 <b>공유</b> 버튼을 눌러요.</li><li><b>홈 화면에 추가</b>를 누르면 앱처럼 열려요.</li></ol><p class="note" style="margin:6px 0 0">안드로이드는 Chrome 메뉴에서 <b>홈 화면에 추가</b>를 눌러요. 데이터는 추가한 앱 안이 아니라 브라우저에 저장되니 백업을 꼭 해두세요.</p></div>
+  <div class="card"><div class="today"><span class="ic r">${I('insta')}</span><div class="tt"><b>문의 · 개선 제안</b><span>인스타그램 @${IG} DM으로 받아요</span></div><button class="btn sm ghost" data-act="goFb">보내기</button></div></div>
   <div class="card"><div class="sec">데이터 초기화</div><p class="note" style="margin:0 0 12px">이 ${DEV}에 저장된 매출·지출·직원 기록을 모두 지워요. 되돌릴 수 없으니 먼저 더보기에서 백업하세요.</p>${ui.confirmReset?`<button class="btn sm danger" data-act="reset">정말 전체 삭제</button>`:`<button class="btn sm ghost" data-act="reset">전체 데이터 지우기</button>`}</div>`;
 }
 
@@ -1348,7 +1404,7 @@ function settleData(st){
     return {rows,total:wonT(r.total),totalLabel:st.tip?'총 입금액 (급여 + 봉사료)':'입금액'};
   }
   const inp=M(k).pay[st.id]||{};
-  if(st.type==='hourly')R(`시급 ${fmt(st.rate)}원 × ${n(inp.hours)}시간`,wonT(n(st.rate)*n(inp.hours)));
+  if(st.type==='hourly'){R(`시급 ${fmt(st.rate)}원 × ${n(inp.hours)}시간`,wonT(n(st.rate)*n(inp.hours)));if(r.juhyu)R(`주휴수당 (${r.juHrs}시간 × ${r.juWeeks}주)`,wonT(r.juhyu))}
   else if(st.type==='daily')R(`일당 ${fmt(st.rate)}원 × ${n(inp.days)}일`,wonT(n(st.rate)*n(inp.days)));
   else R(r.ratio<1?`월 급여 (${r.from}일~${r.to}일 일할)`:'월 급여',wonT(Math.round(n(st.rate)*r.ratio)));
   if(n(inp.extra))R('추가 지급',wonT(inp.extra));
@@ -1361,7 +1417,7 @@ function settleData(st){
 }
 function settleText(st){
   const d=settleData(st);
-  return [`[${esc0(state.settings.shop||'정산내역')}] ${mlabel(ui.month)} 정산내역`,`${st.name||''} ${st.kind==='designer'?'디자이너':''}님`,'',...d.rows.filter(r=>r.t!=='sep').map(r=>`${r.k}: ${r.v}`),'',`${d.totalLabel}: ${d.total}`].join('\n');
+  return [`[${esc0(state.settings.shop||'정산내역')}] ${mlabel(ui.month)} 정산내역`,`${st.name||''}${st.kind==='designer'?' 디자이너':''}님`,'',...d.rows.filter(r=>r.t!=='sep').map(r=>`${r.k}: ${r.v}`),'',`${d.totalLabel}: ${d.total}`].join('\n');
 }
 const esc0=s=>String(s);
 function vModal(){
@@ -1392,7 +1448,7 @@ function drawSettle(st){
   x.textBaseline='alphabetic';
   x.fillStyle='#86A8FF';x.font=F(24,700);x.fillText(state.settings.shop||'미용실',P,P+30);
   x.fillStyle='#FFFFFF';x.font=F(46,800);x.fillText(`${mlabel(ui.month)} 정산내역`,P,P+104);
-  x.fillStyle='#A7B6D8';x.font=F(28,500);x.fillText(`${st.name||''} ${st.kind==='designer'?'디자이너':''}님`,P,P+156);
+  x.fillStyle='#A7B6D8';x.font=F(28,500);x.fillText(`${st.name||''}${st.kind==='designer'?' 디자이너':''}님`,P,P+156);
   let y=HH+40+LH-22;
   for(const r of rows){
     if(r.t==='sep'){x.fillStyle=C.line;x.fillRect(P,y-34,W-P*2,2);y+=LH/2;continue}
@@ -1405,16 +1461,16 @@ function drawSettle(st){
   x.fillStyle=C.pri;x.font=F(26,700);x.fillText(data.totalLabel,P+32,y+52);
   x.font=F(58,800);x.textAlign='right';x.fillText(data.total,W-P-32,y+118);x.textAlign='left';
   y+=150+70;
-  rr(W/2-96,y-30,40,40,11);x.fillStyle=C.pri;x.fill();
-  x.strokeStyle='#fff';x.lineWidth=4;x.lineCap='round';x.lineJoin='round';x.beginPath();x.moveTo(W/2-85,y-10);x.lineTo(W/2-78,y-3);x.lineTo(W/2-66,y-17);x.stroke();
-  x.fillStyle=C.ink;x.font=F(26,800);x.fillText('CLOSING',W/2-44,y);
+  rr(W/2-112,y-30,40,40,11);x.fillStyle=C.pri;x.fill();
+  x.strokeStyle='#fff';x.lineWidth=4;x.lineCap='round';x.beginPath();x.moveTo(W/2-102,y-16);x.lineTo(W/2-82,y-16);x.moveTo(W/2-102,y-4);x.lineTo(W/2-82,y-4);x.stroke();
+  x.fillStyle=C.ink;x.font=F(26,800);x.fillText('ZeroBalance',W/2-60,y);
   return cv;
 }
 async function shareImage(st){
   let cv;try{cv=drawSettle(st)}catch(e){cv=null}
   if(!cv){toast('이미지를 만들 수 없는 환경이에요. 텍스트 복사를 이용하세요.');return}
   const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
-  const name=`CLOSING_settle_${ui.month}_${(st.name||'staff').replace(/[^\w가-힣]/g,'')}.png`;
+  const name=`ZeroBalance_정산_${ui.month}_${(st.name||'staff').replace(/[^\w가-힣]/g,'')}.png`;
   try{
     const file=new File([blob],name,{type:'image/png'});
     if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'정산내역'});return}
@@ -1487,12 +1543,13 @@ function prepImport(txt){
   p.merge=mergeState(base,deepMerge(defaults(),p.state));
   return p;
 }
-function backupJSON(){return JSON.stringify({app:'CLOSING',backup:1,exportedAt:new Date().toISOString(),state})}
+function backupJSON(){return JSON.stringify({app:'ZeroBalance',backup:1,exportedAt:new Date().toISOString(),state})}
 function markBackup(){meta.lastBackup=new Date().toISOString();metaSave();if(ui.tab==='home'||ui.tab==='more'||ui.view==='settings')render(true)}
 function parseBackup(txt){
   try{
     let o=JSON.parse(String(txt||'').trim());let when='';
-    if(o&&o.app==='CLOSING'&&o.state){when=o.exportedAt||'';o=o.state}
+    /* 예전 이름(CLOSING)으로 만든 백업도 그대로 열려요 */
+    if(o&&(o.app==='ZeroBalance'||o.app==='CLOSING')&&o.state){when=o.exportedAt||'';o=o.state}
     if(!o||o.v!==1||typeof o.months!=='object'||!Array.isArray(o.staff))return null;
     const mk=Object.keys(o.months).sort();
     const info=(when?'백업한 날: '+when.slice(0,10)+' · ':'')+(o.settings&&o.settings.shop?'상호: '+o.settings.shop+' · ':'')+'기록된 달 '+mk.length+'개'+(mk.length?' ('+mlabel(mk[0])+(mk.length>1?' ~ '+mlabel(mk[mk.length-1]):'')+')':'')+' · 직원 '+o.staff.length+'명';
@@ -1500,7 +1557,7 @@ function parseBackup(txt){
   }catch(e){return null}
 }
 async function backupShare(){
-  const txt=backupJSON(),name='CLOSING_backup_'+todayStr()+'.json';
+  const txt=backupJSON(),name='ZeroBalance_backup_'+todayStr()+'.json';
   let file=null;
   try{
     if(navigator.canShare){
@@ -1509,7 +1566,7 @@ async function backupShare(){
       }
     }
     if(file&&navigator.share){
-      await navigator.share({files:[file],title:'CLOSING 백업'});markBackup();toast('백업했어요');return;
+      await navigator.share({files:[file],title:'ZeroBalance 기록'});markBackup();toast('백업했어요');return;
     }
   }catch(e){if(e&&e.name==='AbortError'){toast('백업을 취소했어요');return}}
   try{
@@ -1527,7 +1584,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{
   const el=e.target;
   if(el.id==='dayPick'){const v=el.value;if(/^\d{4}-\d{2}-\d{2}$/.test(v)){ui.day=v;ui.month=v.slice(0,7);ui.confirmDel=null;ui.moreAll=false;render(true)}return}
-  if(el.id==='restoreFile'){const f=el.files&&el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const p=prepImport(r.result);if(p){ui.pendingRestore=p;render(true)}else{toast('CLOSING 백업 파일이 아니거나 손상된 파일이에요.');el.value=''}};r.onerror=()=>toast('파일을 읽지 못했어요.');r.readAsText(f);return}
+  if(el.id==='restoreFile'){const f=el.files&&el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const p=prepImport(r.result);if(p){ui.pendingRestore=p;render(true)}else{toast('ZeroBalance 백업 파일이 아니거나 손상된 파일이에요.');el.value=''}};r.onerror=()=>toast('파일을 읽지 못했어요.');r.readAsText(f);return}
   if(!el.dataset||!el.dataset.path)return;
   if(el.type==='checkbox'||el.tagName==='SELECT'){commit(el);if(el.dataset.rr)render(true);else live()}
 });
@@ -1608,6 +1665,9 @@ document.addEventListener('click',e=>{
     case 'aiPreset':state.plan.aiQ=AI_PRESETS[Number(d.val)]||'';save();render(true);break;
     case 'aiAsk':runAsk();break;
     case 'aiTest':runTest();break;
+    case 'fbCat':{const box=$('#fbText');ui.fbText=box?box.value:'';ui.fbCat=d.val;render(true);break}
+    case 'fbSend':fbSend();break;
+    case 'goFb':ui.tab='more';ui.view=null;render(false);setTimeout(()=>{const el=$('#fb');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},30);break;
     case 'copyAi':copyText(ui.aiOut);break;
     case 'sample':if(anyData()){toast('이미 기록이 있어서 예시를 불러오지 않았어요.');break}loadSample();render(false);break;
     case 'clearSample':state.months={};state.staff=[];state.settings.shop='';state.sample=false;state.stamp={};save();render(false);break;
