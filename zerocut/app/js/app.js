@@ -303,7 +303,7 @@ function viewNew() {
         </label>
         ${draft.files.length ? `<div><div class="card-head" style="margin-bottom:8px"><h3>올린 소재 ${draft.files.length}개</h3><div class="right"><span class="sub num" style="font-size:13px">${fmtMB(size)}</span></div></div><div class="thumbs">${draftThumbs()}</div></div>` : ''}
         <label class="field"><span>메모 한 줄 (선택)</span>
-          <textarea class="textarea" data-draft="memo" rows="3" placeholder="예) 성수동 ○○카페, 라떼 6천원, 웨이팅 20분 / 레이어드컷, 손상모, 클리닉 같이">${esc(draft.memo)}</textarea>
+          <textarea class="textarea" data-draft="memo" rows="3" placeholder="예) 광주 동명동 ○○카페, 라떼 6천원, 웨이팅 20분 / 레이어드컷, 손상모, 클리닉 같이">${esc(draft.memo)}</textarea>
           <span class="hint">사실 정보(가격·장소·시술명)를 적으면 글에 그대로 넣고, 없는 내용은 지어내지 않아요.</span></label>
         <label class="field"><span>제목 (선택)</span><input class="input" data-draft="title" value="${esc(draft.title)}" placeholder="비워 두면 자동으로 지어요" /></label>
         <div class="field"><span>글 스타일 (취향)</span><div class="chips">${Object.entries(STYLES).map(([k, v]) => `<button type="button" class="${style === k ? 'on' : ''}" data-act="draft-style" data-v="${k}" title="${v.desc}">${v.label}</button>`).join('')}</div><span class="hint">${esc(STYLES[style].desc)}</span></div>
@@ -527,15 +527,15 @@ function viewSettings() {
         ${fld('brandName', '브랜드 이름 (영상 엔딩 · 카드에 표시)', 'ZEROCUT')}
         ${fld('handle', '계정 아이디', '@my_account')}
         <label class="field"><span>말투</span><select class="select" data-set="tone">${Object.entries(TONES).map(([k, v]) => `<option value="${k}" ${s.tone === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-        ${fld('baseTags', '항상 넣을 해시태그', '#성수동 #내브랜드', 'text', '띄어쓰기로 구분해요')}
+        ${fld('baseTags', '항상 넣을 해시태그', '#광주미용실 #내브랜드', 'text', '띄어쓰기로 구분해요')}
         <label class="field"><span>카드뉴스 기본 색</span><select class="select" data-set="cardTheme">${Object.entries(CARD_THEMES).map(([k, v]) => `<option value="${k}" ${s.cardTheme === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></label>
         <label class="field"><span>기본 글 스타일</span><select class="select" data-set="writeStyle">${Object.entries(STYLES).map(([k, v]) => `<option value="${k}" ${(s.writeStyle || 'story') === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
         <label class="field"><span>카드뉴스 기본 레이아웃</span><select class="select" data-set="cardLayout">${Object.entries(CARD_LAYOUTS).map(([k, v]) => `<option value="${k}" ${(s.cardLayout || 'classic') === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
         <label class="field"><span>영상 모션 기본 스타일</span><select class="select" data-set="motionStyle">${Object.entries(MOTION_STYLES).map(([k, v]) => `<option value="${k}" ${s.motionStyle === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
         <h3 style="margin-top:6px">매장 · 블로그 정보</h3>
         <p class="sub" style="font-size:14px">한 번 적어 두면 블로그 글 끝 '매장 정보', 인스타 캡션의 주소·예약 줄, 검색엔진용 매장 정보(구조화 데이터)에 자동으로 들어가요. 비워 둔 칸은 빠져요.</p>
-        ${fld('bizName', '상호 (매장 이름)', '조군헤어 청담점')}
-        ${fld('bizAddress', '주소', '서울 강남구 청담동 00-0 2층')}
+        ${fld('bizName', '상호 (매장 이름)', '조군헤어 광주점')}
+        ${fld('bizAddress', '주소', '광주 동구 동명동 00-0 2층')}
         ${fld('bizHours', '영업시간', '화–일 10:00–20:00 (월 휴무)')}
         ${fld('bizPhone', '전화', '02-000-0000')}
         ${fld('bizBooking', '예약 링크', 'https://booking.naver.com/...')}
@@ -740,7 +740,7 @@ function tabPost(job) {
       <div class="card-head" style="margin:0"><h3>구글 블로그 글</h3><div class="right"><button class="btn btn-line btn-sm" data-act="wp-copy-html">${icon('copy')}HTML 복사</button></div></div>
       <div class="notice blue">${icon('info')}<span>맨 앞 요약 → 질문형 소제목 → 자주 묻는 질문 순서는 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티 같은 AI 검색(GEO)에 인용되기 좋은 구조예요.</span></div>
       <div class="grid g2" style="gap:12px">
-        <label class="field"><span>핵심 검색어</span><input class="input" data-bind="copy.article.focusKeyword" data-seo="1" value="${esc(a.focusKeyword)}" placeholder="예) 성수동 카페 추천" /></label>
+        <label class="field"><span>핵심 검색어</span><input class="input" data-bind="copy.article.focusKeyword" data-seo="1" value="${esc(a.focusKeyword)}" placeholder="예) 광주 동명동 카페 추천" /></label>
         <label class="field"><span>주소 (영어 slug)</span><input class="input" data-bind="copy.article.slug" data-seo="1" value="${esc(a.slug)}" /></label>
       </div>
       <label class="field"><span>검색 제목 <small class="num" data-count="copy.article.seoTitle">${a.seoTitle.length}자</small></span><input class="input" data-bind="copy.article.seoTitle" data-seo="1" value="${esc(a.seoTitle)}" /></label>
