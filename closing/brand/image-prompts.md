@@ -98,6 +98,10 @@ Photorealistic phone, soft reflection, no hands, no text, no logos.
 | 아이콘 7개 (`user/icon-set.png`) | 하이라이트 커버 7개 (`highlights/`) — 상자(02-재고)는 제로카운트(재고 앱) 소개용으로 |
 | 배너 (`user/banner.png`) | 카톡·인스타 링크 미리보기 (`zerobalance/og-image.png`, 1200×630) |
 | 원본 로고 | 소개 페이지 첫 화면·마지막 화면 큰 마크 (`zb-mark-glossy.png`) |
+| 문의 아이콘 (`user/icon-contact.png`) | 하이라이트 커버 `highlights/08-문의.png` |
+| 세로 폰 목업 (`user/phone-mockup-story.png`) | 스토리 홍보 이미지 4종 (`promo-story/`, 1080×1920) |
+| 흰 바탕용 글자 로고 (`user/wordmark-light.png`) | 정산 이미지 아래, 앱 더보기·소개 페이지 맨 아래, PC 화면 헤더 (`zb-wordmark-light.png`) |
+| 둥근 네모 시계 아이콘 | 다른 앱의 아이콘으로 보여서 쓰지 않음 |
 
 # 아직 없는 이미지 프롬프트
 
@@ -107,7 +111,7 @@ Photorealistic phone, soft reflection, no hands, no text, no logos.
 Using the attached icon set as the exact style reference, create ONE more icon in the same style: a thin white line icon with blue (#2F6BFF) accents inside a circle with a white-to-blue gradient ring, on the same deep navy background with faint grid lines and a soft blue glow from the top-right.
 Icon: [ICON]. Center it in a 1024x1024 square, the circle about 60% of the width. Same line weight and glow as the reference. No text.
 ```
-`[ICON]`: 문의 → `a chat bubble with three dots` · 마감 → `a calendar with a check mark`
+`[ICON]`: 마감 → `a calendar with a check mark` (문의는 받아서 적용 완료)
 
 ## 8. 인스타 스토리용 폰 목업 (화면 비움) — 1024×1792 (9:16에 가깝게)
 지금 폰 목업은 2:3이라 스토리(9:16)에서는 위아래가 비어요. **폰 목업 이미지를 첨부**하세요.

@@ -110,6 +110,9 @@ h2{font-size:28px;line-height:1.3;letter-spacing:-.035em;font-weight:800;margin:
 footer{margin:56px 0 0;padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);color:var(--mute);font-size:14px;line-height:1.8}
 footer .logo{margin-bottom:12px}
 .lmk{height:28px;width:auto}
+.lwm{height:14px;width:auto}
+.hwm{display:none;height:15px;width:auto}
+@media (min-width:1024px){.top .wm{display:none}.hwm{display:block}}
 footer a.ig{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-weight:700;text-decoration:none;margin-top:6px}
 button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--pri);outline-offset:3px}
 
@@ -142,7 +145,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <a class="logo" href="./" aria-label="ZeroBalance 홈"><i><img src="assets/zb-mark.png" alt=""></i><span class="wm"><b>ZERO</b><em>BALANCE</em></span></a>
+  <a class="logo" href="./" aria-label="ZeroBalance 홈"><i><img src="assets/zb-mark.png" alt=""></i><span class="wm"><b>ZERO</b><em>BALANCE</em></span><img class="hwm" src="assets/zb-wordmark-light.png" alt=""></a>
   <a class="btn pri sm" href="app/">앱 열기</a>
 </div></header>
 
@@ -257,7 +260,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var
   </section>
 
   <footer>
-    <a class="logo" href="./"><img class="lmk" src="assets/zb-mark-light.png" alt=""><span class="wm"><b>ZERO</b><em>BALANCE</em></span></a>
+    <a class="logo" href="./" style="gap:12px"><img class="lmk" src="assets/zb-mark-light.png" alt=""><img class="lwm" src="assets/zb-wordmark-light.png" alt="ZERO BALANCE"></a>
     ZeroBalance · 제로밸런스 · 미용실 매출·급여·세금 마감 도구<br>
     세금 금액은 입력값으로 계산한 추정치예요. 실제 신고는 세무사와 확인하세요.<br>
     <a class="ig" href="https://ig.me/m/soowan_jg" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg>@soowan_jg</a>
