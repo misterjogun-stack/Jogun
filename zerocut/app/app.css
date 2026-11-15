@@ -216,7 +216,8 @@ h1, h2, h3, h4, p { margin: 0; }
 .bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; min-width: 70px; }
 .bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
 .bar.done i { background: var(--ok); }
-@media (max-width: 719px) { .hide-m { display: none; } }
+@media (max-width: 719px) { .hide-m { display: none !important; } }
+@media (min-width: 720px) { .show-m { display: none !important; } }
 
 .empty { text-align: center; padding: 36px 16px; color: var(--sub); display: grid; gap: 12px; justify-items: center; }
 .empty .ico { width: 56px; height: 56px; border-radius: 18px; }

@@ -82,7 +82,6 @@ export const DEFAULT_SETTINGS = {
   baseTags: '',
   cardTheme: 'navy',
   motionStyle: 'clean',
-  aiProvider: 'gemini',
   geminiKey: '',
   geminiModel: 'gemini-flash-latest',
   geminiVoice: 'Kore',
@@ -97,7 +96,6 @@ export const DEFAULT_SETTINGS = {
   bizParking: '',
   bizPrice: '',
   blogUrl: '',
-  claudeKey: '',
   elevenKey: '',
   elevenVoice: '',
   voiceEngine: 'gemini', // gemini | eleven(내 목소리)
@@ -110,7 +108,7 @@ export function loadSettings() {
   try {
     const raw = JSON.parse(localStorage.getItem(SKEY) || '{}');
     // 예전 기본값(개인 이름 · ZEROCUT)은 지우고 매장 이름을 쓰게 한다
-    delete raw.ownerName;
+    delete raw.ownerName; delete raw.claudeKey; delete raw.aiProvider;
     if (raw.brandName === 'ZEROCUT') raw.brandName = '';
     return { ...DEFAULT_SETTINGS, ...raw };
   } catch (e) {

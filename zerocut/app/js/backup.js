@@ -1,7 +1,7 @@
 // 백업 · 다른 기기로 옮기기: 작업과 사진·영상을 파일 하나(.zip)로 묶고, 다른 기기에서 불러온다.
 import { db } from './store.js';
 
-const KEY_FIELDS = ['geminiKey', 'claudeKey', 'elevenKey'];
+const KEY_FIELDS = ['geminiKey', 'elevenKey'];
 
 export function blobIdsOf(job, includeVideos = true) {
   const ids = [];

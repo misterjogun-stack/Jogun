@@ -1,5 +1,5 @@
 // 글쓰기: 한 번의 분석 결과로 블로그 · 인스타 · 스레드 · 카드뉴스 · 숏폼 자막 · 유튜브 · 틱톡 문구를 만든다.
-// 1) AI 연결(제미나이 키, 선택으로 Claude) 시: 사진을 직접 보고 씀
+// 1) AI 연결(제미나이 키) 시: 사진을 직접 보고 씀
 // 2) 키가 없을 때: 메모와 주제로 기본 문구를 만듦 (직접 다듬어 쓰는 초안)
 
 import { brandOf } from './store.js';
@@ -138,9 +138,7 @@ function basicArticle({ head, f, T, points, hashtags, end }) {
   };
 }
 
-// ---------- AI(Claude)로 사진을 직접 보고 쓰기 ----------
-const SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.3.0/+esm';
-const MODEL = 'claude-opus-5-5';
+// ---------- AI(제미나이)로 사진을 직접 보고 쓰기 : 출력 형식 ----------
 
 const str = { type: 'string' };
 const strArr = { type: 'array', items: str };
@@ -235,14 +233,13 @@ function finishCopy(out) {
   return out;
 }
 
-/** 설정에 따라 제미나이(기본) 또는 Claude로 사진을 읽고 쓴다 */
+/** 제미나이로 사진을 읽고 쓴다 */
 export async function draftWithAI(args) {
   const { settings } = args;
-  const provider = settings.aiProvider === 'claude' && settings.claudeKey ? 'claude' : settings.geminiKey ? 'gemini' : settings.claudeKey ? 'claude' : null;
-  if (!provider) throw new Error('AI 키가 없습니다. 브랜드 설정에서 구글 AI 스튜디오(제미나이) 키를 넣어 주세요.');
-  const out = provider === 'gemini' ? await draftWithGemini(args) : await draftWithClaude(args);
+  if (!settings.geminiKey) throw new Error('AI 키가 없습니다. 브랜드 설정에서 구글 AI 스튜디오(제미나이) 키를 넣어 주세요.');
+  const out = await draftWithGemini(args);
   out.source = 'ai';
-  out.engine = provider;
+  out.engine = 'gemini';
   return finishCopy(out);
 }
 
@@ -374,46 +371,6 @@ function pcmToWav(pcm, rate, ch = 1) {
   h.setUint32(28, rate * ch * 2, true); h.setUint16(32, ch * 2, true); h.setUint16(34, 16, true);
   w(36, 'data'); h.setUint32(40, pcm.length, true);
   return new Blob([h.buffer, pcm], { type: 'audio/wav' });
-}
-
-// ----- Claude (선택) -----
-async function draftWithClaude({ memo, topic, title, settings, images, onStatus, style, perspective, useBiz, speech }) {
-  onStatus && onStatus('AI 연결 중');
-  const { default: Anthropic } = await import(/* webpackIgnore: true */ SDK_URL);
-  const client = new Anthropic({ apiKey: settings.claudeKey, dangerouslyAllowBrowser: true });
-  const { system, userText } = buildPrompt({ memo, topic, title, settings, style, perspective, useBiz, speech });
-  const content = [];
-  images.slice(0, 6).forEach((b64, i) => {
-    content.push({ type: 'text', text: `장면 ${i + 1}` });
-    content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } });
-  });
-  content.push({ type: 'text', text: userText });
-  const params = {
-    model: MODEL,
-    max_tokens: 16000,
-    system,
-    messages: [{ role: 'user', content }],
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
-  };
-  onStatus && onStatus('사진을 읽고 글을 쓰는 중');
-  let res;
-  try {
-    // 안전 분류기가 거절하면 다른 모델로 자동으로 다시 시도
-    res = await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' });
-  } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) throw new Error('Claude API 키가 맞지 않습니다. 브랜드 설정에서 확인해 주세요.');
-    if (err instanceof Anthropic.RateLimitError) throw new Error('요청이 많아 잠시 막혔습니다. 1분 뒤 다시 시도해 주세요.');
-    if (err instanceof Anthropic.BadRequestError) {
-      res = await client.messages.create(params); // 대체 모델 기능을 쓸 수 없는 계정이면 기본 요청으로
-    } else if (err instanceof Anthropic.APIConnectionError) {
-      throw new Error('인터넷 연결을 확인해 주세요.');
-    } else {
-      throw err;
-    }
-  }
-  if (res.stop_reason === 'refusal') throw new Error('AI가 이 소재로는 글을 쓰지 않았습니다. 기본 문구로 만들어 드릴게요.');
-  if (res.stop_reason === 'max_tokens') throw new Error('글이 너무 길어 중간에 끊겼습니다. 다시 시도해 주세요.');
-  return JSON.parse(res.content.filter((b) => b.type === 'text').map((b) => b.text).join(''));
 }
 
 /** 예전에 만든 작업에 블로그 글이 없으면 기본 구조를 채워 넣는다 */
