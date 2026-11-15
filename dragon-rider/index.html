@@ -636,9 +636,9 @@ const SAVE_KEY = 'dragon-rider-save-v1';
 let save = { coins: 0, owned: [0], sel: 0, best: 0, muted: false, musicOff: false, fps: false, level: 'easy' };
 // Easy is the default: slower, wider gaps, no sliding spikes, two extra hearts.
 const LEVELS = {
-  easy: { name: '쉬움', v0: 10, v1: 8, hearts: 2, second: 0.5, third: false, moving: false, bob: 0.6, hitR: 0.85, inv: 2.2 },
-  normal: { name: '보통', v0: 12.5, v1: 11, hearts: 1, second: 1, third: true, moving: true, bob: 1, hitR: 0.95, inv: 1.8 },
-  hard: { name: '어려움', v0: 15, v1: 13, hearts: 0, second: 1.2, third: true, moving: true, bob: 1, hitR: 1, inv: 1.6 },
+  easy: { name: '쉬움', v0: 10, v1: 8, hearts: 2, second: 0.5, third: false, moving: false, bob: 0.6, hitR: 0.85, inv: 2.2, gateP: 0.55, gateLow: 3.6, gateHigh: 4.7, gateSide: 0.6, cue: true },
+  normal: { name: '보통', v0: 12.5, v1: 11, hearts: 1, second: 1, third: true, moving: true, bob: 1, hitR: 0.95, inv: 1.8, gateP: 0.5, gateLow: 4.0, gateHigh: 4.4, gateSide: 1.0, cue: false },
+  hard: { name: '어려움', v0: 15, v1: 13, hearts: 0, second: 1.2, third: true, moving: true, bob: 1, hitR: 1, inv: 1.6, gateP: 0.45, gateLow: 4.4, gateHigh: 4.1, gateSide: 1.4, cue: false },
 };
 let runLevel = LEVELS.easy;
 function levelOf(k) { return LEVELS[k] ? k : 'easy'; }
@@ -1700,6 +1700,8 @@ function spawnRow(z) {
   // rows are reached about 54m after they appear, so they wear the look of that world
   const zi = zoneFor(p.courseDist + 54);
   const Z = ZONES[zi];
+  // about half the rows are spike walls with one clear way through
+  if (p.courseDist > 40 && crng() < runLevel.gateP) { spawnGate(z, Z); return; }
   let n = 1;
   if ((curStage() ? d > 0.12 : p.courseDist > 200) && crng() < (0.12 + 0.33 * d) * runLevel.second) n++;
   if (runLevel.third && d > 0.6 && crng() < 0.15) n++;
@@ -1756,6 +1758,63 @@ function spawnRow(z) {
     obstacles.push(o);
   }
 }
+/* ---------- Spike walls that tell you which way to dodge ---------- */
+const WALL_S = 0.5;
+function wallGeo(wv, hv, open, P) {
+  return cached('w' + P.id + wv + 'x' + hv + open, () => {
+    const v = new VM();
+    v.box(0, 0, 0, wv - 1, hv - 1, 0, (x, y) => ((x + y) & 1) ? P.s1 : P.s2);
+    for (let x = 1; x < wv - 1; x += 3) for (let y = 1; y < hv - 1; y += 3) { v.set(x, y, 1, P.th); v.set(x, y, 2, P.tip); }
+    if (open === 'top') for (let x = 0; x < wv; x += 2) { v.set(x, hv, 0, P.th); v.set(x, hv + 1, 0, P.tip); }
+    if (open === 'bottom') for (let x = 0; x < wv; x += 2) { v.set(x, -1, 0, P.th); v.set(x, -2, 0, P.tip); }
+    if (open === 'right') for (let y = 0; y < hv; y += 2) { v.set(wv, y, 0, P.th); v.set(wv + 1, y, 0, P.tip); }
+    if (open === 'left') for (let y = 0; y < hv; y += 2) { v.set(-1, y, 0, P.th); v.set(-2, y, 0, P.tip); }
+    return v.geo(WALL_S, (wv - 1) / 2, (hv - 1) / 2, 0);
+  });
+}
+const arrowMat = new THREE.MeshBasicMaterial({ vertexColors: true, fog: false });
+const arrowGeo = (() => {
+  const rows = ['....O....', '...OYO...', '..OYYYO..', '.OYYYYYO.', 'OOOYYYOOO', '...OYO...', '...OYO...', '...OYO...', '...OOO...'];
+  const v = new VM();
+  rows.forEach((r, j) => [...r].forEach((ch, i) => { if (ch !== '.') { v.set(i - 4, 4 - j, 0, ch === 'Y' ? 0xffe14d : 0xff9a2f); } }));
+  return v.geo(0.3);
+})();
+const DIR_TEXT = { up: '↑ 위로!', down: '↓ 아래로!', left: '← 왼쪽으로!', right: '→ 오른쪽으로!' };
+const DIR_ROT = { up: 0, down: Math.PI, right: -Math.PI / 2, left: Math.PI / 2 };
+function spawnGate(z, Z) {
+  const pal = Z.pal.bar, L = runLevel;
+  const k = Math.floor(crng() * 4);
+  const W = XR + 1.6, m = 0.45;
+  let x0, x1, y0, y1, open, ax, ay, dir;
+  if (k === 0) { x0 = -W; x1 = W; y0 = 0; y1 = L.gateLow; open = 'top'; ax = 0; ay = (y1 + m + YMAX) / 2; dir = 'up'; }
+  else if (k === 1) { x0 = -W; x1 = W; y0 = L.gateHigh; y1 = 12; open = 'bottom'; ax = 0; ay = (YMIN + y0 - m) / 2; dir = 'down'; }
+  else if (k === 2) { x0 = -W; x1 = L.gateSide; y0 = 0; y1 = 11; open = 'right'; ax = (x1 + m + XR) / 2; ay = 4.4; dir = 'right'; }
+  else { x0 = -L.gateSide; x1 = W; y0 = 0; y1 = 11; open = 'left'; ax = (x0 - m - XR) / 2; ay = 4.4; dir = 'left'; }
+  const wv = Math.max(2, Math.round((x1 - x0) / WALL_S)), hv = Math.max(2, Math.round((y1 - y0) / WALL_S));
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const mesh = obsMesh(wallGeo(wv, hv, open, pal), 1.02, 1.02, 1.4);
+  const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+  arrow.position.set(ax - cx, ay - cy, 3);
+  arrow.rotation.z = DIR_ROT[dir];
+  mesh.add(arrow);
+  // the collision box also covers the spikes along the open edge
+  let hx = (x1 - x0) / 2, hy = (y1 - y0) / 2;
+  if (open === 'top' || open === 'bottom') hy += m / 2; else hx += m / 2;
+  const by = open === 'top' ? cy + m / 2 : open === 'bottom' ? cy - m / 2 : cy;
+  const bx = open === 'right' ? cx + m / 2 : open === 'left' ? cx - m / 2 : cx;
+  const o = { kind: 'box', type: 'gate', mesh, arrow, x: bx, y: cy, z, hx, hy, hz: 0.9, cy: by, pal, dir, told: false };
+  mesh.position.set(cx, cy, z);
+  scene.add(mesh);
+  obstacles.push(o);
+  // a coin trail through the opening shows the way
+  for (let i = 0; i < 4; i++) {
+    const c = new THREE.Mesh(coinGeo, coinMat); c.scale.setScalar(1.15);
+    const cz = z + 4.5 - i * 2.2;
+    c.position.set(ax, ay, cz); scene.add(c);
+    coins.push({ mesh: c, x: ax, y: ay, z: cz, val: 1, gem: false, pulled: false });
+  }
+}
+
 function spawnCoins(z) {
   if (p.courseDist > 120 && crng() < 0.07) {
     const x = (crng() * 2 - 1) * (XR - 1), y = YMIN + 1 + crng() * (YMAX - YMIN - 2);
@@ -1976,6 +2035,7 @@ function startGame(opts) {
   msg += whoName() === '시훈이' ? '<br>시훈아, 가시를 피하고 코인을 모으자!' : '<br>가시를 피하고 코인을 모으자!';
   if (D.fire) msg += touch ? '<br>불꽃 버튼으로 가시를 부숴요' : '<br>스페이스바로 불꽃을 쏴요';
   if (st) msg = (stageRun + 1) + '단계 · ' + st.name + '<br>결승선까지 ' + st.len + 'm! 코인 ' + st.coins + '개를 모아 봐요';
+  msg += '<br>가시 벽은 노란 화살표 쪽으로 피해요!';
   updateStageHud();
   const hint = $('#hint'); hint.innerHTML = msg; hint.hidden = false; hint.classList.remove('fade');
   clearTimeout(hintTimer);
@@ -2723,6 +2783,9 @@ function updatePlay(dt) {
     if (o.age < 0.4) o.mesh.scale.setScalar(Math.max(0.01, popScale(o.age)));
     if (o.shadow) { o.shadow.position.set(o.x, 0.04, o.z); const k = 1 / (1 + o.y * 0.12); o.shadow.material.opacity = 1; o.shadow.scale.x = (o.type === 'bar' ? o.hx * 2.2 : 1.6) * k; }
     if (o.z > 5) { scene.remove(o.mesh); if (o.shadow) scene.remove(o.shadow); obstacles.splice(i, 1); continue; }
+    if (o.type === 'gate' && !o.told && o.z > -46 && mode === 'play' && runLevel.cue) { o.told = true; toast(DIR_TEXT[o.dir], 1200); }
+    if (o.arrow) o.arrow.position.z = 3 + Math.sin(time * 6) * 0.3;
+    if (o.type === 'gate' && o.z > 1.3) o.mesh.visible = false; // once passed, never block the view
     if (mode === 'play' && Math.abs(o.z) < 3.5) {
       if (p.star > 0 && overlap(o, hx, hy, 0.15, 0.9)) { destroyObstacle(o); continue; }
       if (overlap(o, hx, hy, 0.15, 0.62 * PLAY_SCALE * runLevel.hitR) || overlap(o, hx, hy + 0.15, -1.6 * PLAY_SCALE, 0.42 * PLAY_SCALE * runLevel.hitR)) hitPlayer();
@@ -2974,6 +3037,7 @@ window.__dragonCoop = () => ({ zone: curZone, mode, on: coop.on, runId: coop.run
 window.__dragonTest = {
   warp(zi) { p.courseDist = zi * ZONE_LEN - 50; p.dist = zi * ZONE_LEN - 50; p.nextMile = Math.ceil(p.dist / 100) * 100; clearPortals(); applyZone(zi, true); p.rowZone = zi; for (const o of obstacles.slice()) { scene.remove(o.mesh); if (o.shadow) scene.remove(o.shadow); } obstacles = []; },
   star() { p.star = 60; },
+  safe() { p.inv = 999; },
   finish() { const st = curStage(); if (st) { p.courseDist = st.len - 80; p.dist = st.len - 80; } },
   near(zi) { p.courseDist = zi * ZONE_LEN - 70; p.dist = zi * ZONE_LEN - 70; p.rowZone = zi - 1; applyZone(zi - 1, false); },
 };
