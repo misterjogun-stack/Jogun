@@ -258,6 +258,41 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 
 #loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--sky); font-size: 28px; color: var(--ink); z-index: 50; text-align: center; padding: 16px; }
 
+/* ---------- Adventure ---------- */
+.menu-row { display: flex; gap: 8px; }
+.menu-row .btn { flex: 1; min-width: 0; }
+.stage-hud { display: flex; align-items: center; gap: 6px; justify-content: center; margin-top: 2px; }
+.stage-track { width: min(150px, 34vw); height: 12px; border: 3px solid var(--ink); border-radius: 999px; background: var(--white); overflow: hidden; }
+#stageFill { height: 100%; width: 0; background: linear-gradient(90deg, var(--leaf), var(--sun)); }
+.stage-hud span { font-size: 15px; color: var(--white); text-shadow: 0 2px 0 var(--ink), 1px 0 0 var(--ink), -1px 0 0 var(--ink); white-space: nowrap; }
+.map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); grid-auto-rows: max-content; gap: 12px; padding: 14px 14px 22px; overflow-y: auto; touch-action: pan-y; flex: 1; min-height: 0; align-content: start; }
+.stage-node {
+  font-family: var(--font-display); color: var(--ink); cursor: pointer; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 8px 10px;
+  background: var(--white); border: 3px solid var(--ink); border-radius: 10px; box-shadow: 0 5px 0 rgba(29,42,74,.3); overflow: hidden; min-width: 0; min-height: max-content;
+}
+.stage-node::before { content: ""; display: block; align-self: stretch; height: 14px; margin: 0 -8px 2px; background: var(--zc); }
+.stage-node .num { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; background: var(--sun); border: 3px solid var(--ink); margin-top: -4px; }
+.stage-node .nm { font-size: 19px; line-height: 1.15; }
+.stage-node .zn { font-size: 13px; color: var(--muted); }
+.stage-node .stars { display: flex; gap: 3px; }
+.stage-node .stars svg { width: 22px; height: 22px; }
+.stage-node.next { animation: wiggle 1.6s infinite; }
+.stage-node.next .num { background: var(--berry); color: var(--white); }
+.stage-node.locked { opacity: .55; cursor: default; }
+.stage-node.locked .num { background: #d9dfea; }
+.stage-info { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(29,42,74,.45); padding: 16px; box-sizing: border-box; pointer-events: auto; overflow-y: auto; }
+.stage-info .panel small, #clear .panel small { font-size: 17px; color: var(--muted); }
+.clear-stars { display: flex; justify-content: center; gap: 10px; }
+.clear-stars svg { width: 54px; height: 54px; filter: drop-shadow(0 4px 0 rgba(29,42,74,.3)); }
+.clear-stars.small svg { width: 34px; height: 34px; }
+.mission-list { display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.mission { display: flex; align-items: center; gap: 10px; background: var(--white); border: 3px solid var(--ink); border-radius: 8px; padding: 6px 10px; font-size: 17px; }
+.mission svg { width: 24px; height: 24px; flex: none; }
+.mission b { font-weight: 400; font-size: 14px; background: var(--leaf); color: var(--white); border-radius: 6px; padding: 2px 6px; flex: none; }
+.mission.done { background: #fff6d6; }
+.star-pill svg { width: 24px; height: 24px; }
+
 /* ---------- Gift ---------- */
 .gift-btn {
   font-family: var(--font-display); font-size: 20px; color: var(--ink);
@@ -374,9 +409,12 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
     <button id="btnGift" class="gift-btn" hidden><span class="ico-gift"></span>아빠 선물이 왔어요!</button>
     <div class="dragon-tag"><b id="menuDragonName">풀잎이</b><span id="menuDragonDesc"></span></div>
     <div class="menu-actions">
-      <button id="btnPlay" class="btn big">출발!</button>
+      <button id="btnAdventure" class="btn big">모험 시작!</button>
+      <div class="menu-row">
+        <button id="btnPlay" class="btn ghost">무한 비행</button>
+        <button id="btnCoop" class="btn ghost">같이 날기<span class="badge" id="coopBadge" hidden>누가 기다려요!</span></button>
+      </div>
       <button id="btnShop" class="btn alt">드래곤 알 상점<span class="badge" id="shopBadge" hidden>살 수 있어요!</span></button>
-      <button id="btnCoop" class="btn ghost">같이 날기<span class="badge" id="coopBadge" hidden>누가 기다려요!</span></button>
     </div>
     <p class="best">최고 기록 <b id="menuBest">0</b>m</p>
   </div>
@@ -384,7 +422,9 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 
 <section id="hud" class="screen" hidden>
   <div id="hearts"></div>
-  <div class="hud-mid"><b id="dist">0</b><small>m</small></div>
+  <div class="hud-mid"><b id="dist">0</b><small>m</small>
+    <div id="stageHud" class="stage-hud" hidden><div class="stage-track"><div id="stageFill"></div></div><span id="stageCoins"></span></div>
+  </div>
   <div class="hud-right">
     <div class="coinpill" id="runCoinPill"><span class="ico-coin"></span><b id="runCoins">0</b></div>
     <button id="btnView" class="iconbtn" aria-label="시점 바꾸기" aria-pressed="false"></button>
@@ -446,6 +486,41 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
     <p id="coopMsg" class="note"></p>
     <div class="row"><button id="btnCoopGo" class="btn big" disabled>같이 출발!</button></div>
     <div class="row"><button id="btnCoopBack" class="btn ghost">뒤로</button></div>
+  </div>
+</section>
+
+<section id="map" class="screen" hidden>
+  <div class="shop-wrap">
+    <div class="shop-head">
+      <button id="btnMapBack" class="btn ghost small">← 뒤로</button>
+      <h2>모험 지도</h2>
+      <div class="coinpill star-pill"><span class="ico-star"></span><b id="mapStars">0</b></div>
+    </div>
+    <p class="shop-sub">단계를 깨면 다음 단계가 열려요. 단계마다 별을 3개씩 모아 봐요!</p>
+    <div id="mapGrid" class="map-grid"></div>
+  </div>
+  <div id="stageInfo" class="stage-info" hidden>
+    <div class="panel reveal">
+      <small id="infoZone"></small>
+      <h2 id="infoTitle"></h2>
+      <div id="infoStars" class="clear-stars small"></div>
+      <div id="infoList" class="mission-list"></div>
+      <div class="row"><button id="btnInfoGo" class="btn big">출발!</button></div>
+      <div class="row"><button id="btnInfoClose" class="btn ghost">닫기</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="clear" class="screen center" hidden>
+  <div class="panel reveal">
+    <small id="clearStage"></small>
+    <h2>스테이지 클리어!</h2>
+    <div id="clearStars" class="clear-stars"></div>
+    <div id="clearList" class="mission-list"></div>
+    <p id="clearReward" class="note good"></p>
+    <p id="clearAll" class="note record" hidden>모든 단계를 깼어요! 시훈이는 진짜 드래곤 라이더!</p>
+    <div class="row"><button id="btnNextStage" class="btn big">다음 단계</button></div>
+    <div class="row"><button id="btnClearMap" class="btn alt">모험 지도</button><button id="btnClearRetry" class="btn ghost">다시 하기</button></div>
   </div>
 </section>
 
@@ -512,6 +587,7 @@ const ICON = {
 document.querySelectorAll('.ico-coin').forEach((e) => (e.outerHTML = ICON.coin));
 document.querySelectorAll('.ico-fire').forEach((e) => (e.outerHTML = ICON.fire));
 document.querySelectorAll('.ico-gift').forEach((e) => (e.outerHTML = ICON.gift));
+document.querySelectorAll('.ico-star').forEach((e) => (e.outerHTML = pixelSVG(['...Y...', '..YYY..', 'YYYYYYY', '.YYYYY.', '..YYY..', '.YY.YY.', 'YY...YY'], { Y: '#ffc93c' })));
 $('#btnPause').innerHTML = ICON.pause;
 $('#btnView').innerHTML = ICON.eye;
 $('#btnOrient').innerHTML = ICON.orient;
@@ -1254,6 +1330,7 @@ const PAL = {
   coral: { id: 's', s1: 0xff6f61, s2: 0xff8a5c, th: 0xfff0e0, tip: 0xff2f6d },
   urchin: { id: 'u', s1: 0x2a1846, s2: 0x3b2363, th: 0x1a1230, tip: 0xff6fd8 },
   space: { id: 'a', s1: 0x55516a, s2: 0x6b6688, th: 0xd8d2ff, tip: 0xff4fd8 },
+  pipe: { id: 't', s1: 0x3d5a73, s2: 0x4f7391, th: 0xe8f6ff, tip: 0xffc53d },
   jelly: { id: 'j', s1: 0xff8fd0, s2: 0xffb3e2, th: 0xffd6ef, tip: 0xff3d8a },
 };
 const ZONES = [
@@ -1262,11 +1339,14 @@ const ZONES = [
   { id: 'cave', name: '동굴 탐험!', sky: ['#0d0907', '#1c140e', '#2e2117'], fog: [0x2e2117, 16, 92], hemi: [0xffd9b0, 0x2a1a10, 0.45], sun: [0xffc890, 0.28], lamp: 1.7,
     ground: 'rock', ceil: true, outline: 0xffc46b, emis: 0x2a1a10, pal: { pillar: PAL.cave, ball: PAL.cave, bar: PAL.cave }, flash: '#120c08', T: -3, ring: [0xff9a3c, 0x45f0ff] },
   { id: 'sea', name: '바다 속으로!', sky: ['#062a4d', '#0f5c97', '#1f78b8'], fog: [0x1f78b8, 20, 100], hemi: [0xa8e8ff, 0x1d4f6a, 0.75], sun: [0xbfefff, 0.5], lamp: 0.7,
-    ground: 'sand', ceil: false, outline: 0x061226, emis: 0x10202a, pal: { pillar: PAL.coral, ball: PAL.urchin, bar: PAL.coral }, flash: '#1f78b8', T: 2, ring: [0x4fe8ff, 0xffffff] },
+    ground: 'sand', ceil: false, bubbles: true, jelly: true, outline: 0x061226, emis: 0x10202a, pal: { pillar: PAL.coral, ball: PAL.urchin, bar: PAL.coral }, flash: '#1f78b8', T: 2, ring: [0x4fe8ff, 0xffffff] },
+  { id: 'tunnel', name: '해저 터널!', sky: ['#041d38', '#0a3f6e', '#145a94'], fog: [0x145a94, 24, 115], hemi: [0x9fe3ff, 0x163a55, 0.82], sun: [0xcff4ff, 0.5], lamp: 0.9,
+    ground: 'tile', ceil: false, tube: true, bubbles: true, jelly: true, outline: 0x06121f, emis: 0x10202a, pal: { pillar: PAL.pipe, ball: PAL.urchin, bar: PAL.pipe }, flash: '#145a94', T: 4, ring: [0x7ff6ff, 0xffd23f] },
   { id: 'space', name: '우주로 출발!', sky: 'space', fog: [0x1a0d3a, 70, 200], hemi: [0xcfc8ff, 0x241a48, 0.65], sun: [0xfff2e0, 0.85], lamp: 0.5,
     ground: null, ceil: false, outline: 0x9ff3ff, emis: 0x1a1430, pal: { pillar: PAL.space, ball: PAL.space, bar: PAL.space }, flash: '#05030f', T: 5, ring: [0xc45cff, 0xffd93c] },
 ];
 const ZONE_LEN = 300, CEIL_Y = 11.6;
+const ZONE_IDX = {}; ZONES.forEach((Z, i) => { ZONE_IDX[Z.id] = i; });
 function zoneAt(d) { return Math.floor(Math.max(0, d) / ZONE_LEN) % ZONES.length; }
 
 /* ---------- sky backgrounds ---------- */
@@ -1309,11 +1389,16 @@ function pixelTex(pal, extras) {
 const groundTexes = {
   grass: groundTex,
   rock: pixelTex(['#4a3a2e', '#54412f', '#3f3127', '#5d4a3a'], ['#7a6655', '#7a6655', '#45f0ff', '#2f241c', '#7a6655']),
+  tile: pixelTex(['#7fb7d6', '#8cc4e0', '#76aecd', '#86bfdb'], ['#c9f1ff', '#ffffff', '#5a96b8', '#c9f1ff']),
   sand: pixelTex(['#e8d29a', '#dfc78c', '#f0dca8', '#d9bf85'], ['#ff9ab0', '#ffffff', '#c9a96e', '#ff9ab0', '#8a7350']),
 };
 const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(260, 340), new THREE.MeshLambertMaterial({ map: groundTexes.rock, color: 0x9a8a78 }));
 ceiling.rotation.x = Math.PI / 2; ceiling.position.set(0, CEIL_Y + 1.6, -110); ceiling.visible = false;
 scene.add(ceiling);
+const tube = new THREE.Mesh(new THREE.CylinderGeometry(10.4, 10.4, 340, 28, 1, true),
+  new THREE.MeshLambertMaterial({ color: 0xa8ecff, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false }));
+tube.rotation.x = Math.PI / 2; tube.position.set(0, 4.5, -110); tube.visible = false;
+scene.add(tube);
 const lamp = new THREE.PointLight(0xffc27a, 0, 34, 1.4);
 lamp.position.set(0, 1.4, 1.2);
 playerRoot.add(lamp);
@@ -1416,6 +1501,32 @@ function asteroidGeo(i) {
     return v.geo(0.6);
   });
 }
+function archGeo() {
+  return cached('arch', () => {
+    const v = new VM(), R = 15;
+    for (let a = 0; a < 220; a++) {
+      const t = (a / 220) * Math.PI * 2, x = Math.round(Math.cos(t) * R), y = Math.round(Math.sin(t) * R);
+      if (y < -7) continue;
+      v.set(x, y, 0, a % 22 === 0 ? 0xffe36b : 0x6f8ea8); v.set(x, y, 1, 0x56738c);
+    }
+    return v.geo(0.7, 0, 0, 0, 0.04);
+  });
+}
+function whaleGeo() {
+  return cached('whale', () => {
+    const v = new VM();
+    for (let x = -10; x <= 10; x++) for (let y = -4; y <= 4; y++) for (let z = -4; z <= 4; z++) {
+      const rx = x > 0 ? 10 : 11, ry = x > 4 ? 4 - (x - 4) * 0.3 : 4;
+      if ((x * x) / (rx * rx) + (y * y) / (ry * ry) + (z * z) / 16 > 1) continue;
+      v.set(x, y, z, y < -1 ? 0xcfe9ff : (hash3(x, y, z) < 0.1 ? 0x5a96e8 : 0x3f7fd6));
+    }
+    for (const sz of [-1, 1]) { v.set(7, 1, sz * 3, 0xffffff); v.set(8, 1, sz * 3, DARK); v.set(6, -1, sz * 4, 0xff9ab0); }
+    for (let k = 0; k < 4; k++) for (let w = -k - 1; w <= k + 1; w++) v.set(-11 - k, 0, w, 0x3f7fd6);
+    for (const sz of [-1, 1]) for (let k = 0; k < 3; k++) v.set(1 - k, -3, sz * (4 + k), 0x3f7fd6);
+    v.set(4, 5, 0, 0xbfe3ff); v.set(4, 6, 0, 0xbfe3ff); v.set(3, 7, 0, 0xbfe3ff); v.set(5, 7, 0, 0xbfe3ff);
+    return v.geo(0.6);
+  });
+}
 function portalGeo(zi) {
   return cached('po' + zi, () => {
     const v = new VM(), [c1, c2] = ZONES[zi].ring;
@@ -1444,6 +1555,13 @@ const DECO_SETS = {
     { n: 18, geo: (i) => coralGeo(i % 3), k: 1, place: (m) => { m.position.x = sideX(2, 30); m.position.y = 0; m.rotation.y = Math.random() * 3; } },
     { n: 8, geo: (i) => fishGeo(i % 3), k: 0.8, swim: true, place: (m) => { m.position.x = (Math.random() * 2 - 1) * 30; m.position.y = 2 + Math.random() * 12; } },
   ],
+  tunnel: [
+    { n: 22, geo: () => archGeo(), k: 1, even: true, place: (m) => { m.position.x = 0; m.position.y = 4.5; } },
+    { n: 30, geo: (i) => seaweedGeo(i % 3), k: 1, sway: true, place: (m) => { m.position.x = (Math.random() < 0.5 ? -1 : 1) * (12 + Math.random() * 28); m.position.y = 0; } },
+    { n: 10, geo: (i) => coralGeo(i % 3), k: 1, place: (m) => { m.position.x = (Math.random() < 0.5 ? -1 : 1) * (12 + Math.random() * 24); m.position.y = 0; } },
+    { n: 8, geo: (i) => fishGeo(i % 3), k: 0.8, swim: true, band: [13, 40], place: (m) => { m.position.x = (Math.random() < 0.5 ? -1 : 1) * (15 + Math.random() * 20); m.position.y = 1 + Math.random() * 14; } },
+    { n: 2, geo: () => whaleGeo(), k: 0.5, swim: true, band: [22, 46], place: (m) => { m.position.x = (Math.random() < 0.5 ? -1 : 1) * (26 + Math.random() * 12); m.position.y = 9 + Math.random() * 6; } },
+  ],
   space: [
     { n: 4, geo: (i) => planetGeo(i), k: 0.12, spin: 0.05, place: (m) => { m.position.x = (Math.random() < 0.5 ? -1 : 1) * (55 + Math.random() * 35); m.position.y = 6 + Math.random() * 30; } },
     { n: 26, geo: (i) => asteroidGeo(i % 4), k: 1, spin: 0.6, place: (m) => { m.position.x = sideX(6, 55); m.position.y = -4 + Math.random() * 28; } },
@@ -1456,9 +1574,9 @@ function buildDecos(zi) {
     for (let i = 0; i < spec.n; i++) {
       const m = new THREE.Mesh(spec.geo(i), spec.mat || voxMat);
       spec.place(m);
-      m.position.z = -140 + Math.random() * 165;
+      m.position.z = spec.even ? -140 + (i * 165) / spec.n : -140 + Math.random() * 165;
       scene.add(m);
-      decos.push({ m, k: spec.k, place: spec.place, sway: spec.sway, swim: spec.swim ? (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2) : 0, spin: spec.spin || 0, phase: Math.random() * 6 });
+      decos.push({ m, k: spec.k, place: spec.place, sway: spec.sway, band: spec.band, swim: spec.swim ? (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2) : 0, spin: spec.spin || 0, phase: Math.random() * 6 });
     }
   }
   for (const d of decos) if (d.swim < 0) d.m.rotation.y = Math.PI;
@@ -1466,7 +1584,12 @@ function buildDecos(zi) {
 function animDecos(dt) {
   for (const d of decos) {
     if (d.sway) d.m.rotation.z = Math.sin(time * 1.4 + d.phase) * 0.12;
-    if (d.swim) { d.m.position.x += d.swim * dt; if (Math.abs(d.m.position.x) > 40) d.m.position.x = -Math.sign(d.m.position.x) * 39; }
+    if (d.swim) {
+      d.m.position.x += d.swim * dt;
+      const ax = Math.abs(d.m.position.x);
+      if (d.band) { if ((ax < d.band[0] && Math.sign(d.m.position.x) === -Math.sign(d.swim)) || (ax > d.band[1] && Math.sign(d.m.position.x) === Math.sign(d.swim))) { d.swim *= -1; d.m.rotation.y += Math.PI; } }
+      else if (ax > 40) d.m.position.x = -Math.sign(d.m.position.x) * 39;
+    }
     if (d.spin) { d.m.rotation.y += d.spin * dt; d.m.rotation.x += d.spin * 0.5 * dt; }
   }
 }
@@ -1485,11 +1608,12 @@ function applyZone(zi, fx) {
   ground.visible = !!Z.ground;
   if (Z.ground) { ground.material.map = groundTexes[Z.ground]; ground.material.needsUpdate = true; }
   ceiling.visible = Z.ceil;
+  tube.visible = !!Z.tube;
   playerShadow.visible = !!Z.ground;
   outlineMat.color.setHex(Z.outline);
   obsMat.emissive.setHex(Z.emis);
   buildDecos(zi);
-  drawSkyMsg(zi); skyMsg.mat.depthTest = !Z.ceil;
+  drawSkyMsg(zi); skyMsg.mat.depthTest = !(Z.ceil || Z.tube);
   Music.transpose = Z.T;
   if (fx) {
     const fl = $('#flash');
@@ -1509,7 +1633,7 @@ function updatePortals(dz, dt) {
   for (let i = portals.length - 1; i >= 0; i--) {
     const P = portals[i];
     P.z += dz; P.m.position.z = P.z; P.m.rotation.z += dt * 0.6;
-    if (!P.passed && P.z > 0) { P.passed = true; applyZone(P.zi, true); }
+    if (!P.passed && P.z > 0) { P.passed = true; if (P.finish) stageClear(); else applyZone(P.zi, true); }
     if (P.z > 14) { scene.remove(P.m); portals.splice(i, 1); }
   }
 }
@@ -1524,7 +1648,7 @@ function mountPlayer() {
   playerRoot.add(playerModel.root);
 }
 
-function difficulty() { return Math.min(1, p.dist / 2600); }
+function difficulty() { const st = curStage(); return st ? Math.min(1, st.d0 + st.dR * p.dist / st.len) : Math.min(1, p.dist / 2600); }
 // The obstacle course comes from a seeded generator, so two players who share a
 // seed fly through exactly the same spikes and coins.
 let crng = Math.random;
@@ -1532,7 +1656,7 @@ function setSeed(seed) {
   let a = seed >>> 0;
   crng = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-function courseD() { return Math.min(1, p.courseDist / 2600); }
+function courseD() { const st = curStage(); return st ? Math.min(1, st.d0 + st.dR * p.courseDist / st.len) : Math.min(1, p.courseDist / 2600); }
 
 function clearWorld() {
   for (const o of obstacles) { scene.remove(o.mesh); if (o.shadow) scene.remove(o.shadow); }
@@ -1554,10 +1678,10 @@ function pickX(used, minGap) {
 function spawnRow(z) {
   const d = courseD();
   // rows are reached about 54m after they appear, so they wear the look of that world
-  const zi = zoneAt(p.courseDist + 54);
+  const zi = zoneFor(p.courseDist + 54);
   const Z = ZONES[zi];
   let n = 1;
-  if (p.courseDist > 200 && crng() < 0.12 + 0.33 * d) n++;
+  if ((curStage() ? d > 0.12 : p.courseDist > 200) && crng() < 0.12 + 0.33 * d) n++;
   if (d > 0.6 && crng() < 0.15) n++;
   const used = [];
   for (let i = 0; i < n; i++) {
@@ -1587,7 +1711,7 @@ function spawnRow(z) {
       const x = pickX(used, 3.8);
       if (x === null) continue;
       const y = YMIN + 0.4 + crng() * (YMAX - YMIN - 0.8);
-      const jelly = Z.id === 'sea' && sub < 0.5;
+      const jelly = Z.jelly && sub < 0.5;
       const pal = jelly ? PAL.jelly : Z.pal.ball;
       const mesh = jelly ? obsMesh(jellyGeo(), 1.12, 1.12, 1.12) : obsMesh(ballGeo(pal), 1.13, 1.13, 1.13);
       const bob = jelly ? 0.9 + crng() * 0.6 : (d > 0.15 ? 0.4 + crng() * 0.9 : 0);
@@ -1652,7 +1776,8 @@ function resetRun() {
   const D = cur();
   p.x = 0; p.y = 3.8; p.tx = 0; p.ty = 3.8;
   p.hearts = D.hearts; p.inv = 0; p.shield = !!D.shield; p.fireCd = 0;
-  p.runCoins = 0; p.dist = 0; p.speed = 15; p.dying = 0; p.newBest = false; p.nextMile = 100; p.regen = 0; p.courseDist = 0; p.rowZone = 0; p.star = 0;
+  p.runCoins = 0; p.dist = 0; p.speed = 15; p.dying = 0; p.newBest = false; p.nextMile = 100; p.regen = 0; p.courseDist = 0; p.star = 0; p.hits = 0; p.finishSpawned = false;
+  p.rowZone = zoneFor(0); applyZone(p.rowZone, false);
   playerRoot.position.set(p.x, p.y, 0);
   if (playerModel) playerModel.root.rotation.set(0, 0, 0);
   prepopulate();
@@ -1665,7 +1790,7 @@ function hitPlayer() {
     burst(p.x, p.y, 0, [0x7fefff, 0xffffff], 22, 7, 0.16, 6, 0.7, false, true);
     renderHearts(); return;
   }
-  p.hearts--; p.inv = 1.6; p.shake = save.fps ? 0.25 : 0.45;
+  p.hearts--; p.hits = (p.hits || 0) + 1; p.inv = 1.6; p.shake = save.fps ? 0.25 : 0.45;
   { const h = $('#hurt'); h.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => h.classList.remove('on'))); }
   SFX.hit(); buzz(80);
   if (p.hearts === 1) setTimeout(SFX.warn, 450);
@@ -1753,7 +1878,7 @@ $('#btnFire').addEventListener('pointerdown', (e) => { e.preventDefault(); e.sto
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
 /* ---------- UI ---------- */
-const screens = ['menu', 'hud', 'over', 'pause', 'shop', 'hatch', 'coop'];
+const screens = ['menu', 'hud', 'over', 'pause', 'shop', 'hatch', 'coop', 'map', 'clear'];
 function show(...ids) { for (const s of screens) $('#' + s).hidden = !ids.includes(s); $('#btnSound').hidden = !ids.includes('menu'); $('#btnOrient').hidden = !ids.includes('menu'); }
 function renderHearts() {
   const D = cur(); let h = '';
@@ -1784,6 +1909,7 @@ function renderMenu() {
 
 function goMenu() {
   leaveCoop();
+  stageRun = -1;
   mode = 'menu';
   keepAwake(false);
   clearWorld();
@@ -1806,11 +1932,13 @@ async function keepAwake(on) {
   } catch (e) { wakeLock = null; }
 }
 function startGame(opts) {
-  opts = opts && typeof opts.seed === 'number' ? opts : null;
+  const st = opts && typeof opts.stage === 'number' ? STAGES[opts.stage] : null;
+  stageRun = st ? opts.stage : -1;
+  opts = opts && typeof opts.seed === 'number' ? opts : null; // a together-mode run
   if (!opts) leaveCoop();
   ensureAudio(); if (!opts) SFX.start();
   Music.set('play');
-  setSeed(opts ? opts.seed : (Math.random() * 4294967296) >>> 0);
+  setSeed(opts ? opts.seed : st ? st.seed : (Math.random() * 4294967296) >>> 0);
   XR = coop.on ? 5.2 : baseXR;
   mountPlayer();
   playerRoot.visible = true; playerShadow.visible = true;
@@ -1826,6 +1954,8 @@ function startGame(opts) {
   let msg = touch ? '손가락으로 화면을 끌어서 움직여요' : '방향키나 WASD, 또는 마우스로 끌어서 움직여요';
   msg += whoName() === '시훈이' ? '<br>시훈아, 가시를 피하고 코인을 모으자!' : '<br>가시를 피하고 코인을 모으자!';
   if (D.fire) msg += touch ? '<br>불꽃 버튼으로 가시를 부숴요' : '<br>스페이스바로 불꽃을 쏴요';
+  if (st) msg = (stageRun + 1) + '단계 · ' + st.name + '<br>결승선까지 ' + st.len + 'm! 코인 ' + st.coins + '개를 모아 봐요';
+  updateStageHud();
   const hint = $('#hint'); hint.innerHTML = msg; hint.hidden = false; hint.classList.remove('fade');
   clearTimeout(hintTimer);
   hintTimer = setTimeout(() => hint.classList.add('fade'), 3800);
@@ -1855,7 +1985,9 @@ function gameOver() {
     else oe.hidden = true;
   }
   if (canBuyAny()) oe.className = 'note good';
-  $('#btnRetry').textContent = coop.on ? '같이 다시 하기' : '다시 날기';
+  $('#btnRetry').textContent = coop.on ? '같이 다시 하기' : stageRun >= 0 ? '다시 도전' : '다시 날기';
+  $('#btnOverMenu').textContent = stageRun >= 0 ? '모험 지도' : '처음으로';
+  if (stageRun >= 0) { $('#oBest').textContent = (stageRun + 1) + '단계 결승선까지 ' + Math.max(0, Math.ceil(STAGES[stageRun].len - p.dist)) + 'm 남았어요. 다시 해 봐요!'; $('#oBest').className = 'note'; }
   if (coop.on) coop.toldWin = false;
   renderCoopOver();
   show('hud', 'over');
@@ -2206,14 +2338,15 @@ const skyMsg = (() => {
   return { c, tex, mat, mesh };
 })();
 scene.add(camera); camera.add(skyMsg.mesh);
-const MSG_STYLE = [
-  { fill: '#ffffff', line: '#4f9fe0', glow: 'rgba(255,255,255,0.95)' },
-  { fill: '#ffe9a8', line: '#9a4f18', glow: 'rgba(255,190,90,0.95)' },
-  { fill: '#eafcff', line: '#155f9c', glow: 'rgba(150,235,255,0.95)' },
-  { fill: '#fff3b0', line: '#6a32bb', glow: 'rgba(255,235,140,1)' },
-];
+const MSG_STYLE = {
+  meadow: { fill: '#ffffff', line: '#4f9fe0', glow: 'rgba(255,255,255,0.95)' },
+  cave: { fill: '#ffe9a8', line: '#9a4f18', glow: 'rgba(255,190,90,0.95)' },
+  sea: { fill: '#eafcff', line: '#155f9c', glow: 'rgba(150,235,255,0.95)' },
+  tunnel: { fill: '#fff7c8', line: '#0d4f8a', glow: 'rgba(170,240,255,0.95)' },
+  space: { fill: '#fff3b0', line: '#6a32bb', glow: 'rgba(255,235,140,1)' },
+};
 function drawSkyMsg(zi) {
-  const { c } = skyMsg, x = c.getContext('2d'), S = MSG_STYLE[zi] || MSG_STYLE[0];
+  const { c } = skyMsg, x = c.getContext('2d'), S = MSG_STYLE[(ZONES[zi] || ZONES[0]).id];
   x.clearRect(0, 0, c.width, c.height);
   x.textBaseline = 'middle'; x.lineJoin = 'round';
   const main = '조시훈 사랑해';
@@ -2240,7 +2373,7 @@ function placeSkyMsg() {
   const D = 300, fov = (camera.fov * Math.PI) / 180;
   const vH = 2 * D * Math.tan(fov / 2), vW = vH * camera.aspect;
   // in menus it sits under the game title; while flying it sits just under the top bar
-  const menuLike = mode === 'menu' || mode === 'shop' || mode === 'coop';
+  const menuLike = mode === 'menu' || mode === 'shop' || mode === 'coop' || mode === 'map';
   const w = menuLike ? Math.min(vW * 0.6, vH * 1.1) : Math.min(vW * 0.7, vH * 1.5);
   const h = w * (288 / 1024);
   const top = menuLike ? (camera.aspect < 1 ? 0.19 : 0.2) : 0.11;
@@ -2286,12 +2419,163 @@ function openGift() {
 $('#btnGift').addEventListener('click', openGift);
 $('#btnGiftOk').addEventListener('click', () => { SFX.click(); $('#gift').hidden = true; });
 
+/* =========================================================
+   Adventure mode: ten stages, each a fixed map with a finish line.
+   Star 1: reach the finish. Star 2: collect the coins. Star 3: bump at most once.
+   ========================================================= */
+const STAGES = [
+  { name: '들판 산책', zone: 'meadow', len: 200, coins: 15, d0: 0.0, dR: 0.15, seed: 101 },
+  { name: '가시 숲', zone: 'meadow', len: 300, coins: 25, d0: 0.15, dR: 0.3, seed: 202 },
+  { name: '어두운 동굴', zone: 'cave', len: 300, coins: 20, d0: 0.15, dR: 0.25, seed: 303 },
+  { name: '수정 동굴', zone: 'cave', len: 400, coins: 30, d0: 0.3, dR: 0.3, seed: 404 },
+  { name: '산호 바다', zone: 'sea', len: 350, coins: 25, d0: 0.3, dR: 0.3, seed: 505 },
+  { name: '해파리 바다', zone: 'sea', len: 400, coins: 30, d0: 0.4, dR: 0.3, seed: 606 },
+  { name: '해저 터널', zone: 'tunnel', len: 400, coins: 30, d0: 0.4, dR: 0.3, seed: 707 },
+  { name: '터널 탈출', zone: 'tunnel', len: 500, coins: 40, d0: 0.5, dR: 0.35, seed: 808 },
+  { name: '우주 여행', zone: 'space', len: 500, coins: 40, d0: 0.55, dR: 0.35, seed: 909 },
+  { name: '대모험', zones: ['meadow', 'cave', 'sea', 'tunnel', 'space'], seg: 200, len: 1000, coins: 80, d0: 0.35, dR: 0.6, seed: 1010 },
+];
+const ZONE_COLOR = { meadow: '#5fc35a', cave: '#8a6a4f', sea: '#2f8fd8', tunnel: '#1fa3b8', space: '#6a4bc4' };
+const ZONE_NAME = { meadow: '들판', cave: '동굴', sea: '바다 속', tunnel: '해저 터널', space: '우주' };
+let stageRun = -1;
+function curStage() { return stageRun >= 0 ? STAGES[stageRun] : null; }
+function stageZoneIds(st) { return st.zones || [st.zone]; }
+function zoneFor(d) {
+  const st = curStage();
+  if (!st) return zoneAt(d);
+  const ids = stageZoneIds(st);
+  return ZONE_IDX[ids[st.zones ? Math.min(ids.length - 1, Math.floor(Math.max(0, d) / st.seg)) : 0]];
+}
+function stageUnlocked(i) { return i === 0 || (save.stages[i - 1] || 0) > 0; }
+function totalStars() { return STAGES.reduce((s, st, i) => s + (save.stages[i] || 0), 0); }
+
+const STAR_ROWS = ['...Y...', '..YYY..', 'YYYYYYY', '.YYYYY.', '..YYY..', '.YY.YY.', 'YY...YY'];
+const STAR_ON = pixelSVG(STAR_ROWS, { Y: '#ffc93c' });
+const STAR_OFF = pixelSVG(STAR_ROWS, { Y: '#c9cfdc' });
+function starsHTML(n) { let h = ''; for (let k = 0; k < 3; k++) h += k < n ? STAR_ON : STAR_OFF; return h; }
+
+function renderMap() {
+  $('#mapStars').textContent = totalStars() + ' / ' + STAGES.length * 3;
+  const grid = $('#mapGrid'); grid.textContent = '';
+  STAGES.forEach((st, i) => {
+    const open = stageUnlocked(i), got = save.stages[i] || 0;
+    const b = document.createElement('button');
+    b.className = 'stage-node' + (open ? '' : ' locked') + (open && !got ? ' next' : '');
+    b.dataset.i = i;
+    const ids = stageZoneIds(st);
+    b.style.setProperty('--zc', ids.length > 1 ? 'linear-gradient(90deg,' + ids.map((z) => ZONE_COLOR[z]).join(',') + ')' : ZONE_COLOR[ids[0]]);
+    const num = document.createElement('span'); num.className = 'num'; num.textContent = open ? String(i + 1) : '?';
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = open ? st.name : '잠겨 있어요';
+    const zn = document.createElement('span'); zn.className = 'zn'; zn.textContent = ids.map((z) => ZONE_NAME[z]).join(' · ');
+    const stars = document.createElement('span'); stars.className = 'stars'; stars.innerHTML = starsHTML(got);
+    b.append(num, nm, zn, stars);
+    if (!open) b.disabled = true;
+    grid.appendChild(b);
+  });
+}
+function openMap() {
+  leaveCoop();
+  stageRun = -1;
+  mode = 'map';
+  keepAwake(false);
+  clearWorld();
+  p.x = 0; p.y = 4; p.tx = 0; p.ty = 4;
+  mountPlayer(); playerRoot.visible = true; playerRoot.position.set(0, 4, 0);
+  $('#stageInfo').hidden = true;
+  show('map'); $('#btnFire').hidden = true; $('#hint').hidden = true;
+  renderMap();
+  Music.set('menu');
+}
+let infoStage = 0;
+function openStageInfo(i) {
+  infoStage = i;
+  const st = STAGES[i], got = save.stages[i] || 0;
+  $('#infoTitle').textContent = (i + 1) + '단계 · ' + st.name;
+  $('#infoZone').textContent = stageZoneIds(st).map((z) => ZONE_NAME[z]).join(' → ');
+  $('#infoStars').innerHTML = starsHTML(got);
+  const list = $('#infoList'); list.textContent = '';
+  [['결승선까지 ' + st.len + 'm 날아가기', got >= 1], ['코인 ' + st.coins + '개 모으기', got >= 2], ['1번 이하로 부딪히기', got >= 3]].forEach(([t, ok], k) => {
+    const li = document.createElement('div'); li.className = 'mission' + (ok ? ' done' : '');
+    li.innerHTML = (k === 0 ? '<b>목표</b>' : STAR_ON); const s = document.createElement('span'); s.textContent = t; li.appendChild(s);
+    list.appendChild(li);
+  });
+  $('#stageInfo').hidden = false;
+  SFX.click();
+}
+function startStage(i) { $('#stageInfo').hidden = true; startGame({ stage: i }); }
+
+function updateStageHud() {
+  const st = curStage();
+  $('#stageHud').hidden = !st;
+  if (!st) return;
+  $('#stageFill').style.width = (Math.min(1, p.dist / st.len) * 100).toFixed(1) + '%';
+  $('#stageCoins').textContent = '코인 ' + p.runCoins + '/' + st.coins;
+}
+function spawnFinish(z) {
+  const m = new THREE.Mesh(finishGeo(), portalMat);
+  m.position.set(0, 4.6, z);
+  scene.add(m);
+  portals.push({ m, z, zi: -1, finish: true, passed: false });
+}
+function finishGeo() {
+  return cached('finish', () => {
+    const v = new VM();
+    for (let a = 0; a < 180; a++) {
+      const t = (a / 180) * Math.PI * 2;
+      for (const rr of [10, 11, 12]) v.set(Math.round(Math.cos(t) * rr), Math.round(Math.sin(t) * rr), 0, (Math.floor(a / 6) + rr) % 2 ? 0x1d2a4a : 0xffffff);
+    }
+    // little flags on top
+    for (const fx of [-3, 3]) { for (let y = 12; y <= 16; y++) v.set(fx, y, 0, 0x8a5a3a); v.box(fx + 1, 14, 0, fx + 3, 16, 0, fx < 0 ? 0xff4d6a : 0xffc93c); }
+    return v.geo(0.6, 0, 0, 0, 0.02);
+  });
+}
+function stageClear() {
+  if (mode !== 'play') return;
+  const i = stageRun, st = STAGES[i];
+  mode = 'over';
+  keepAwake(false);
+  $('#btnFire').hidden = true; $('#hint').hidden = true;
+  Music.set(null); SFX.fanfare(); buzz(60);
+  setTimeout(() => { if (mode === 'over') Music.set('menu'); }, 2200);
+  const coinsOk = p.runCoins >= st.coins, hitsOk = p.hits <= 1;
+  const stars = 1 + (coinsOk ? 1 : 0) + (hitsOk ? 1 : 0);
+  const prev = save.stages[i] || 0;
+  let reward = prev ? 0 : 30;
+  if (stars > prev) reward += (stars - prev) * 10;
+  save.stages[i] = Math.max(prev, stars);
+  save.coins += reward;
+  if (p.dist > save.best) save.best = p.dist;
+  persist();
+  burst(p.x, p.y + 1, -2, [0xffd23f, 0xff6b9a, 0x7fefff, 0x5fd35a], 60, 9, 0.16, 6, 1.6, false, true);
+  $('#clearStage').textContent = (i + 1) + '단계 · ' + st.name;
+  $('#clearStars').innerHTML = starsHTML(stars);
+  const list = $('#clearList'); list.textContent = '';
+  [['결승선 도착!', true], ['코인 ' + st.coins + '개 모으기 (' + p.runCoins + '개)', coinsOk], ['1번 이하로 부딪히기 (' + p.hits + '번)', hitsOk]].forEach(([t, ok]) => {
+    const li = document.createElement('div'); li.className = 'mission' + (ok ? ' done' : '');
+    li.innerHTML = ok ? STAR_ON : STAR_OFF; const s = document.createElement('span'); s.textContent = t; li.appendChild(s);
+    list.appendChild(li);
+  });
+  $('#clearReward').textContent = reward ? '보상: 코인 ' + reward + '개!' : '이미 받은 보상이에요. 별을 더 모아 봐요!';
+  const hasNext = i + 1 < STAGES.length;
+  $('#btnNextStage').hidden = !hasNext;
+  $('#clearAll').hidden = hasNext;
+  show('hud', 'clear');
+}
+$('#mapGrid').addEventListener('click', (e) => { const b = e.target.closest('.stage-node'); if (!b || b.disabled) return; openStageInfo(+b.dataset.i); });
+$('#btnAdventure').addEventListener('click', () => { ensureAudio(); SFX.click(); openMap(); });
+$('#btnMapBack').addEventListener('click', () => { SFX.click(); goMenu(); });
+$('#btnInfoGo').addEventListener('click', () => startStage(infoStage));
+$('#btnInfoClose').addEventListener('click', () => { SFX.click(); $('#stageInfo').hidden = true; });
+$('#btnNextStage').addEventListener('click', () => startStage(Math.min(STAGES.length - 1, stageRun + 1)));
+$('#btnClearMap').addEventListener('click', () => { SFX.click(); openMap(); });
+$('#btnClearRetry').addEventListener('click', () => startStage(stageRun));
+
 /* ---------- Buttons ---------- */
 $('#btnPlay').addEventListener('click', () => startGame());
 $('#btnShop').addEventListener('click', () => { ensureAudio(); openShop('menu'); });
-$('#btnRetry').addEventListener('click', () => { if (coop.on) openCoop(); else startGame(); });
+$('#btnRetry').addEventListener('click', () => { if (coop.on) openCoop(); else if (stageRun >= 0) startStage(stageRun); else startGame(); });
 $('#btnOverShop').addEventListener('click', () => { ensureAudio(); openShop('over'); });
-$('#btnOverMenu').addEventListener('click', () => { SFX.click(); goMenu(); });
+$('#btnOverMenu').addEventListener('click', () => { SFX.click(); if (stageRun >= 0) openMap(); else goMenu(); });
 $('#btnPause').addEventListener('click', () => { ensureAudio(); pauseGame(); });
 $('#btnResume').addEventListener('click', resumeGame);
 $('#btnQuit').addEventListener('click', () => { persist(); SFX.click(); goMenu(); });
@@ -2381,10 +2665,15 @@ function updatePlay(dt) {
     const z0 = SPAWN_Z - p.untilRow; // the row has already drifted this far toward us
     p.untilRow += G;
     p.courseDist += G * 0.5;
-    const nz = zoneAt(p.courseDist + 54);
-    if (nz !== p.rowZone) { p.rowZone = nz; spawnPortal(z0 + G * 0.6, nz); } // a gate into the next world
-    spawnRow(z0);
-    if (crng() < 0.8) spawnCoins(z0 + G / 2);
+    const st = curStage();
+    if (st && p.courseDist + 54 >= st.len) {
+      if (!p.finishSpawned) { p.finishSpawned = true; spawnFinish(z0); } // the finish line, nothing after it
+    } else {
+      const nz = zoneFor(p.courseDist + 54);
+      if (nz !== p.rowZone) { p.rowZone = nz; spawnPortal(z0 + G * 0.6, nz); } // a gate into the next world
+      spawnRow(z0);
+      if (crng() < 0.8) spawnCoins(z0 + G / 2);
+    }
   }
 
   scrollDecos(dz);
@@ -2451,6 +2740,7 @@ function updatePlay(dt) {
   }
 
   $('#dist').textContent = Math.floor(p.dist);
+  if (stageRun >= 0) updateStageHud();
   if (D.regen && mode === 'play') {
     if (p.hearts < D.hearts) {
       p.regen += dz * 0.5;
@@ -2491,7 +2781,7 @@ function frame(now) {
   time += dt;
   let dz = 0;
   if (mode === 'play' || mode === 'dying') dz = updatePlay(dt);
-  else if (mode === 'menu' || mode === 'shop' || mode === 'coop') {
+  else if (mode === 'menu' || mode === 'shop' || mode === 'coop' || mode === 'map') {
     dz = 7 * dt; scrollDecos(dz);
     playerRoot.position.y = 4 + Math.sin(time * 1.6) * 0.18;
     p.y = playerRoot.position.y; p.x = 0;
@@ -2504,7 +2794,7 @@ function frame(now) {
   coopTick(now);
   updateGhosts(dt);
   animDecos(dt);
-  if (curZone === 2 && dt > 0 && Math.random() < dt * 4) // rising bubbles under the sea
+  if (ZONES[curZone] && ZONES[curZone].bubbles && dt > 0 && Math.random() < dt * 4) // rising bubbles under the sea
     burst(p.x + (Math.random() - 0.5) * 24, Math.random() * 3, -4 - Math.random() * 30, [0xd8f6ff, 0xa8e8ff], 1, 0.4, 0.14, -1.5, 3.5, mode === 'play', true);
   if (mode === 'over' && coop.on && Math.floor(time * 4) !== Math.floor((time - dt) * 4)) renderCoopOver();
   updateParticles(dt, dz);
@@ -2638,6 +2928,7 @@ function start(data) {
   if (data && data.save && (!data.save.coins || data.save.coins >= save.coins)) save = Object.assign(save, data.save);
   if (!Array.isArray(save.owned) || !save.owned.includes(0)) save.owned = [0].concat(Array.isArray(save.owned) ? save.owned : []);
   if (!save.owned.includes(save.sel)) save.sel = 0;
+  if (!save.stages || typeof save.stages !== 'object') save.stages = {};
   try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ save })); } catch (e) { /* not in viewer */ }
   resize();
   makeThumbs();
@@ -2653,6 +2944,7 @@ window.__dragonCoop = () => ({ zone: curZone, mode, on: coop.on, runId: coop.run
 window.__dragonTest = {
   warp(zi) { p.courseDist = zi * ZONE_LEN - 50; p.dist = zi * ZONE_LEN - 50; p.nextMile = Math.ceil(p.dist / 100) * 100; clearPortals(); applyZone(zi, true); p.rowZone = zi; for (const o of obstacles.slice()) { scene.remove(o.mesh); if (o.shadow) scene.remove(o.shadow); } obstacles = []; },
   star() { p.star = 60; },
+  finish() { const st = curStage(); if (st) { p.courseDist = st.len - 80; p.dist = st.len - 80; } },
   near(zi) { p.courseDist = zi * ZONE_LEN - 70; p.dist = zi * ZONE_LEN - 70; p.rowZone = zi - 1; applyZone(zi - 1, false); },
 };
 window.__dragonAudio = () => ({ ctx: AC.ctx ? AC.ctx.state : 'none', music: Music.track, playing: !!Music.timer });
