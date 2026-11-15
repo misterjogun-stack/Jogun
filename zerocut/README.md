@@ -17,7 +17,7 @@
 - 소개 페이지는 `llms.txt`와 AI 검색 수집기 허용(`robots.txt`)으로 AI 검색에도 노출되게 함
 
 ## 배포 (Vercel)
-이 `zerocut` 폴더를 프로젝트 루트로 지정해 정적 사이트로 배포. 주소가 `zerocut.vercel.app`이 아니면 `index.html`의 canonical·og 주소, `robots.txt`, `sitemap.xml`의 주소를 바꿔 주세요.
+이 `zerocut` 폴더를 프로젝트 루트로 지정해 정적 사이트로 배포. 주소가 `zerocut-one.vercel.app`이 아니면 `index.html`의 canonical·og 주소, `robots.txt`, `sitemap.xml`의 주소를 바꿔 주세요.
 
 ## 검색 노출 체크리스트
 1. 네이버 서치어드바이저 · 구글 서치콘솔에 사이트 등록 → 받은 확인 코드를 `index.html` 머리말 주석 자리에 넣기

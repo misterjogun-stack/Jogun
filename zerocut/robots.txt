@@ -33,4 +33,4 @@ User-agent: Yeti
 Allow: /
 Disallow: /app/
 
-Sitemap: https://zerocut.vercel.app/sitemap.xml
+Sitemap: https://zerocut-one.vercel.app/sitemap.xml
