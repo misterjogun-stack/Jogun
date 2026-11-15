@@ -1,4 +1,4 @@
-<title>드래곤 라이더</title>
+<title>조시훈의 드래곤 라이더</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -243,12 +243,12 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 
 <canvas id="c"></canvas>
 
-<div id="loading">드래곤을 깨우는 중...</div>
+<div id="loading">시훈이의 드래곤을 깨우는 중...</div>
 
 <section id="menu" class="screen" hidden>
   <div class="menu-top">
     <div class="logo">
-      <small>가시를 피해 날아라!</small>
+      <small>조시훈의</small>
       <h1>드래곤 라이더</h1>
     </div>
     <div class="coinpill" id="menuCoinPill"><span class="ico-coin"></span><b id="menuCoins">0</b></div>
@@ -277,7 +277,7 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 
 <section id="over" class="screen center" hidden>
   <div class="panel">
-    <h2 id="overTitle">쿵! 가시에 부딪혔어요</h2>
+    <h2 id="overTitle">앗! 시훈이가 가시에 부딪혔어요</h2>
     <div class="stats">
       <div><small>날아간 거리</small><b id="oDist">0m</b></div>
       <div><small>모은 코인</small><b id="oCoins">+0</b></div>
@@ -316,7 +316,7 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
   <div class="hatch-top"><p id="hatchMsg">두근두근... 알이 움직여요!</p></div>
   <div class="spacer"></div>
   <div id="hatchReveal" class="panel reveal" hidden>
-    <small>새 드래곤이 태어났어요!</small>
+    <small>시훈이의 새 드래곤이 태어났어요!</small>
     <h2 id="hatchName"></h2>
     <div id="hatchChips" class="chips"></div>
     <div class="row"><button id="btnHatchRide" class="btn big">타고 출발!</button></div>
@@ -1103,7 +1103,7 @@ function startGame() {
   $('#btnFire').hidden = !D.fire;
   const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   let msg = touch ? '화면을 손가락으로 끌어서 드래곤을 움직여요' : '방향키나 WASD, 또는 마우스로 끌어서 움직여요';
-  msg += '<br>가시를 피하고 코인을 모아요!';
+  msg += '<br>시훈아, 가시를 피하고 코인을 모으자!';
   if (D.fire) msg += touch ? '<br>불꽃 버튼으로 가시를 부술 수 있어요' : '<br>스페이스바로 불꽃을 쏴요';
   const hint = $('#hint'); hint.innerHTML = msg; hint.hidden = false; hint.classList.remove('fade');
   clearTimeout(hintTimer);
@@ -1120,7 +1120,7 @@ function gameOver() {
   $('#oDist').textContent = dist + 'm';
   $('#oCoins').textContent = '+' + p.runCoins;
   const ob = $('#oBest');
-  if (p.newBest && dist > 0) { ob.textContent = '새로운 최고 기록이에요!'; ob.className = 'note record'; }
+  if (p.newBest && dist > 0) { ob.textContent = '시훈이 새 최고 기록이에요!'; ob.className = 'note record'; }
   else { ob.textContent = '최고 기록 ' + Math.floor(save.best) + 'm · 내 코인 ' + save.coins + '개'; ob.className = 'note'; }
   const oe = $('#oEgg');
   if (canBuyAny()) { oe.hidden = false; oe.textContent = '코인이 충분해요! 상점에서 새 드래곤 알을 살 수 있어요.'; }
