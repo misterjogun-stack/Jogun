@@ -2,6 +2,8 @@
 // 1) AI 연결(제미나이 키, 선택으로 Claude) 시: 사진을 직접 보고 씀
 // 2) 키가 없을 때: 메모와 주제로 기본 문구를 만듦 (직접 다듬어 쓰는 초안)
 
+import { brandOf } from './store.js';
+
 export const TOPICS = {
   auto:    { label: '자동 판별', tags: [] },
   hair:    { label: '헤어·뷰티', tags: ['헤어스타일', '미용실', '헤어디자이너', '머리스타그램'], hook: '이 머리, 이렇게 완성됐어요', cta: '예약·문의는 프로필 링크에서 받아요', points: ['상담에서 고민부터 체크', '모질에 맞춘 시술 설계', '디테일 커트로 라인 정리', '집에서도 쉬운 스타일링 팁'] },
@@ -31,7 +33,7 @@ function facts(memo) {
 }
 
 // ---------- 키 없이 만드는 기본 문구 ----------
-export function draftWithoutAI({ memo, topic, title, settings, stillCount, style = 'story', perspective = 'pro' }) {
+export function draftWithoutAI({ memo, topic, title, settings, stillCount, style = 'story', perspective = 'pro', speech = '' }) {
   const tp = TOPICS[topic] && topic !== 'auto' ? topic : 'daily';
   const T = TOPICS[tp];
   const f = facts(memo);
@@ -48,7 +50,7 @@ export function draftWithoutAI({ memo, topic, title, settings, stillCount, style
   const hashtags = uniq([...T.tags.map(tagify), ...memoTags, ...baseTags]).slice(0, 15);
 
   const blogBody = [
-    (settings.ownerName ? `안녕하세요, ${settings.ownerName}입니다. ` : '안녕하세요. ')
+    (brandOf(settings) ? `안녕하세요, ${brandOf(settings)}입니다. ` : '안녕하세요. ')
       + (guest
         ? end(`오늘은 "${head}"을(를) 방문한 사람 입장에서 처음부터 끝까지 정리해 볼게요.`, `오늘은 "${head}"을(를) 방문한 사람 입장에서 정리합니다.`)
         : end(`오늘은 "${head}" 이야기를 사진과 함께 정리해 볼게요.`, `오늘은 "${head}"에 대해 사진과 함께 정리합니다.`)),
@@ -60,6 +62,7 @@ export function draftWithoutAI({ memo, topic, title, settings, stillCount, style
         : end(`사진 ${Math.min(i + 1, Math.max(1, stillCount))}번째 장면을 보면 바로 느낌이 와요. 이 부분은 직접 한두 줄 덧붙여 주세요.`, `사진 ${Math.min(i + 1, Math.max(1, stillCount))}번째 장면이 이 부분입니다. 구체적인 내용을 한두 줄 덧붙여 주세요.`),
       '',
     ]),
+    ...(speech ? ['## 영상 속 설명', String(speech).slice(0, 1500), ''] : []),
     '## 마무리',
     end(`오늘 기록은 여기까지예요. ${T.cta}.`, `이상으로 정리를 마칩니다. ${T.cta}.`),
     '',
@@ -184,14 +187,14 @@ function bizFacts(s) {
   return rows.map(([k, v]) => `${k}: ${String(v).trim()}`).join('\n');
 }
 
-function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz }) {
+function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz, speech }) {
   const st = STYLES[style] || STYLES.story;
   const pl = perspectiveLabels(topic);
   const facts = useBiz ? bizFacts(settings) : '';
   const system = [
     '너는 한국어 SNS 콘텐츠 에디터다. 한 번의 촬영 소재(사진과 영상에서 뽑은 장면)를 보고, 여러 채널용 글을 한 번에 만든다.',
     '사진에서 실제로 보이는 것, 사용자의 메모, 아래 매장 정보에 있는 사실만 쓴다. 가격, 상호, 위치, 효능처럼 보이지 않는 사실은 지어내지 않는다. 필요한 곳은 [가격 입력] 같은 빈칸으로 남긴다.',
-    `말투: ${TONES[settings.tone] || TONES.friendly}. 계정 이름: ${settings.brandName || ''} ${settings.handle || ''}.`,
+    `말투: ${TONES[settings.tone] || TONES.friendly}. 매장·계정 이름: ${brandOf(settings)} ${settings.handle || ''}. 글쓴이의 개인 이름은 쓰지 않는다.`,
     `글 스타일: ${st.label} — ${st.rule}`,
     perspective === 'guest'
       ? `시점: ${pl.guest}. 방문한 사람의 경험 흐름(찾아가기→상담·주문→과정→결과)과 처음 오는 사람이 궁금해할 점 중심으로 쓴다. 실제 고객의 말, 별점, 이름을 지어내지 않는다.`
@@ -205,7 +208,7 @@ function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz 
     '- youtube: 가로 영상 제목(40자 이내)과 설명(문단 + 해시태그 3~5개).',
     '- tiktok: 짧은 캡션과 해시태그 5~6개.',
     '- article: 구글 블로그(블로거)용 글. 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티·구글 AI 요약 같은 AI 검색(GEO)에 인용되기 좋게 쓴다.',
-    '  · focusKeyword: 사람들이 실제로 검색할 2~4단어 핵심 검색어 하나(예: "광주 상무지구 미용실 추천"). 매장 주소가 있으면 동네 이름을 넣는다.',
+    '  · focusKeyword: 사람들이 실제로 검색할 2~4단어 핵심 검색어 하나(예: "광주 수완지구 미용실 추천"). 매장 주소가 있으면 동네 이름을 넣는다.',
     '  · seoTitle: 60자 이내, 핵심 검색어를 앞쪽에. slug: 영어 소문자와 하이픈 3~6단어.',
     '  · metaDescription: 80~150자, 핵심 검색어 포함, 클릭하고 싶게.',
     '  · summary: 글 맨 앞에 둘 2~3문장 요약 답변. 질문에 바로 답하는 문장으로 시작하고 핵심 검색어와 구체적 사실(숫자·장소·이름)을 담는다.',
@@ -220,6 +223,7 @@ function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz 
     topic && topic !== 'auto' ? `주제: ${TOPICS[topic].label}` : '주제: 사진을 보고 판단',
     settings.baseTags ? `항상 넣을 해시태그: ${settings.baseTags}` : '',
     facts ? `매장 정보(사실로 써도 됨):\n${facts}` : '',
+    speech ? `영상 속에서 직접 한 말(받아쓰기, 사실로 써도 됨. 설명한 표현을 살려서 글과 자막에 써 줘):\n${String(speech).slice(0, 5000)}` : '',
   ].filter(Boolean).join('\n');
   return { system, userText };
 }
@@ -267,8 +271,8 @@ async function geminiError(r) {
   return new Error(`제미나이 오류 (${r.status}) ${msg}`.trim());
 }
 
-async function draftWithGemini({ memo, topic, title, settings, images, onStatus, style, perspective, useBiz }) {
-  const { system, userText } = buildPrompt({ memo, topic, title, settings, style, perspective, useBiz });
+async function draftWithGemini({ memo, topic, title, settings, images, onStatus, style, perspective, useBiz, speech }) {
+  const { system, userText } = buildPrompt({ memo, topic, title, settings, style, perspective, useBiz, speech });
   const parts = [];
   images.slice(0, 6).forEach((b64, i) => {
     parts.push({ text: `장면 ${i + 1}` });
@@ -298,6 +302,43 @@ async function draftWithGemini({ memo, topic, title, settings, images, onStatus,
   if (c.finishReason && !['STOP', 'FINISH_REASON_UNSPECIFIED'].includes(c.finishReason)) throw new Error('제미나이가 이 소재로는 글을 쓰지 않았어요. 기본 문구로 만들어 드릴게요.');
   const text = ((c.content && c.content.parts) || []).filter((p) => p.text && !p.thought).map((p) => p.text).join('');
   return JSON.parse(text);
+}
+
+const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+  const fr = new FileReader();
+  fr.onload = () => resolve(String(fr.result).split(',')[1]);
+  fr.onerror = () => reject(new Error('파일을 읽지 못했어요'));
+  fr.readAsDataURL(blob);
+});
+
+/** 제미나이 받아쓰기: WAV를 보내 [{start, end, text}]를 받는다 (초 단위) */
+export async function geminiTranscribe({ key, model = 'gemini-flash-latest', wav }) {
+  const schema = {
+    type: 'object',
+    properties: { segments: { type: 'array', items: { type: 'object', properties: { start: { type: 'number' }, end: { type: 'number' }, text: { type: 'string' } }, required: ['start', 'end', 'text'] } } },
+    required: ['segments'],
+  };
+  let r;
+  try {
+    r = await fetch(`${GEMINI_API}/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key.trim() },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [
+          { inlineData: { mimeType: 'audio/wav', data: await blobToBase64(wav) } },
+          { text: '이 오디오에서 사람이 한 한국어 말을 들리는 그대로 받아 적어 줘. 고치거나 요약하지 말고, 문장 단위로 나눠 각 문장의 시작·끝 시간(초)을 적어. 음악이나 잡음만 있으면 segments를 빈 배열로.' },
+        ] }],
+        generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema },
+      }),
+    });
+  } catch (e) { throw new Error('인터넷 연결을 확인해 주세요.'); }
+  if (!r.ok) throw await geminiError(r);
+  const j = await r.json();
+  const c = (j.candidates || [])[0];
+  const text = ((c && c.content && c.content.parts) || []).filter((p) => p.text && !p.thought).map((p) => p.text).join('');
+  if (!text) return [];
+  const out = JSON.parse(text);
+  return (out.segments || []).filter((x) => x.text && x.text.trim()).map((x) => ({ start: Math.max(0, +x.start || 0), end: Math.max(+x.end || 0, (+x.start || 0) + 0.5), text: x.text.trim() }));
 }
 
 /** 제미나이 목소리(TTS). WAV Blob을 돌려준다 */
@@ -336,11 +377,11 @@ function pcmToWav(pcm, rate, ch = 1) {
 }
 
 // ----- Claude (선택) -----
-async function draftWithClaude({ memo, topic, title, settings, images, onStatus, style, perspective, useBiz }) {
+async function draftWithClaude({ memo, topic, title, settings, images, onStatus, style, perspective, useBiz, speech }) {
   onStatus && onStatus('AI 연결 중');
   const { default: Anthropic } = await import(/* webpackIgnore: true */ SDK_URL);
   const client = new Anthropic({ apiKey: settings.claudeKey, dangerouslyAllowBrowser: true });
-  const { system, userText } = buildPrompt({ memo, topic, title, settings, style, perspective, useBiz });
+  const { system, userText } = buildPrompt({ memo, topic, title, settings, style, perspective, useBiz, speech });
   const content = [];
   images.slice(0, 6).forEach((b64, i) => {
     content.push({ type: 'text', text: `장면 ${i + 1}` });

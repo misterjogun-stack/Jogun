@@ -76,8 +76,7 @@ export function forgetUrl(id) {
 // ---------- 설정 ----------
 const SKEY = 'zerocut_settings';
 export const DEFAULT_SETTINGS = {
-  ownerName: '조군',
-  brandName: 'ZEROCUT',
+  brandName: '',
   handle: '@my_account',
   tone: 'friendly', // friendly | pro | emotional | witty
   baseTags: '',
@@ -101,6 +100,7 @@ export const DEFAULT_SETTINGS = {
   claudeKey: '',
   elevenKey: '',
   elevenVoice: '',
+  voiceEngine: 'gemini', // gemini | eleven(내 목소리)
   googleClientId: '',
   bloggerBlogId: '',
   bloggerBlogName: '',
@@ -109,6 +109,9 @@ export const DEFAULT_SETTINGS = {
 export function loadSettings() {
   try {
     const raw = JSON.parse(localStorage.getItem(SKEY) || '{}');
+    // 예전 기본값(개인 이름 · ZEROCUT)은 지우고 매장 이름을 쓰게 한다
+    delete raw.ownerName;
+    if (raw.brandName === 'ZEROCUT') raw.brandName = '';
     return { ...DEFAULT_SETTINGS, ...raw };
   } catch (e) {
     return { ...DEFAULT_SETTINGS };
@@ -119,3 +122,6 @@ export function saveSettings(s) {
 }
 
 export const uid = (p = 'id') => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+/** 글 · 영상 · 카드에 쓰는 이름: 브랜드 이름 → 상호 순서 (개인 이름은 쓰지 않음) */
+export const brandOf = (s) => String((s && (s.brandName || s.bizName)) || '').trim();

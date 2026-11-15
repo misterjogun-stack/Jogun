@@ -85,5 +85,12 @@ export async function createBlogPost({ blogId, title, content, labels, draft = t
   return { id: post.id, url: post.url, status: post.status || (draft ? 'DRAFT' : 'LIVE'), blogId };
 }
 
+/** 임시저장 글을 정해진 시각에 발행되도록 예약 (구글 서버가 그 시각에 올림) */
+export async function scheduleBlogPost({ blogId, postId, when }) {
+  const iso = new Date(when).toISOString();
+  const post = await call(`/blogs/${encodeURIComponent(blogId)}/posts/${encodeURIComponent(postId)}/publish?publishDate=${encodeURIComponent(iso)}`, { method: 'POST' });
+  return { id: post.id || postId, url: post.url, status: post.status || 'SCHEDULED', blogId, scheduledAt: iso };
+}
+
 /** 블로거 편집 화면 주소 */
 export const bloggerEditUrl = (blogId, postId) => `https://www.blogger.com/blog/post/edit/${blogId}/${postId}`;

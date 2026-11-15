@@ -1,6 +1,7 @@
 // 숏폼·유튜브 영상 자동 편집: 장면 고르기 → 컷 편집 → 모션그래픽(훅 타이틀·자막·진행바·전환·엔딩) → 소리(원본·목소리·배경음악) → 녹화
 import { FONT, NUM_FONT, ensureFonts, wrapText } from './cards.js';
 import { pickSegments } from './media.js';
+import { brandOf } from './store.js';
 
 export const ASPECTS = {
   '9:16': { w: 1080, h: 1920, label: '릴스·쇼츠·틱톡 (세로)' },
@@ -36,7 +37,7 @@ export function pickMime() {
  * sources: [{kind:'video', url, analysis}|{kind:'image', url}]
  * 반환: { total, segs:[{kind,url,in,out,start,dur,kb}], hook, lines:[{text,start,end}], outroStart }
  */
-export function buildPlan({ sources, copy, targetSec = 30, voiceSec = 0, aspect = '9:16' }) {
+export function buildPlan({ sources, copy, targetSec = 30, voiceSec = 0, aspect = '9:16', captionMode = 'summary' }) {
   const outroLen = 2.2;
   const total = Math.min(90, Math.max(8, voiceSec ? voiceSec + 1.6 : targetSec));
   const bodyLen = total - outroLen;
@@ -49,7 +50,7 @@ export function buildPlan({ sources, copy, targetSec = 30, voiceSec = 0, aspect 
   const perVideo = videos.length ? Math.max(1, Math.ceil(need / videos.length)) : 0;
   let vsegs = [];
   videos.forEach((v) => {
-    pickSegments(v.analysis, perVideo, segLen).forEach((s) => vsegs.push({ kind: 'video', url: v.url, in: s.in, out: s.out }));
+    pickSegments(v.analysis, perVideo, segLen).forEach((s) => vsegs.push({ kind: 'video', url: v.url, in: s.in, out: s.out, transcript: v.transcript }));
   });
   let pool = [...vsegs];
   let ii = 0;
@@ -93,7 +94,19 @@ export function buildPlan({ sources, copy, targetSec = 30, voiceSec = 0, aspect 
   const hookEnd = Math.min(2.6, bodyLen * 0.25);
   const lineTexts = (copy.lines || []).filter(Boolean);
   const per = lineTexts.length ? (bodyLen - hookEnd) / lineTexts.length : 0;
-  const lines = lineTexts.map((text, i) => ({ text, start: hookEnd + i * per + 0.1, end: hookEnd + (i + 1) * per - 0.05 }));
+  let lines = lineTexts.map((text, i) => ({ text, start: hookEnd + i * per + 0.1, end: hookEnd + (i + 1) * per - 0.05 }));
+  // '말한 그대로' 자막: 각 영상 구간에서 실제로 한 말을 그 시간에 맞춰 띄운다
+  if (captionMode === 'speech') {
+    const spoken = [];
+    segs.filter((sg) => !sg.outro && sg.kind === 'video' && sg.transcript && sg.transcript.length).forEach((sg) => {
+      sg.transcript.forEach((ts) => {
+        const a = Math.max(ts.start, sg.in), b = Math.min(ts.end, sg.out);
+        if (b - a < 0.4) return;
+        spoken.push({ text: ts.text, start: sg.start + (a - sg.in), end: sg.start + (b - sg.in) });
+      });
+    });
+    if (spoken.length) lines = spoken;
+  }
   return { total, segs, hook: copy.hook || '', hookEnd, keyword: copy.keyword || '', lines, outroStart: bodyLen, aspect };
 }
 
@@ -149,7 +162,7 @@ export class Composer {
 
   async prepare(onProgress) {
     const p = this.plan;
-    await ensureFonts([p.hook, ...p.lines.map((l) => l.text), this.settings.brandName, this.settings.handle].join(' '));
+    await ensureFonts([p.hook, ...p.lines.map((l) => l.text), brandOf(this.settings), this.settings.handle].join(' '));
     const imgCache = new Map();
     let done = 0;
     for (let i = 0; i < p.segs.length; i++) {
@@ -352,7 +365,7 @@ export class Composer {
     ctx.font = `700 ${size}px ${FONT}`;
     ctx.fillStyle = '#FFFFFF';
     ctx.textBaseline = 'top';
-    ctx.fillText(settings.handle || settings.brandName || '', 60, (H > W ? 110 : 60));
+    ctx.fillText(settings.handle || brandOf(settings), 60, (H > W ? 110 : 60));
     ctx.textBaseline = 'alphabetic';
     ctx.globalAlpha = 1;
   }
@@ -466,7 +479,7 @@ export class Composer {
       ctx.fillStyle = '#05070D'; rr(ctx, -size / 2, -size / 2, size, size, size * 0.26); ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 3; ctx.stroke();
       ctx.font = `800 ${size * 0.56}px ${NUM_FONT}`; ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText((settings.brandName || 'Z').trim().charAt(0).toUpperCase(), 0, size * 0.03);
+      ctx.fillText((brandOf(settings) || String(settings.handle || '').replace('@', '') || 'Z').trim().charAt(0).toUpperCase(), 0, size * 0.03);
       // 대각선 컷 라인
       ctx.strokeStyle = this.accent; ctx.lineWidth = size * 0.06; ctx.lineCap = 'round';
       const cut = easeInOut(clamp((u - 0.45) / 0.35));
@@ -475,7 +488,7 @@ export class Composer {
     }
     ctx.textAlign = 'center';
     // 브랜드 이름: 글자가 하나씩
-    const name = settings.brandName || 'ZEROCUT';
+    const name = brandOf(settings) || settings.handle || '';
     const fs = portrait ? 76 : 64;
     ctx.font = `800 ${fs}px ${NUM_FONT}`;
     const shown = Math.floor(clamp((u - 0.5) / 0.6) * name.length);
@@ -535,6 +548,26 @@ export async function elevenTTS({ key, voiceId, text }) {
   if (r.status === 401) throw new Error('ElevenLabs 키가 맞지 않습니다');
   if (!r.ok) throw new Error(`AI 목소리를 만들지 못했습니다 (${r.status})`);
   return r.blob();
+}
+
+/** ElevenLabs 즉시 목소리 복제: 내 목소리 녹음 파일로 목소리를 만들고 voice_id를 돌려준다 */
+export async function elevenCloneVoice({ key, name, files }) {
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('description', 'ZEROCUT에서 만든 내 목소리');
+  fd.append('remove_background_noise', 'true');
+  files.forEach((f, i) => fd.append('files', f, f.name || `sample-${i + 1}.webm`));
+  let r;
+  try { r = await fetch('https://api.elevenlabs.io/v1/voices/add', { method: 'POST', headers: { 'xi-api-key': key }, body: fd }); }
+  catch (e) { throw new Error('ElevenLabs에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.'); }
+  if (r.status === 401) throw new Error('ElevenLabs 키가 맞지 않습니다');
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    const msg = (j.detail && (j.detail.message || j.detail)) || r.status;
+    throw new Error(`내 목소리를 만들지 못했어요: ${typeof msg === 'string' ? msg : r.status}. 목소리 복제는 ElevenLabs 유료 요금제가 필요할 수 있어요.`);
+  }
+  const j = await r.json();
+  return { id: j.voice_id, needsVerification: !!j.requires_verification };
 }
 
 export async function audioDuration(blob) {

@@ -1,5 +1,7 @@
 // 카드뉴스: 1080×1350(인스타 4:5) 이미지를 캔버스로 그린다.
 
+import { brandOf } from './store.js';
+
 export const CARD_W = 1080;
 export const CARD_H = 1350;
 
@@ -91,7 +93,7 @@ function footer(ctx, th, settings, index, total, onPhoto) {
   ctx.font = `600 28px ${FONT}`;
   ctx.fillStyle = onPhoto ? 'rgba(255,255,255,0.85)' : th.sub;
   ctx.textAlign = 'left';
-  ctx.fillText(settings.handle || settings.brandName || '', 72, CARD_H - 64);
+  ctx.fillText(settings.handle || brandOf(settings), 72, CARD_H - 64);
   ctx.textAlign = 'right';
   ctx.font = `700 28px ${NUM_FONT}`;
   ctx.fillText(`${index + 1} / ${total}`, CARD_W - 72, CARD_H - 64);
@@ -109,7 +111,7 @@ export function drawCard(canvas, { card, img, index, total, theme = 'navy', sett
   if (isCover && layout === 'minimal') {
     ctx.fillStyle = th.bg; ctx.fillRect(0, 0, CARD_W, CARD_H);
     if (img) { ctx.save(); roundRect(ctx, 72, 72, CARD_W - 144, 700, 32); ctx.clip(); cover(ctx, img, 72, 72, CARD_W - 144, 700); ctx.restore(); }
-    chip(ctx, topicLabel || settings.brandName || 'ZEROCUT', 72, img ? 820 : 300, th);
+    chip(ctx, topicLabel || brandOf(settings) || '오늘의 기록', 72, img ? 820 : 300, th);
     ctx.fillStyle = th.ink; ctx.font = `800 80px ${FONT}`;
     const y = drawLines(ctx, wrapText(ctx, card.title, CARD_W - 144), 72, (img ? 820 : 300) + 150, 96, 3);
     ctx.fillStyle = th.sub; ctx.font = `500 38px ${FONT}`;
@@ -132,7 +134,7 @@ export function drawCard(canvas, { card, img, index, total, theme = 'navy', sett
     ctx.font = `500 38px ${FONT}`;
     const bl = wrapText(ctx, card.body, CARD_W - 144).slice(0, 2);
     let y = CARD_H - 150 - bl.length * 54 - 36 - tl.length * 110;
-    chip(ctx, topicLabel || settings.brandName || 'ZEROCUT', 72, y - 176, img ? { chip: 'rgba(255,255,255,0.16)', chipInk: '#FFFFFF' } : th);
+    chip(ctx, topicLabel || brandOf(settings) || '오늘의 기록', 72, y - 176, img ? { chip: 'rgba(255,255,255,0.16)', chipInk: '#FFFFFF' } : th);
     ctx.fillStyle = ink; ctx.font = `800 92px ${FONT}`;
     y = drawLines(ctx, tl, 72, y, 110);
     // 강조 밑줄

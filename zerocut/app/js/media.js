@@ -178,3 +178,35 @@ export function pickSegments(analysis, count, segLen) {
   }
   return out.sort((a, b) => a.start - b.start).map((o) => ({ in: +o.start.toFixed(2), out: +(o.start + len).toFixed(2) }));
 }
+
+/**
+ * 영상(또는 음성) 파일에서 말소리를 뽑아 16kHz 모노 WAV로 만든다 (받아쓰기용).
+ * 소리가 거의 없으면 null. 너무 길면 앞부분 maxSec초만.
+ */
+export async function extractSpeechAudio(blob, maxSec = 600) {
+  if (blob.size > 400e6) throw new Error('영상이 너무 커서 받아쓰기를 건너뛰었어요 (400MB 이하만)');
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ac = new AC();
+  let buf;
+  try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); }
+  catch (e) { throw new Error('이 영상의 소리를 읽지 못했어요'); }
+  finally { ac.close && ac.close(); }
+  const dur = Math.min(buf.duration, maxSec);
+  const rate = 16000;
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(dur * rate)), rate);
+  const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start(0);
+  const out = await off.startRendering();
+  const data = out.getChannelData(0);
+  let peak = 0;
+  for (let i = 0; i < data.length; i += 8) { const v = Math.abs(data[i]); if (v > peak) peak = v; }
+  if (peak < 0.01) return null;
+  const pcm = new DataView(new ArrayBuffer(data.length * 2));
+  for (let i = 0; i < data.length; i++) { const v = Math.max(-1, Math.min(1, data[i] / Math.max(peak, 0.3))); pcm.setInt16(i * 2, v * 0x7fff, true); }
+  const h = new DataView(new ArrayBuffer(44));
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) h.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); h.setUint32(4, 36 + pcm.byteLength, true); w(8, 'WAVE'); w(12, 'fmt ');
+  h.setUint32(16, 16, true); h.setUint16(20, 1, true); h.setUint16(22, 1, true); h.setUint32(24, rate, true);
+  h.setUint32(28, rate * 2, true); h.setUint16(32, 2, true); h.setUint16(34, 16, true);
+  w(36, 'data'); h.setUint32(40, pcm.byteLength, true);
+  return { blob: new Blob([h.buffer, pcm.buffer], { type: 'audio/wav' }), duration: buf.duration, truncated: buf.duration > maxSec };
+}

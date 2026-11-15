@@ -1,10 +1,11 @@
 // ZEROCUT 앱 본체: 화면 그리기 · 이동 · 작업 처리
-import { db, blobUrl, forgetUrl, loadSettings, saveSettings, uid } from './store.js';
-import { analyzeVideo, analyzePhoto, grabFrame, smallJpegBase64, thumbDataUrl } from './media.js';
-import { TOPICS, TONES, STYLES, perspectiveLabels, GEMINI_MODELS, GEMINI_VOICES, geminiTTS, draftWithoutAI, draftWithAI, ensureArticle, seoCheck, articleHtml } from './writer.js';
-import { prepareGoogle, googleToken, listBlogs, createBlogPost, bloggerEditUrl } from './blogger.js';
+import { db, blobUrl, forgetUrl, loadSettings, saveSettings, uid, brandOf } from './store.js';
+import { analyzeVideo, analyzePhoto, grabFrame, smallJpegBase64, thumbDataUrl, extractSpeechAudio } from './media.js';
+import { exportBackup, importBackup } from './backup.js';
+import { TOPICS, TONES, STYLES, perspectiveLabels, GEMINI_MODELS, GEMINI_VOICES, geminiTTS, geminiTranscribe, draftWithoutAI, draftWithAI, ensureArticle, seoCheck, articleHtml } from './writer.js';
+import { prepareGoogle, googleToken, listBlogs, createBlogPost, scheduleBlogPost, bloggerEditUrl } from './blogger.js';
 import { CARD_THEMES, CARD_LAYOUTS, drawCard, ensureFonts, canvasBlob } from './cards.js';
-import { ASPECTS, MOTION_STYLES, Composer, buildPlan, recordMic, listElevenVoices, elevenTTS, audioDuration, pickMime } from './motion.js';
+import { ASPECTS, MOTION_STYLES, Composer, buildPlan, recordMic, listElevenVoices, elevenTTS, elevenCloneVoice, audioDuration, pickMime } from './motion.js';
 
 const root = document.getElementById('app');
 let settings = loadSettings();
@@ -90,7 +91,7 @@ function loadJSZip() {
   if (window.JSZip) return Promise.resolve(window.JSZip);
   if (!jszipP) jszipP = new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.src = new URL('../vendor/jszip-3.10.1.min.js', import.meta.url).href;
     s.onload = () => res(window.JSZip); s.onerror = () => { jszipP = null; rej(new Error('압축 도구를 못 불러왔어요')); };
     document.head.appendChild(s);
   });
@@ -126,7 +127,32 @@ function saveSoon(job) {
 
 const hasAI = () => !!(settings.geminiKey || settings.claudeKey);
 const hasBiz = () => !!(settings.bizName && settings.bizName.trim());
-const voiceReady = () => !!(settings.geminiKey || (settings.elevenKey && settings.elevenVoice));
+const elevenReady = () => !!(settings.elevenKey && settings.elevenVoice);
+const voiceEngine = () => (settings.voiceEngine === 'eleven' && elevenReady() ? 'eleven' : settings.geminiKey ? 'gemini' : elevenReady() ? 'eleven' : null);
+const voiceReady = () => !!voiceEngine();
+const hasSpeech = (job) => (job.media || []).some((m) => m.transcript && m.transcript.length);
+const speechText = (job) => (job.media || []).filter((m) => m.transcript && m.transcript.length).map((m) => m.transcript.map((t) => t.text).join(' ')).join('\n');
+const pad2 = (n) => String(n).padStart(2, '0');
+const localInput = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+const tomorrowAt = (h) => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(h, 0, 0, 0); return localInput(d); };
+const fmtWhen = (t) => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+
+// 영상 말소리 받아쓰기 (제미나이)
+async function transcribeJob(job, onProgress) {
+  const vids = job.media.filter((m) => m.kind === 'video' && !m.missing);
+  let n = 0;
+  for (const m of vids) {
+    try {
+      const blob = await db.getBlob(m.id);
+      if (!blob) continue;
+      const ex = await extractSpeechAudio(blob);
+      m.transcript = ex ? await geminiTranscribe({ key: settings.geminiKey, model: settings.geminiModel || 'gemini-flash-latest', wav: ex.blob }) : [];
+      m.transcriptTruncated = !!(ex && ex.truncated);
+      m.transcriptError = '';
+    } catch (e) { m.transcriptError = e.message || '받아쓰기 실패'; }
+    onProgress && onProgress(++n / vids.length);
+  }
+}
 
 // 매장 정보를 블로그 · 인스타 글 끝에 붙이기
 function applyBiz(copy) {
@@ -155,7 +181,7 @@ function channelState(job, ch) {
   if (!job.copy) return 'wait';
   if (['reels', 'shorts', 'tiktok'].includes(ch.key)) return job.outputs && job.outputs.short ? 'ready' : 'wait';
   if (ch.key === 'youtube') return job.outputs && job.outputs.youtube ? 'ready' : 'wait';
-  if (ch.key === 'blogger' && job.blogger && job.blogger.status === 'LIVE') return 'posted';
+  if (ch.key === 'blogger' && job.blogger && ['LIVE', 'SCHEDULED'].includes(job.blogger.status)) return 'posted';
   return 'ready';
 }
 function jobProgress(job) {
@@ -180,13 +206,13 @@ const NAV = [
 ];
 
 function shell(active, inner) {
-  const name = esc(settings.ownerName || '사용자');
+  const name = esc(brandOf(settings) || '내 매장');
   return `
   <div class="shell">
     <aside class="side" aria-label="메뉴">
       <a class="brand" href="#/"><span class="mark">${markSvg()}</span><span class="wordmark"><b>ZERO</b><i>CUT</i></span></a>
       <nav>${NAV.map((n) => `<a href="${n.href}" class="${active === n.key ? 'on' : ''}">${icon(n.icon)}${n.label}</a>`).join('')}</nav>
-      <div class="me"><span class="avatar">${esc((settings.ownerName || 'Z').charAt(0))}</span><div><b>${name}님</b><small>${esc(settings.handle || '')}</small></div></div>
+      <div class="me"><span class="avatar">${esc((brandOf(settings) || 'Z').charAt(0))}</span><div><b>${name}</b><small>${esc(settings.handle || '')}</small></div></div>
     </aside>
     <main class="main" id="main"><div class="page">${inner}</div></main>
     <nav class="tabbar" aria-label="아래 메뉴">
@@ -230,6 +256,19 @@ function jobRows(list, numbered = false) {
     }).join('')}</tbody></table></div>`;
 }
 
+function upcomingCard() {
+  const now = Date.now();
+  const items = [];
+  jobs.forEach((j) => {
+    if (j.blogger && j.blogger.status === 'SCHEDULED' && new Date(j.blogger.scheduledAt).getTime() > now - 3600e3) items.push({ at: new Date(j.blogger.scheduledAt).getTime(), job: j, what: '구글 블로그 자동 발행' });
+    if (j.reminder && j.reminder.at > now - 3600e3) items.push({ at: j.reminder.at, job: j, what: 'SNS 게시 알림' });
+  });
+  if (!items.length) return '';
+  items.sort((a, b) => a.at - b.at);
+  return `<section class="card"><div class="card-head"><h3>⏰ 예정된 게시</h3></div>
+    <div class="channels">${items.slice(0, 6).map((it) => `<a class="ch" href="#/job/${it.job.id}/publish"><span class="ico blue">${icon('clock')}</span><div class="txt"><b>${fmtWhen(it.at)} · ${esc(it.what)}</b><small>${esc(it.job.title)}</small></div></a>`).join('')}</div></section>`;
+}
+
 function viewHome() {
   const outputs = jobs.reduce((a, j) => a + (j.stills || []).length + (j.copy ? (j.copy.cards || []).length + 5 : 0) + Object.keys(j.outputs || {}).length, 0);
   let posted = 0, ready = 0, wait = 0;
@@ -268,6 +307,7 @@ function viewHome() {
         </div>
       </section>
     </div>
+    ${upcomingCard()}
     <section>
       <h3 style="font-size:16px;font-weight:800;margin-bottom:10px">빠른 메뉴</h3>
       <div class="quick">
@@ -281,7 +321,7 @@ function viewHome() {
 }
 
 // ---------- 새 작업 ----------
-const draft = { files: [], memo: '', title: '', topic: 'auto', style: '', perspective: 'pro', useBiz: true };
+const draft = { files: [], memo: '', title: '', topic: 'auto', style: '', perspective: 'pro', useBiz: true, transcribe: true };
 function draftThumbs() {
   return draft.files.map((f, i) => `<div class="thumb">${f.kind === 'video' ? `<video src="${f.url}#t=0.5" muted playsinline preload="metadata"></video>` : `<img src="${f.url}" alt="" />`}
     <span class="badge">${f.kind === 'video' ? '영상' : '사진'}</span><button class="x" data-act="draft-remove" data-i="${i}" aria-label="빼기">${icon('x')}</button></div>`).join('');
@@ -303,12 +343,13 @@ function viewNew() {
         </label>
         ${draft.files.length ? `<div><div class="card-head" style="margin-bottom:8px"><h3>올린 소재 ${draft.files.length}개</h3><div class="right"><span class="sub num" style="font-size:13px">${fmtMB(size)}</span></div></div><div class="thumbs">${draftThumbs()}</div></div>` : ''}
         <label class="field"><span>메모 한 줄 (선택)</span>
-          <textarea class="textarea" data-draft="memo" rows="3" placeholder="예) 광주 동명동 ○○카페, 라떼 6천원, 웨이팅 20분 / 레이어드컷, 손상모, 클리닉 같이">${esc(draft.memo)}</textarea>
+          <textarea class="textarea" data-draft="memo" rows="3" placeholder="예) 광주 수완지구 ○○카페, 라떼 6천원, 웨이팅 20분 / 레이어드컷, 손상모, 클리닉 같이">${esc(draft.memo)}</textarea>
           <span class="hint">사실 정보(가격·장소·시술명)를 적으면 글에 그대로 넣고, 없는 내용은 지어내지 않아요.</span></label>
         <label class="field"><span>제목 (선택)</span><input class="input" data-draft="title" value="${esc(draft.title)}" placeholder="비워 두면 자동으로 지어요" /></label>
         <div class="field"><span>글 스타일 (취향)</span><div class="chips">${Object.entries(STYLES).map(([k, v]) => `<button type="button" class="${style === k ? 'on' : ''}" data-act="draft-style" data-v="${k}" title="${v.desc}">${v.label}</button>`).join('')}</div><span class="hint">${esc(STYLES[style].desc)}</span></div>
         <div class="field"><span>누구 입장에서 쓸까요?</span><div class="seg"><button type="button" class="${draft.perspective !== 'guest' ? 'on' : ''}" data-act="draft-persp" data-v="pro">${pl.pro}</button><button type="button" class="${draft.perspective === 'guest' ? 'on' : ''}" data-act="draft-persp" data-v="guest">${pl.guest}</button></div>
           ${draft.perspective === 'guest' && hasBiz() ? `<span class="hint">매장 계정에서 고객인 것처럼 후기를 쓰면 거짓 후기가 될 수 있어요. 고객이 겪는 과정을 안내하는 글로 쓰거나, 고객님께 초안으로 전달해 직접 올리시게 해 주세요.</span>` : ''}</div>
+        ${settings.geminiKey && draft.files.some((f) => f.kind === 'video') ? `<label class="field" style="display:flex;gap:10px;align-items:center;flex-direction:row"><input type="checkbox" data-draft-check="transcribe" ${draft.transcribe ? 'checked' : ''} style="width:20px;height:20px" /><span style="color:var(--ink);font-weight:600">영상 속 말소리 받아쓰기 (시술하며 설명한 말을 글·자막에 그대로)</span></label>` : ''}
         ${hasBiz() ? `<label class="field" style="display:flex;gap:10px;align-items:center;flex-direction:row"><input type="checkbox" data-draft-check="useBiz" ${draft.useBiz ? 'checked' : ''} style="width:20px;height:20px" /><span style="color:var(--ink);font-weight:600">매장 정보 넣기 (${esc(settings.bizName)} · 주소 · 예약 링크)</span></label>` : ''}
         <div class="field"><span>주제</span><div class="chips">${Object.entries(TOPICS).filter(([k]) => hasKey || k !== 'auto').map(([k, t]) => `<button type="button" class="${(draft.topic === k || (!hasKey && draft.topic === 'auto' && k === 'daily')) ? 'on' : ''}" data-act="draft-topic" data-v="${k}">${t.label}</button>`).join('')}</div></div>
       </section>
@@ -337,6 +378,7 @@ function addFiles(list) {
 const STEPS = [
   ['save', '소재 저장', '이 기기에만 보관해요'],
   ['analyze', '장면 분석 · 이미지 변환', '선명하고 잘 나온 장면을 고릅니다'],
+  ['speech', '말소리 받아쓰기', '영상 속 설명을 글자로 옮깁니다'],
   ['write', '글 쓰기', '블로그 · 인스타 · 스레드 · 카드뉴스 · 자막'],
   ['done', '정리', '바로 쓸 수 있게 묶어 둡니다'],
 ];
@@ -350,11 +392,11 @@ function viewProcessing() {
 }
 function setStep(key, state, pct) {
   const el = document.getElementById('st-' + key); if (!el) return;
-  el.classList.toggle('run', state === 'run'); el.classList.toggle('done', state === 'done');
+  el.classList.toggle('run', state === 'run'); el.classList.toggle('done', state === 'done' || state === 'skip');
   const st = el.querySelector('.st');
   st.innerHTML = state === 'run' ? '<span class="spin"></span>' : icon('check');
   const p = document.getElementById('pct-' + key);
-  if (p) p.textContent = pct != null ? `${Math.round(pct * 100)}%` : '';
+  if (p) p.textContent = state === 'skip' ? '건너뜀' : pct != null ? `${Math.round(pct * 100)}%` : '';
 }
 
 let processing = false;
@@ -419,6 +461,11 @@ async function startJob() {
     job.short.voice = videos.length ? 'original' : 'none';
     job.youtube.voice = job.short.voice;
     setStep('analyze', 'done');
+    if (settings.geminiKey && draft.transcribe && videos.length) {
+      setStep('speech', 'run', 0);
+      await transcribeJob(job, (q) => setStep('speech', 'run', q));
+      setStep('speech', 'done');
+    } else setStep('speech', 'skip');
     // 3) 글
     setStep('write', 'run');
     const msg = document.getElementById('proc-msg');
@@ -435,7 +482,7 @@ async function startJob() {
     jobs.unshift(job);
     setStep('done', 'done');
     draft.files.forEach((f) => URL.revokeObjectURL(f.url));
-    draft.files = []; draft.memo = ''; draft.title = ''; draft.topic = 'auto'; draft.style = ''; draft.perspective = 'pro'; draft.useBiz = true;
+    draft.files = []; draft.memo = ''; draft.title = ''; draft.topic = 'auto'; draft.style = ''; draft.perspective = 'pro'; draft.useBiz = true; draft.transcribe = true;
     processing = false;
     location.hash = `#/job/${job.id}/images`;
     toast('다 만들었어요');
@@ -451,7 +498,7 @@ async function startJob() {
 
 // 글 쓰기 (새 작업 · 다시 쓰기 공통)
 async function writeCopy(job, onStatus) {
-  const args = { memo: job.memo, topic: job.topic, title: job.title, settings, stillCount: job.stills.length, style: job.style, perspective: job.perspective, useBiz: job.useBiz };
+  const args = { memo: job.memo, topic: job.topic, title: job.title, settings, stillCount: job.stills.length, style: job.style, perspective: job.perspective, useBiz: job.useBiz, speech: speechText(job) };
   job.copyNotice = '';
   if (hasAI()) {
     try {
@@ -523,19 +570,18 @@ function viewSettings() {
     <div class="grid g2">
       <section class="card" style="display:grid;gap:14px;align-content:start">
         <h3>계정 · 브랜드</h3>
-        ${fld('ownerName', '내 이름', '조군')}
-        ${fld('brandName', '브랜드 이름 (영상 엔딩 · 카드에 표시)', 'ZEROCUT')}
-        ${fld('handle', '계정 아이디', '@my_account')}
+        ${fld('brandName', '브랜드 이름 (영상 엔딩 · 카드 · 글 인사말에 표시)', '00헤어', 'text', '개인 이름 대신 매장·브랜드 이름으로 나가요. 비우면 상호를 써요.')}
+        ${fld('handle', '계정 아이디', '@00hair')}
         <label class="field"><span>말투</span><select class="select" data-set="tone">${Object.entries(TONES).map(([k, v]) => `<option value="${k}" ${s.tone === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-        ${fld('baseTags', '항상 넣을 해시태그', '#광주미용실 #내브랜드', 'text', '띄어쓰기로 구분해요')}
+        ${fld('baseTags', '항상 넣을 해시태그', '#광주미용실 #수완지구미용실', 'text', '띄어쓰기로 구분해요')}
         <label class="field"><span>카드뉴스 기본 색</span><select class="select" data-set="cardTheme">${Object.entries(CARD_THEMES).map(([k, v]) => `<option value="${k}" ${s.cardTheme === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></label>
         <label class="field"><span>기본 글 스타일</span><select class="select" data-set="writeStyle">${Object.entries(STYLES).map(([k, v]) => `<option value="${k}" ${(s.writeStyle || 'story') === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
         <label class="field"><span>카드뉴스 기본 레이아웃</span><select class="select" data-set="cardLayout">${Object.entries(CARD_LAYOUTS).map(([k, v]) => `<option value="${k}" ${(s.cardLayout || 'classic') === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
         <label class="field"><span>영상 모션 기본 스타일</span><select class="select" data-set="motionStyle">${Object.entries(MOTION_STYLES).map(([k, v]) => `<option value="${k}" ${s.motionStyle === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
         <h3 style="margin-top:6px">매장 · 블로그 정보</h3>
         <p class="sub" style="font-size:14px">한 번 적어 두면 블로그 글 끝 '매장 정보', 인스타 캡션의 주소·예약 줄, 검색엔진용 매장 정보(구조화 데이터)에 자동으로 들어가요. 비워 둔 칸은 빠져요.</p>
-        ${fld('bizName', '상호 (매장 이름)', '조군헤어 광주점')}
-        ${fld('bizAddress', '주소', '광주 동구 동명동 00-0 2층')}
+        ${fld('bizName', '상호 (매장 이름)', '00헤어 수완점')}
+        ${fld('bizAddress', '주소', '광주 광산구 수완동 00-0 2층')}
         ${fld('bizHours', '영업시간', '화–일 10:00–20:00 (월 휴무)')}
         ${fld('bizPhone', '전화', '02-000-0000')}
         ${fld('bizBooking', '예약 링크', 'https://booking.naver.com/...')}
@@ -552,14 +598,27 @@ function viewSettings() {
         <label class="field"><span>구글 AI 스튜디오(제미나이) API 키 — 사진 읽고 글쓰기 · AI 목소리</span><input class="input" type="password" data-set="geminiKey" value="${esc(s.geminiKey)}" placeholder="AIza..." autocomplete="off" /></label>
         <div class="grid g2" style="gap:12px">
           <label class="field"><span>제미나이 모델</span><select class="select" data-set="geminiModel">${Object.entries(GEMINI_MODELS).map(([k, v]) => `<option value="${k}" ${(s.geminiModel || 'gemini-flash-latest') === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-          <label class="field"><span>AI 목소리 (제미나이)</span><select class="select" data-set="geminiVoice">${GEMINI_VOICES.map((v) => `<option value="${v}" ${(s.geminiVoice || 'Kore') === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+          <label class="field"><span>제미나이 목소리</span><select class="select" data-set="geminiVoice">${GEMINI_VOICES.map((v) => `<option value="${v}" ${(s.geminiVoice || 'Kore') === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
         </div>
-        <details class="sub" style="font-size:13.5px"><summary style="cursor:pointer;font-weight:700">다른 AI 쓰기 (선택: Claude · ElevenLabs)</summary>
+        <h3 style="margin-top:6px">AI 목소리 · 내 목소리</h3>
+        <label class="field"><span>내레이션에 쓸 목소리</span><select class="select" data-set="voiceEngine"><option value="gemini" ${s.voiceEngine !== 'eleven' ? 'selected' : ''}>제미나이 목소리 (${esc(s.geminiVoice || 'Kore')})</option><option value="eleven" ${s.voiceEngine === 'eleven' ? 'selected' : ''}>내 목소리 (ElevenLabs)${s.elevenVoiceName ? ' · ' + esc(s.elevenVoiceName) : ''}</option></select></label>
+        <label class="field"><span>ElevenLabs API 키 (내 목소리 만들기·쓰기)</span><div class="key-row"><input class="input" type="password" data-set="elevenKey" value="${esc(s.elevenKey)}" placeholder="xi-..." autocomplete="off" /><button class="btn btn-line" data-act="load-voices">목소리 불러오기</button></div><span class="hint">elevenlabs.io → 프로필 → API Keys에서 발급</span></label>
+        <label class="field"><span>ElevenLabs 목소리</span><select class="select" data-set="elevenVoice" id="voice-sel">${s.elevenVoice ? `<option value="${esc(s.elevenVoice)}">${esc(s.elevenVoiceName || s.elevenVoice)}</option>` : '<option value="">먼저 목소리를 불러오거나 아래에서 만들어 주세요</option>'}</select></label>
+        <details class="voice-box" ${s.elevenKey && !s.elevenVoice ? 'open' : ''}><summary style="cursor:pointer;font-weight:700">🎙️ 내 목소리 만들기 (ElevenLabs 목소리 복제)</summary>
+          <div style="display:grid;gap:10px;margin-top:10px">
+            <p class="sub" style="font-size:13.5px">조용한 곳에서 아래 원고를 평소 말투로 1~2분 읽어 녹음하세요. 여러 번 나눠 녹음해도 되고, 이미 녹음해 둔 파일을 올려도 돼요.</p>
+            <p style="font-size:14px;line-height:1.7;padding:12px;border-radius:12px;background:var(--surface)">안녕하세요, 오늘도 찾아주셔서 감사합니다. 오늘 시술은 고객님의 모질과 평소 스타일링 습관을 먼저 꼼꼼하게 살펴보는 것부터 시작했어요. 손상된 부분은 무리하게 당기지 않고, 필요한 만큼만 정리해서 자연스러운 흐름을 살렸습니다. 드라이할 때는 뿌리 쪽부터 바람을 넣어 주시고, 끝부분은 손으로 가볍게 말아 주시면 집에서도 오늘 같은 느낌을 낼 수 있어요. 궁금한 점은 언제든 편하게 물어봐 주세요. 다음에 또 뵙겠습니다.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn btn-blue btn-sm" data-act="clone-rec" id="clone-rec">${icon('mic')}녹음 시작</button>
+              <label class="btn btn-line btn-sm">${icon('upload')}녹음 파일 올리기<input type="file" accept="audio/*" multiple hidden data-act-change="clone-file" /></label>
+              <span class="sub" style="font-size:13px" id="clone-state">${cloneSamples.length ? `녹음 ${cloneSamples.length}개 · 약 ${Math.round(cloneSamples.reduce((a2, c2) => a2 + (c2.sec || 0), 0))}초` : '아직 녹음이 없어요'}</span></div>
+            <label style="display:flex;gap:10px;align-items:flex-start;font-size:13.5px"><input type="checkbox" id="clone-consent" style="width:20px;height:20px;flex-shrink:0" /><span>녹음한 목소리는 <b>내 목소리</b>이고, ElevenLabs에서 복제해 쓰는 데 동의해요. 다른 사람 목소리는 본인 동의 없이 만들지 않아요.</span></label>
+            <div><button class="btn btn-line" data-act="clone-make">${icon('sparkle')}내 목소리 만들기</button></div>
+            <span class="hint">목소리 복제는 ElevenLabs 유료 요금제(스타터 이상)가 필요할 수 있어요. 만든 뒤에는 '내레이션에 쓸 목소리'가 '내 목소리'로 바뀌어요.</span>
+          </div></details>
+        <details class="sub" style="font-size:13.5px"><summary style="cursor:pointer;font-weight:700">다른 AI 쓰기 (선택: Claude)</summary>
           <div style="display:grid;gap:12px;margin-top:10px">
             <label class="field"><span>글쓰기에 쓸 AI</span><select class="select" data-set="aiProvider"><option value="gemini" ${s.aiProvider !== 'claude' ? 'selected' : ''}>제미나이</option><option value="claude" ${s.aiProvider === 'claude' ? 'selected' : ''}>Claude</option></select></label>
             <label class="field"><span>Claude API 키</span><input class="input" type="password" data-set="claudeKey" value="${esc(s.claudeKey)}" placeholder="sk-ant-..." autocomplete="off" /></label>
-            <label class="field"><span>ElevenLabs API 키 (제미나이 대신 이 목소리를 쓰려면)</span><div class="key-row"><input class="input" type="password" data-set="elevenKey" value="${esc(s.elevenKey)}" placeholder="xi-..." autocomplete="off" /><button class="btn btn-line" data-act="load-voices">목소리 불러오기</button></div></label>
-            <label class="field"><span>ElevenLabs 목소리</span><select class="select" data-set="elevenVoice" id="voice-sel">${s.elevenVoice ? `<option value="${esc(s.elevenVoice)}">${esc(s.elevenVoiceName || s.elevenVoice)}</option>` : '<option value="">먼저 목소리를 불러오세요</option>'}</select></label>
           </div></details>
         <h3 style="margin-top:6px">구글 블로그 연결</h3>
         <details class="sub" style="font-size:13.5px"><summary style="cursor:pointer;font-weight:700;color:var(--accent)">처음 한 번 하는 설정 (무료, 5분)</summary>
@@ -573,6 +632,13 @@ function viewSettings() {
         ${fld('googleClientId', '구글 OAuth 클라이언트 ID', '1234-abcd.apps.googleusercontent.com')}
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn btn-line" data-act="bl-load-blogs">${icon('globe')}내 블로그 불러오기</button>
           <select class="select" data-set="bloggerBlogId" id="blog-sel" style="flex:1;min-width:180px">${s.bloggerBlogId ? `<option value="${esc(s.bloggerBlogId)}">${esc(s.bloggerBlogName || s.bloggerBlogId)}</option>` : '<option value="">먼저 블로그를 불러오세요</option>'}</select></div>
+        <h3 style="margin-top:6px">백업 · 다른 기기로 옮기기</h3>
+        <p class="sub" style="font-size:14px">작업은 이 기기에만 저장돼요. 폰을 바꾸거나 PC에서 이어서 하려면 백업 파일을 만들어 옮긴 뒤, 새 기기에서 '백업 불러오기'를 누르세요. 구글 드라이브나 카카오톡 '나에게 보내기'로 옮기면 편해요.</p>
+        <label style="display:flex;gap:10px;align-items:center;font-size:14px"><input type="checkbox" id="bk-videos" checked style="width:20px;height:20px" />원본 영상까지 넣기 (파일이 커져요)</label>
+        <label style="display:flex;gap:10px;align-items:center;font-size:14px"><input type="checkbox" id="bk-keys" style="width:20px;height:20px" />API 키도 넣기 (내 기기끼리만 옮길 때)</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-blue" data-act="backup-export">${icon('download')}백업 파일 만들기</button>
+          <label class="btn btn-line">${icon('upload')}백업 불러오기<input type="file" accept=".zip,application/zip" hidden data-act-change="backup-import" /></label></div>
+        <span class="hint" id="bk-state">작업 ${jobs.length}개</span>
         <h3 style="margin-top:6px">데이터</h3>
         <p class="sub" style="font-size:14px" id="storage-info">사진·영상은 이 기기 브라우저에 저장돼요.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-danger" data-act="clear-all">${icon('trash')}모든 작업 지우기</button></div>
@@ -632,9 +698,25 @@ function tabImages(job) {
   </section>`;
 }
 
+function speechCard(job) {
+  const vids = job.media.filter((m) => m.kind === 'video');
+  if (!vids.length) return '';
+  const got = vids.filter((m) => m.transcript && m.transcript.length);
+  const body = got.length
+    ? got.map((m) => `<div class="post"><div class="tools"><small>영상 ${vids.indexOf(m) + 1}${m.transcriptTruncated ? ' · 앞 10분만' : ''}</small></div><p style="font-size:14.5px;line-height:1.7">${m.transcript.map((t) => `<span title="${fmtTime(t.start)}">${esc(t.text)}</span>`).join(' ')}</p></div>`).join('')
+    : `<p class="sub" style="font-size:14px">${vids.some((m) => m.transcriptError) ? esc(vids.find((m) => m.transcriptError).transcriptError) : vids.some((m) => m.transcript) ? '영상에서 사람 말소리를 찾지 못했어요.' : '아직 받아쓰지 않았어요.'}</p>`;
+  return `<section class="card" style="display:grid;gap:12px">
+    <div class="card-head" style="margin:0"><h3>🎙️ 영상 속 말 (받아쓰기)</h3><div class="right">
+      ${got.length ? `<button class="btn btn-line btn-sm" data-act="copy-speech">${icon('copy')}복사</button>` : ''}
+      ${settings.geminiKey ? `<button class="btn ${got.length ? 'btn-line' : 'btn-blue'} btn-sm" data-act="transcribe">${icon('mic')}${got.length ? '다시 받아쓰기' : '말소리 받아쓰기'}</button>` : '<a class="btn btn-line btn-sm" href="#/settings">제미나이 키 넣기</a>'}</div></div>
+    ${body}
+    ${got.length ? '<p class="hint">받아쓴 말은 글 다시 쓰기에 자동으로 반영돼요. 위쪽 \'글 다시 쓰기\'를 누르면 설명한 표현을 살려 블로그·캡션을 새로 써요.</p>' : ''}
+  </section>`;
+}
+
 function tabBlog(job) {
   const b = job.copy.blog;
-  return `<section class="card" style="display:grid;gap:14px">
+  return `${speechCard(job)}<section class="card" style="display:grid;gap:14px">
     <div class="card-head" style="margin:0"><h3>블로그 글</h3><div class="right"><button class="btn btn-line btn-sm" data-act="copy-path" data-path="copy.blog.title">${icon('copy')}제목 복사</button><button class="btn btn-blue btn-sm" data-act="copy-path" data-path="copy.blog.body">${icon('copy')}본문 복사</button><button class="btn btn-line btn-sm" data-act="stills-zip">${icon('download')}이미지 저장</button></div></div>
     <label class="field"><span>제목</span><input class="input" data-bind="copy.blog.title" value="${esc(b.title)}" /></label>
     <label class="field"><span>본문 <small class="num" data-count="copy.blog.body">${b.body.length}자</small></span><textarea class="textarea" data-bind="copy.blog.body" style="min-height:420px">${esc(b.body)}</textarea>
@@ -740,7 +822,7 @@ function tabPost(job) {
       <div class="card-head" style="margin:0"><h3>구글 블로그 글</h3><div class="right"><button class="btn btn-line btn-sm" data-act="wp-copy-html">${icon('copy')}HTML 복사</button></div></div>
       <div class="notice blue">${icon('info')}<span>맨 앞 요약 → 질문형 소제목 → 자주 묻는 질문 순서는 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티 같은 AI 검색(GEO)에 인용되기 좋은 구조예요.</span></div>
       <div class="grid g2" style="gap:12px">
-        <label class="field"><span>핵심 검색어</span><input class="input" data-bind="copy.article.focusKeyword" data-seo="1" value="${esc(a.focusKeyword)}" placeholder="예) 광주 동명동 카페 추천" /></label>
+        <label class="field"><span>핵심 검색어</span><input class="input" data-bind="copy.article.focusKeyword" data-seo="1" value="${esc(a.focusKeyword)}" placeholder="예) 광주 수완지구 미용실 추천" /></label>
         <label class="field"><span>주소 (영어 slug)</span><input class="input" data-bind="copy.article.slug" data-seo="1" value="${esc(a.slug)}" /></label>
       </div>
       <label class="field"><span>검색 제목 <small class="num" data-count="copy.article.seoTitle">${a.seoTitle.length}자</small></span><input class="input" data-bind="copy.article.seoTitle" data-seo="1" value="${esc(a.seoTitle)}" /></label>
@@ -763,10 +845,11 @@ function tabPost(job) {
       <section class="card" style="display:grid;gap:12px">
         <h3>구글 블로그에 올리기</h3>
         ${settings.googleClientId && settings.bloggerBlogId ? `<p class="sub" style="font-size:13.5px">${esc(settings.bloggerBlogName || '내 블로그')}에 제목 · 본문 · 요약 · 자주 묻는 질문 · 라벨까지 넣어요. 사진은 넣을 자리를 표시해 두니, 블로거 편집기에서 끌어다 놓아 주세요.</p>
-          <div class="seg"><button class="${job.blStatus !== 'publish' ? 'on' : ''}" data-act="bl-status" data-v="draft">임시저장</button><button class="${job.blStatus === 'publish' ? 'on' : ''}" data-act="bl-status" data-v="publish">바로 발행</button></div>
+          <div class="seg"><button class="${!['publish', 'schedule'].includes(job.blStatus) ? 'on' : ''}" data-act="bl-status" data-v="draft">임시저장</button><button class="${job.blStatus === 'schedule' ? 'on' : ''}" data-act="bl-status" data-v="schedule">예약 발행</button><button class="${job.blStatus === 'publish' ? 'on' : ''}" data-act="bl-status" data-v="publish">바로 발행</button></div>
+          ${job.blStatus === 'schedule' ? `<label class="field"><span>발행 시각 (구글이 이 시각에 자동으로 올려요)</span><input class="input" type="datetime-local" data-job-when="blWhen" value="${esc(job.blWhen || tomorrowAt(9))}" /></label>` : ''}
           <button class="btn btn-blue btn-lg" data-act="bl-publish" id="bl-btn">${icon('upload')}구글 블로그에 올리기</button>`
           : `<div class="notice">${icon('info')}<span>처음 한 번만 브랜드 설정에서 구글 블로그를 연결해 주세요(무료). 연결 전에는 'HTML 복사' 후 블로거 글쓰기의 'HTML 보기'에 붙여 넣으면 돼요.</span></div><a class="btn btn-line" href="#/settings">구글 블로그 연결하기</a>`}
-        ${job.blogger ? `<div class="result"><b>${icon('check')} ${job.blogger.status === 'LIVE' ? '발행했어요' : '임시저장했어요'}</b>
+        ${job.blogger ? `<div class="result"><b>${icon('check')} ${job.blogger.status === 'LIVE' ? '발행했어요' : job.blogger.status === 'SCHEDULED' ? `${fmtWhen(job.blogger.scheduledAt)}에 발행되도록 예약했어요` : '임시저장했어요'}</b>
           <p style="font-size:13.5px">블로거 편집기에서 마지막으로: ① 사진 넣기 ② 오른쪽 '검색 설명'과 '맞춤 퍼머링크'에 아래 값 붙여넣기</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-blue btn-sm" href="${esc(bloggerEditUrl(job.blogger.blogId, job.blogger.id))}" target="_blank" rel="noopener">${icon('external')}블로거에서 열기</a>
           <button class="btn btn-line btn-sm" data-act="copy-path" data-path="copy.article.metaDescription">${icon('copy')}검색 설명 복사</button>
@@ -790,6 +873,7 @@ async function postImages(job) {
 
 // ---------- 영상 스튜디오 (숏폼 · 유튜브) ----------
 const studio = { composer: null, key: '', busy: false };
+const cloneSamples = [];
 async function disposeStudio() {
   if (studio.composer) { const c = studio.composer; studio.composer = null; await c.dispose(); }
   studio.key = '';
@@ -822,14 +906,16 @@ function tabStudio(job, kind) {
       <div><h4>모션 스타일</h4><div class="seg">${Object.entries(MOTION_STYLES).map(([k, v]) => `<button class="${o.style === k ? 'on' : ''}" data-act="st-set" data-k="style" data-v="${k}" title="${v.desc}">${v.label}</button>`).join('')}</div></div>
       <div><h4>첫 화면 문구 (훅)</h4><input class="input" data-bind="copy.short.hook" data-studio="1" value="${esc(job.copy.short.hook)}" maxlength="40" /></div>
       <div><h4>강조 단어</h4><input class="input" data-bind="copy.short.keyword" data-studio="1" value="${esc(job.copy.short.keyword)}" maxlength="12" /></div>
-      <div><h4>화면 자막 (한 줄에 하나)</h4><textarea class="textarea" data-bind-lines="copy.short.lines" data-studio="1" style="min-height:130px">${esc(lines.join('\n'))}</textarea></div>
+      <div><h4>자막 내용</h4><div class="seg"><button class="${(o.captionMode || 'summary') === 'summary' ? 'on' : ''}" data-act="st-set" data-k="captionMode" data-v="summary">요약 자막</button><button class="${o.captionMode === 'speech' ? 'on' : ''}" data-act="st-set" data-k="captionMode" data-v="speech" ${hasSpeech(job) ? '' : 'disabled'}>말한 그대로</button></div>
+        <p class="hint" style="margin-top:6px">${hasSpeech(job) ? '말한 그대로: 영상 속에서 실제로 한 말이 그 장면에 맞춰 자막으로 떠요. 말소리는 원본 소리로 두면 잘 맞아요.' : '영상 말소리를 받아쓰면 \'말한 그대로\' 자막을 쓸 수 있어요 (블로그 탭에서 받아쓰기).'}</p></div>
+      <div><h4>요약 자막 (한 줄에 하나)</h4><textarea class="textarea" data-bind-lines="copy.short.lines" data-studio="1" style="min-height:130px">${esc(lines.join('\n'))}</textarea></div>
       <div><h4>말소리</h4><div class="seg">${voiceOpts.map(([k, l]) => `<button class="${o.voice === k ? 'on' : ''}" data-act="st-set" data-k="voice" data-v="${k}">${l}</button>`).join('')}</div>
         ${o.voice === 'mic' || o.voice === 'ai' ? `<div class="voice-box" style="margin-top:10px">
           <label class="field"><span>내레이션 원고</span><textarea class="textarea" data-bind="${kind}.script" style="min-height:110px">${esc(o.script)}</textarea></label>
           ${o.voice === 'mic'
             ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-blue btn-sm" data-act="mic-rec" id="mic-btn">${icon('mic')}녹음 시작</button><span class="sub" id="mic-state" style="font-size:13px">원고를 보며 읽어 주세요</span></div>`
             : `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-blue btn-sm" data-act="ai-voice" ${voiceReady() ? '' : 'disabled'}>${icon('sparkle')}AI 목소리 만들기</button>
-               ${voiceReady() ? `<span class="sub" style="font-size:13px">${settings.elevenKey && settings.elevenVoice && !settings.geminiKey ? 'ElevenLabs' : `제미나이 목소리 ${esc(settings.geminiVoice || 'Kore')}`}로 만들어요</span>` : '<a href="#/settings" class="sub" style="font-size:13px;color:var(--accent);font-weight:700">설정에서 제미나이 키를 먼저 넣어 주세요</a>'}</div>`}
+               ${voiceReady() ? `<span class="sub" style="font-size:13px">${voiceEngine() === 'eleven' ? `내 목소리(${esc(settings.elevenVoiceName || 'ElevenLabs')})` : `제미나이 목소리 ${esc(settings.geminiVoice || 'Kore')}`}로 만들어요</span>` : '<a href="#/settings" class="sub" style="font-size:13px;color:var(--accent);font-weight:700">설정에서 제미나이 키를 먼저 넣어 주세요</a>'}</div>`}
           ${o.voiceId ? `<audio id="voice-audio" controls style="width:100%"></audio><button class="btn btn-line btn-sm" data-act="voice-del">${icon('trash')}목소리 지우기</button>` : ''}
         </div>` : ''}</div>
       <div><h4>배경음악 (선택)</h4>
@@ -842,7 +928,11 @@ function tabStudio(job, kind) {
 
 async function studioSources(job) {
   const sources = [];
-  for (const m of job.media) if (m.kind === 'video' && m.analysis) sources.push({ kind: 'video', url: await blobUrl(m.id), analysis: m.analysis });
+  for (const m of job.media) {
+    if (m.kind !== 'video' || !m.analysis || m.missing) continue;
+    const url = await blobUrl(m.id);
+    if (url) sources.push({ kind: 'video', url, analysis: m.analysis, transcript: m.transcript || [] });
+  }
   const photoStills = job.stills.filter((s) => s.t == null);
   const pool = sources.length ? photoStills : job.stills;
   for (const s of pool) sources.push({ kind: 'image', url: await blobUrl(s.id) });
@@ -854,7 +944,7 @@ async function buildComposer(job, kind) {
   const o = job[kind];
   const aspect = kind === 'short' ? '9:16' : '16:9';
   const voiceOn = (o.voice === 'mic' || o.voice === 'ai') && o.voiceId;
-  const plan = buildPlan({ sources: await studioSources(job), copy: job.copy.short, targetSec: o.length, voiceSec: voiceOn ? o.voiceSec : 0, aspect });
+  const plan = buildPlan({ sources: await studioSources(job), copy: job.copy.short, targetSec: o.length, voiceSec: voiceOn ? o.voiceSec : 0, aspect, captionMode: o.captionMode || 'summary' });
   const canvas = document.getElementById('stage-canvas');
   if (!canvas) return null;
   const comp = new Composer({
@@ -872,7 +962,7 @@ async function buildComposer(job, kind) {
 
 async function ensureComposer(job, kind) {
   const o = job[kind];
-  const key = JSON.stringify([job.id, kind, o.length, o.style, o.voice, o.voiceId, o.voiceSec, o.bgmId, job.copy.short.hook, job.copy.short.keyword, job.copy.short.lines, settings.brandName, settings.handle]);
+  const key = JSON.stringify([job.id, kind, o.length, o.style, o.captionMode, o.voice, o.voiceId, o.voiceSec, o.bgmId, job.copy.short.hook, job.copy.short.keyword, job.copy.short.lines, settings.brandName, settings.handle]);
   if (studio.composer && studio.key === key) return studio.composer;
   await disposeStudio();
   studio.composer = await buildComposer(job, kind);
@@ -889,12 +979,18 @@ async function studioPoster(job, kind) {
 
 // ---------- 게시 탭 ----------
 function tabPublish(job) {
-  return `<section class="card">
+  return `<section class="card" style="display:grid;gap:12px;margin-bottom:16px">
+    <div class="card-head" style="margin:0"><h3>⏰ 게시 예약 알림</h3>${job.reminder ? `<div class="right"><span class="pill blue">${fmtWhen(job.reminder.at)} 알림</span></div>` : ''}</div>
+    <p class="sub" style="font-size:14px">구글 블로그는 '구글 블로그' 탭에서 정한 시각에 자동으로 올라가요. 인스타·스레드·틱톡·유튜브는 계정 연결 서버가 없어서 자동으로 올릴 수는 없지만, 정한 시각에 휴대폰 캘린더 알림이 울리게 할 수 있어요. 알림을 누르면 이 화면이 열리고, 캡션 복사·영상 공유로 1분이면 올라가요.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input class="input" type="datetime-local" data-job-when="remindWhen" value="${esc(job.remindWhen || tomorrowAt(19))}" style="max-width:240px" />
+      <button class="btn btn-blue btn-sm" data-act="remind-ics">${icon('clock')}캘린더에 알림 넣기</button></div>
+  </section>
+  <section class="card">
     <div class="card-head"><h3>채널별 게시</h3><div class="right"><span class="sub num" style="font-size:13px">${jobProgress(job).posted}/${CHANNELS.length} 완료</span></div></div>
     <div class="channels">${CHANNELS.map((c) => {
       const s = channelState(job, c);
       return `<div class="ch"><span class="ico ${s === 'posted' ? 'green' : s === 'ready' ? 'blue' : 'orange'}">${icon(c.icon)}</span>
-        <div class="txt"><b>${c.label}</b><small>${s === 'posted' ? '게시 완료' : s === 'ready' ? c.desc + ' 준비됨' : '영상을 먼저 만들어 주세요'}</small></div>
+        <div class="txt"><b>${c.label}</b><small>${c.key === 'blogger' && job.blogger && job.blogger.status === 'SCHEDULED' ? `${fmtWhen(job.blogger.scheduledAt)} 예약 발행` : s === 'posted' ? '게시 완료' : s === 'ready' ? c.desc + ' 준비됨' : '영상을 먼저 만들어 주세요'}</small></div>
         <div class="acts">
           <a class="btn btn-line btn-sm" href="#/job/${job.id}/${c.tab}">${s === 'wait' ? '만들러 가기' : '결과물 보기'}</a>
           ${s !== 'wait' && c.url ? `<a class="btn btn-line btn-sm" href="${esc(c.key === 'blogger' ? (job.blogger ? bloggerEditUrl(job.blogger.blogId, job.blogger.id) : c.url) : c.url)}" target="_blank" rel="noopener">${icon('external')}열기</a>` : ''}
@@ -1109,7 +1205,7 @@ const actions = {
     if (!o.script.trim()) { toast('원고를 먼저 적어 주세요'); return; }
     el.disabled = true; el.innerHTML = '<span class="spin"></span>만드는 중';
     try {
-      const blob = settings.geminiKey
+      const blob = voiceEngine() === 'gemini'
         ? await geminiTTS({ key: settings.geminiKey, voice: settings.geminiVoice || 'Kore', text: o.script.trim() })
         : await elevenTTS({ key: settings.elevenKey, voiceId: settings.elevenVoice, text: o.script.trim() });
       const id = uid('a'); await db.putBlob(id, blob);
@@ -1160,22 +1256,28 @@ const actions = {
   },
   'bl-publish': async (el) => {
     const job = curJob(); const a = job.copy.article;
-    const draft = job.blStatus !== 'publish';
+    const mode = job.blStatus === 'publish' ? 'publish' : job.blStatus === 'schedule' ? 'schedule' : 'draft';
+    const draft = mode !== 'publish';
+    const when = new Date(job.blWhen || tomorrowAt(9));
+    if (mode === 'schedule' && when.getTime() < Date.now() + 5 * 60e3) { toast('예약 시각은 지금부터 5분 뒤 이후로 골라 주세요'); return; }
     let tp;
     try { tp = googleToken(); } catch (e) { tp = Promise.reject(e); }
-    if (!draft && !confirm('구글 블로그에 바로 공개 발행할까요?')) return;
+    if (mode === 'publish' && !confirm('구글 블로그에 바로 공개 발행할까요?')) return;
+    if (mode === 'schedule' && !confirm(`${fmtWhen(when)}에 구글 블로그에 공개 발행되도록 예약할까요?`)) return;
     el.disabled = true; el.innerHTML = '<span class="spin"></span>구글 로그인';
     try {
       await tp;
       el.innerHTML = '<span class="spin"></span>글 올리는 중';
       const imgs = await postImages(job);
-      const content = articleHtml(a, imgs.slice(1).map((im, i) => ({ placeholder: i + 2, alt: im.alt })), { author: settings.ownerName, biz: job.useBiz ? settings : null, topic: job.topic });
+      const content = articleHtml(a, imgs.slice(1).map((im, i) => ({ placeholder: i + 2, alt: im.alt })), { author: brandOf(settings), biz: job.useBiz ? settings : null, topic: job.topic });
       const lead = `<p style="padding:14px;border:2px dashed #93C5FD;border-radius:10px;color:#1D4ED8">📷 대표 사진(사진 1) 넣는 자리 — 대체 텍스트: "${esc(imgs[0] ? imgs[0].alt : a.focusKeyword)}"</p>\n`;
       const post = await createBlogPost({ blogId: settings.bloggerBlogId, title: a.seoTitle || job.title, content: lead + content, labels: a.tags, draft });
-      job.blogger = { ...post, at: Date.now() };
-      if (post.status === 'LIVE') job.publish.blogger = Date.now();
+      let done = post;
+      if (mode === 'schedule') { el.innerHTML = '<span class="spin"></span>예약하는 중'; done = await scheduleBlogPost({ blogId: post.blogId, postId: post.id, when }); done.url = done.url || post.url; }
+      job.blogger = { ...post, ...done, at: Date.now() };
+      if (done.status === 'LIVE') job.publish.blogger = Date.now();
       await db.putJob(job);
-      toast(post.status === 'LIVE' ? '구글 블로그에 발행했어요' : '구글 블로그에 임시저장했어요');
+      toast(done.status === 'LIVE' ? '구글 블로그에 발행했어요' : done.status === 'SCHEDULED' ? `${fmtWhen(when)}에 발행되도록 예약했어요` : '구글 블로그에 임시저장했어요');
       render();
     } catch (e) {
       toast(e.message || '구글 블로그에 올리지 못했어요');
@@ -1185,7 +1287,7 @@ const actions = {
   },
   'wp-copy-html': async () => {
     const job = curJob();
-    copyText(articleHtml(job.copy.article, [], { author: settings.ownerName, biz: job.useBiz ? settings : null, topic: job.topic }));
+    copyText(articleHtml(job.copy.article, [], { author: brandOf(settings), biz: job.useBiz ? settings : null, topic: job.topic }));
   },
   'draft-style': (el) => { draft.style = el.dataset.v; render(); },
   'draft-persp': (el) => { draft.perspective = el.dataset.v; render(); },
@@ -1208,6 +1310,77 @@ const actions = {
       toast(job.copyNotice ? '기본 문구로 다시 썼어요' : '새 스타일로 다시 썼어요');
       render();
     } catch (e) { toast(e.message || '다시 쓰지 못했어요'); el.disabled = false; el.innerHTML = `${icon('sparkle')}이 설정으로 글 다시 쓰기`; }
+  },
+  'copy-speech': () => copyText(speechText(curJob())),
+  transcribe: async (el) => {
+    const job = curJob();
+    el.disabled = true; el.innerHTML = '<span class="spin"></span>받아쓰는 중';
+    try {
+      await transcribeJob(job, (q) => { el.innerHTML = `<span class="spin"></span>받아쓰는 중 ${Math.round(q * 100)}%`; });
+      await db.putJob(job);
+      await disposeStudio();
+      toast(hasSpeech(job) ? '받아썼어요. 글 다시 쓰기를 누르면 글에 반영돼요' : '말소리를 찾지 못했어요');
+      render();
+    } catch (e) { toast(e.message); el.disabled = false; el.innerHTML = `${icon('mic')}말소리 받아쓰기`; }
+  },
+  'remind-ics': () => {
+    const job = curJob();
+    const at = new Date(job.remindWhen || tomorrowAt(19));
+    if (at.getTime() < Date.now()) { toast('알림 시각은 지금 이후로 골라 주세요'); return; }
+    const left = CHANNELS.filter((c) => c.key !== 'blogger' && channelState(job, c) !== 'posted').map((c) => c.label);
+    const z = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const escI = (t) => String(t).replace(/\\/g, '\\\\').replace(/[,;]/g, (m) => '\\' + m).replace(/\r?\n/g, '\\n');
+    const fold = (line) => { const out = []; let cur = line; while (cur.length > 70) { out.push(cur.slice(0, 70)); cur = ' ' + cur.slice(70); } out.push(cur); return out.join('\r\n'); };
+    const link = `${location.origin}${location.pathname}#/job/${job.id}/publish`;
+    const desc = `${left.join(' · ')}\n\n${job.copy.instagram.caption}\n\n${job.copy.instagram.hashtags.join(' ')}\n\n앱에서 열기: ${link}`;
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ZEROCUT//KO', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
+      `UID:${job.id}-${at.getTime()}@zerocut`, `DTSTAMP:${z(new Date())}`, `DTSTART:${z(at)}`, `DTEND:${z(new Date(at.getTime() + 15 * 60e3))}`,
+      `SUMMARY:${escI(`📲 ${job.title} 올리기`)}`, `DESCRIPTION:${escI(desc)}`, `URL:${link}`,
+      'BEGIN:VALARM', 'TRIGGER:PT0M', 'ACTION:DISPLAY', `DESCRIPTION:${escI(`${job.title} 올릴 시간이에요`)}`, 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR'].map(fold).join('\r\n');
+    downloadBlob(new Blob([ics], { type: 'text/calendar;charset=utf-8' }), `zerocut-${fmtWhen(at).replace(/[/: ]/g, '')}.ics`);
+    job.reminder = { at: at.getTime() };
+    saveSoon(job); render();
+    toast('받은 파일을 열면 캘린더에 알림이 들어가요');
+  },
+  'clone-rec': async (el) => {
+    if (studio.cloneRec) {
+      const blob = await studio.cloneRec.stop(); studio.cloneRec = null;
+      const sec = await audioDuration(blob).catch(() => 0);
+      cloneSamples.push({ file: new File([blob], `my-voice-${cloneSamples.length + 1}.${(blob.type.split('/')[1] || 'webm').split(';')[0]}`, { type: blob.type }), sec });
+      render(); toast(`녹음했어요 (${Math.round(sec)}초)`); return;
+    }
+    try { studio.cloneRec = await recordMic(); el.innerHTML = `${icon('stop')}녹음 끝`; const st = document.getElementById('clone-state'); if (st) st.innerHTML = '<span class="rec-dot"></span> 녹음 중… 원고를 읽어 주세요'; }
+    catch (e) { toast('마이크를 쓸 수 없어요. 브라우저에서 마이크 권한을 허용해 주세요'); }
+  },
+  'clone-make': async (el) => {
+    if (!settings.elevenKey) { toast('ElevenLabs API 키를 먼저 넣어 주세요'); return; }
+    if (!cloneSamples.length) { toast('먼저 원고를 읽어 녹음하거나 녹음 파일을 올려 주세요'); return; }
+    if (!document.getElementById('clone-consent').checked) { toast('내 목소리라는 확인에 체크해 주세요'); return; }
+    el.disabled = true; el.innerHTML = '<span class="spin"></span>내 목소리 만드는 중';
+    try {
+      const name = `${brandOf(settings) || '내'} 목소리`;
+      const v = await elevenCloneVoice({ key: settings.elevenKey, name, files: cloneSamples.map((c) => c.file) });
+      Object.assign(settings, { elevenVoice: v.id, elevenVoiceName: name, voiceEngine: 'eleven' });
+      saveSettings(settings);
+      cloneSamples.length = 0;
+      toast(v.needsVerification ? '목소리를 만들었어요. ElevenLabs에서 본인 확인을 마쳐야 쓸 수 있어요' : '내 목소리를 만들었어요. 이제 AI 목소리가 내 목소리로 나와요');
+      render();
+    } catch (e) { toast(e.message); el.disabled = false; el.innerHTML = `${icon('sparkle')}내 목소리 만들기`; }
+  },
+  'backup-export': async (el) => {
+    const st = document.getElementById('bk-state');
+    el.disabled = true; el.innerHTML = '<span class="spin"></span>묶는 중';
+    try {
+      const JSZip = await loadJSZip();
+      const blob = await exportBackup(JSZip, { jobs, settings, includeVideos: document.getElementById('bk-videos').checked, includeKeys: document.getElementById('bk-keys').checked, onProgress: (q) => { if (st) st.textContent = `묶는 중 ${Math.round(Math.min(q, 2) * 50)}%`; } });
+      const d = new Date();
+      const name = `zerocut-backup-${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}.zip`;
+      const file = new File([blob], name, { type: 'application/zip' });
+      if (!(await shareFiles([file], 'ZEROCUT 백업'))) downloadBlob(blob, name);
+      if (st) st.textContent = `백업 파일을 만들었어요 (${fmtMB(blob.size)}) · 새 기기에서 '백업 불러오기'로 여세요`;
+    } catch (e) { toast(e.message || '백업을 만들지 못했어요'); if (st) st.textContent = ''; }
+    el.disabled = false; el.innerHTML = `${icon('download')}백업 파일 만들기`;
   },
   'mark-posted': (el) => { const job = curJob(); job.publish[el.dataset.k] = job.publish[el.dataset.k] ? null : Date.now(); saveSoon(job); render(); },
   'load-voices': async () => {
@@ -1263,6 +1436,23 @@ root.addEventListener('input', (e) => {
 
 root.addEventListener('change', async (e) => {
   const el = e.target;
+  if (el.dataset.jobWhen) { const job = curJob(); if (job) { job[el.dataset.jobWhen] = el.value; saveSoon(job); } return; }
+  if (el.dataset.actChange === 'clone-file' && el.files.length) {
+    for (const f of el.files) cloneSamples.push({ file: f, sec: await audioDuration(f).catch(() => 0) });
+    render(); toast(`녹음 파일 ${el.files.length}개를 넣었어요`); return;
+  }
+  if (el.dataset.actChange === 'backup-import' && el.files[0]) {
+    const st = document.getElementById('bk-state');
+    try {
+      const JSZip = await loadJSZip();
+      const r = await importBackup(JSZip, el.files[0], { existing: jobs, onProgress: (q) => { if (st) st.textContent = `불러오는 중 ${Math.round(q * 100)}%`; } });
+      if (r.settings) { for (const [k, v] of Object.entries(r.settings)) if (v && !settings[k]) settings[k] = v; saveSettings(settings); }
+      jobs = await db.allJobs();
+      toast(`불러왔어요: 새 작업 ${r.added}개 · 갱신 ${r.updated}개`);
+      render();
+    } catch (er) { toast(er.message || '백업을 불러오지 못했어요'); if (st) st.textContent = ''; }
+    return;
+  }
   if (el.dataset.jobCheck) { const job = curJob(); if (job) { job[el.dataset.jobCheck] = el.checked; saveSoon(job); } return; }
   if (el.dataset.set && el.tagName === 'SELECT') { settings[el.dataset.set] = el.value; if (el.dataset.set === 'elevenVoice') settings.elevenVoiceName = el.options[el.selectedIndex].text; if (el.dataset.set === 'bloggerBlogId') settings.bloggerBlogName = el.options[el.selectedIndex].text; saveSettings(settings); }
   if (el.dataset.set === 'googleClientId' && el.value.trim()) prepareGoogle(el.value.trim()).catch((er) => toast(er.message));
