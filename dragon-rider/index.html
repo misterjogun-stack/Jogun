@@ -38,11 +38,13 @@ body {
 html.rot #app { inset: auto; top: 0; left: 0; transform-origin: top left; }
 html.rot.land #app { transform: rotate(90deg) translateY(-100%); }
 html.rot.port #app { transform: rotate(-90deg) translateX(-100%); }
-#btnOrient {
-  position: fixed; z-index: 30;
-  right: max(16px, env(safe-area-inset-right, 0px));
-  top: calc(max(14px, env(safe-area-inset-top, 0px)) + 112px);
+.menu-opts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.opt-pill {
+  font-family: var(--font-display); font-size: 17px; color: var(--ink); cursor: pointer;
+  background: var(--white); border: 3px solid var(--ink); border-radius: 999px; padding: 5px 14px;
+  box-shadow: 0 3px 0 rgba(29,42,74,.3);
 }
+.opt-pill:active { transform: translateY(2px); box-shadow: none; }
 canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
 .screen {
@@ -155,17 +157,25 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 .best { margin: 0; font-size: 17px; color: var(--ink); background: rgba(255,255,255,.7); border-radius: 999px; padding: 3px 12px; font-variant-numeric: tabular-nums; }
 
 /* ---------- HUD ---------- */
-#hud { display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 8px; }
+#hud { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "hearts . right" "mid mid mid"; align-items: start; align-content: start; column-gap: 8px; row-gap: 0; }
+#hearts { grid-area: hearts; }
+.hud-mid { grid-area: mid; margin-top: -4px; }
+.hud-right { grid-area: right; }
+@media (min-width: 720px) { html:not(.rot) #hud { grid-template-columns: 1fr auto 1fr; grid-template-areas: "hearts mid right"; } html:not(.rot) .hud-mid { margin-top: 0; } }
+html.rot.land #hud { grid-template-columns: 1fr auto 1fr; grid-template-areas: "hearts mid right"; }
+html.rot.land .hud-mid { margin-top: 0; }
 #hud > * { pointer-events: none; }
-#hearts { display: flex; flex-wrap: wrap; gap: 3px; max-width: 190px; }
-#hearts svg { width: 30px; height: 30px; filter: drop-shadow(0 3px 0 rgba(29,42,74,.3)); }
+#hearts { display: flex; flex-wrap: wrap; gap: 3px; max-width: 136px; }
+#hearts svg { width: 28px; height: 28px; filter: drop-shadow(0 3px 0 rgba(29,42,74,.3)); }
 #hearts svg.lost { opacity: .9; }
 #hearts .shield { width: 30px; height: 30px; }
 .hud-mid { text-align: center; color: var(--white); text-shadow: 0 3px 0 var(--ink), 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 -2px 0 var(--ink); font-variant-numeric: tabular-nums; }
 .hud-mid b { font-size: 40px; font-weight: 400; line-height: 1; }
 .hud-mid small { font-size: 20px; }
-.hud-right { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
-.hud-right .iconbtn { pointer-events: auto; }
+.hud-right { display: flex; justify-content: flex-end; gap: 6px; align-items: center; }
+.hud-right .iconbtn { pointer-events: auto; width: 44px; height: 44px; }
+.hud-right .coinpill { font-size: 20px; padding: 2px 12px 2px 4px; }
+.hud-right .coinpill svg { width: 24px; height: 24px; }
 #hint {
   position: fixed; left: 50%; bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 128px); transform: translateX(-50%);
   background: rgba(29,42,74,.85); color: var(--white); padding: 10px 18px; border-radius: 10px;
@@ -416,7 +426,11 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
       </div>
       <button id="btnShop" class="btn alt">드래곤 알 상점<span class="badge" id="shopBadge" hidden>살 수 있어요!</span></button>
     </div>
-    <p class="best">최고 기록 <b id="menuBest">0</b>m</p>
+    <div class="menu-opts">
+      <button id="btnLevel" class="opt-pill">난이도: 쉬움</button>
+      <button id="btnOrient" class="opt-pill">화면: 자동</button>
+      <span class="best">최고 기록 <b id="menuBest">0</b>m</span>
+    </div>
   </div>
 </section>
 
@@ -550,7 +564,6 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 <div id="toast" hidden></div>
 <div id="hurt"></div>
 <button id="btnSound" class="iconbtn" aria-label="소리 끄기/켜기" hidden></button>
-<button id="btnOrient" class="iconbtn" aria-label="가로 세로 화면 바꾸기" hidden></button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -590,7 +603,6 @@ document.querySelectorAll('.ico-gift').forEach((e) => (e.outerHTML = ICON.gift))
 document.querySelectorAll('.ico-star').forEach((e) => (e.outerHTML = pixelSVG(['...Y...', '..YYY..', 'YYYYYYY', '.YYYYY.', '..YYY..', '.YY.YY.', 'YY...YY'], { Y: '#ffc93c' })));
 $('#btnPause').innerHTML = ICON.pause;
 $('#btnView').innerHTML = ICON.eye;
-$('#btnOrient').innerHTML = ICON.orient;
 
 /* =========================================================
    Dragons & save data
@@ -621,7 +633,15 @@ const DRAGONS = [
 ];
 
 const SAVE_KEY = 'dragon-rider-save-v1';
-let save = { coins: 0, owned: [0], sel: 0, best: 0, muted: false, musicOff: false, fps: false };
+let save = { coins: 0, owned: [0], sel: 0, best: 0, muted: false, musicOff: false, fps: false, level: 'easy' };
+// Easy is the default: slower, wider gaps, no sliding spikes, two extra hearts.
+const LEVELS = {
+  easy: { name: '쉬움', v0: 10, v1: 8, hearts: 2, second: 0.5, third: false, moving: false, bob: 0.6, hitR: 0.85, inv: 2.2 },
+  normal: { name: '보통', v0: 12.5, v1: 11, hearts: 1, second: 1, third: true, moving: true, bob: 1, hitR: 0.95, inv: 1.8 },
+  hard: { name: '어려움', v0: 15, v1: 13, hearts: 0, second: 1.2, third: true, moving: true, bob: 1, hitR: 1, inv: 1.6 },
+};
+let runLevel = LEVELS.easy;
+function levelOf(k) { return LEVELS[k] ? k : 'easy'; }
 // The dragon and rider are drawn smaller while flying (menus keep the big view).
 const PLAY_SCALE = 0.72;
 function persist() {
@@ -1681,8 +1701,8 @@ function spawnRow(z) {
   const zi = zoneFor(p.courseDist + 54);
   const Z = ZONES[zi];
   let n = 1;
-  if ((curStage() ? d > 0.12 : p.courseDist > 200) && crng() < 0.12 + 0.33 * d) n++;
-  if (d > 0.6 && crng() < 0.15) n++;
+  if ((curStage() ? d > 0.12 : p.courseDist > 200) && crng() < (0.12 + 0.33 * d) * runLevel.second) n++;
+  if (runLevel.third && d > 0.6 && crng() < 0.15) n++;
   const used = [];
   for (let i = 0; i < n; i++) {
     let r = crng();
@@ -1714,9 +1734,9 @@ function spawnRow(z) {
       const jelly = Z.jelly && sub < 0.5;
       const pal = jelly ? PAL.jelly : Z.pal.ball;
       const mesh = jelly ? obsMesh(jellyGeo(), 1.12, 1.12, 1.12) : obsMesh(ballGeo(pal), 1.13, 1.13, 1.13);
-      const bob = jelly ? 0.9 + crng() * 0.6 : (d > 0.15 ? 0.4 + crng() * 0.9 : 0);
+      const bob = (jelly ? 0.9 + crng() * 0.6 : (d > 0.15 ? 0.4 + crng() * 0.9 : 0)) * runLevel.bob;
       const phase = crng() * 6;
-      const vx = (d > 0.45 && crng() < (Z.id === 'space' ? 0.5 : 0.35)) ? (crng() < 0.5 ? -1 : 1) * (1.5 + 2 * d) : 0;
+      const vx = (runLevel.moving && d > 0.45 && crng() < (Z.id === 'space' ? 0.5 : 0.35)) ? (crng() < 0.5 ? -1 : 1) * (1.5 + 2 * d) : 0;
       o = { kind: 'sphere', type: jelly ? 'jelly' : 'ball', mesh, x, y, baseY: y, z, r: 0.9, bob, phase, vx, pal };
       if (Z.ground) o.shadow = makeShadow(1.6);
     } else {
@@ -1775,7 +1795,7 @@ function resetRun() {
   clearWorld();
   const D = cur();
   p.x = 0; p.y = 3.8; p.tx = 0; p.ty = 3.8;
-  p.hearts = D.hearts; p.inv = 0; p.shield = !!D.shield; p.fireCd = 0;
+  p.maxHearts = D.hearts + runLevel.hearts; p.hearts = p.maxHearts; p.inv = 0; p.shield = !!D.shield; p.fireCd = 0;
   p.runCoins = 0; p.dist = 0; p.speed = 15; p.dying = 0; p.newBest = false; p.nextMile = 100; p.regen = 0; p.courseDist = 0; p.star = 0; p.hits = 0; p.finishSpawned = false;
   p.rowZone = zoneFor(0); applyZone(p.rowZone, false);
   playerRoot.position.set(p.x, p.y, 0);
@@ -1790,7 +1810,7 @@ function hitPlayer() {
     burst(p.x, p.y, 0, [0x7fefff, 0xffffff], 22, 7, 0.16, 6, 0.7, false, true);
     renderHearts(); return;
   }
-  p.hearts--; p.hits = (p.hits || 0) + 1; p.inv = 1.6; p.shake = save.fps ? 0.25 : 0.45;
+  p.hearts--; p.hits = (p.hits || 0) + 1; p.inv = runLevel.inv; p.shake = save.fps ? 0.25 : 0.45;
   { const h = $('#hurt'); h.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => h.classList.remove('on'))); }
   SFX.hit(); buzz(80);
   if (p.hearts === 1) setTimeout(SFX.warn, 450);
@@ -1879,10 +1899,10 @@ function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
 /* ---------- UI ---------- */
 const screens = ['menu', 'hud', 'over', 'pause', 'shop', 'hatch', 'coop', 'map', 'clear'];
-function show(...ids) { for (const s of screens) $('#' + s).hidden = !ids.includes(s); $('#btnSound').hidden = !ids.includes('menu'); $('#btnOrient').hidden = !ids.includes('menu'); }
+function show(...ids) { for (const s of screens) $('#' + s).hidden = !ids.includes(s); $('#btnSound').hidden = !ids.includes('menu'); }
 function renderHearts() {
   const D = cur(); let h = '';
-  for (let i = 0; i < D.hearts; i++) h += i < p.hearts ? ICON.heart : ICON.heartEmpty.replace('<svg', '<svg class="lost"');
+  for (let i = 0; i < (p.maxHearts || D.hearts); i++) h += i < p.hearts ? ICON.heart : ICON.heartEmpty.replace('<svg', '<svg class="lost"');
   if (p.shield) h += ICON.shield.replace('<svg', '<svg class="shield"');
   $('#hearts').innerHTML = h;
 }
@@ -1939,6 +1959,7 @@ function startGame(opts) {
   ensureAudio(); if (!opts) SFX.start();
   Music.set('play');
   setSeed(opts ? opts.seed : st ? st.seed : (Math.random() * 4294967296) >>> 0);
+  runLevel = LEVELS[levelOf(opts && opts.lv ? opts.lv : save.level)]; // a together run uses the starter's level
   XR = coop.on ? 5.2 : baseXR;
   mountPlayer();
   playerRoot.visible = true; playerShadow.visible = true;
@@ -2157,10 +2178,10 @@ function onPeersChange(change) {
     const go = ps.go;
     if (!go || typeof go.id !== 'string' || !/^[a-z0-9]{4,16}$/.test(go.id) || ps.st !== 'count') continue;
     const seed = Number(go.seed) >>> 0;
-    if (mode === 'coop' && !coop.seenGo.has(go.id)) { coop.seenGo.add(go.id); beginCoopRun(go.id, seed, false); }
+    if (mode === 'coop' && !coop.seenGo.has(go.id)) { coop.seenGo.add(go.id); beginCoopRun(go.id, seed, false, go.lv); }
     else if (coop.on && coop.starter && mode === 'play' && p.freeze > 0 && go.id < coop.runId) {
       // both pressed start at once: everyone follows the smaller id
-      coop.seenGo.add(go.id); beginCoopRun(go.id, seed, false);
+      coop.seenGo.add(go.id); beginCoopRun(go.id, seed, false, go.lv);
     }
   }
   if (mode === 'coop') renderCoop();
@@ -2212,13 +2233,13 @@ function coopGo() {
   const id = Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, 'a').padEnd(8, 'a');
   const seed = (Math.random() * 4294967296) >>> 0;
   coop.seenGo.add(id);
-  beginCoopRun(id, seed, true);
+  beginCoopRun(id, seed, true, levelOf(save.level));
 }
-function beginCoopRun(id, seed, starter) {
+function beginCoopRun(id, seed, starter, lv) {
   coop.on = true; coop.starter = starter; coop.runId = id; coop.seed = seed; coop.toldWin = false;
   clearGhosts();
-  startGame({ seed, freeze: 3 });
-  sendPresence({ go: starter ? { id, seed } : null, f: null });
+  startGame({ seed, freeze: 3, lv: levelOf(lv) });
+  sendPresence({ go: starter ? { id, seed, lv: levelOf(lv) } : null, f: null });
 }
 function leaveCoop() {
   if (!coop.on) return;
@@ -2227,7 +2248,7 @@ function leaveCoop() {
 }
 
 /* ---------- other players' dragons ---------- */
-function speedAt(d) { return 15 + 13 * Math.min(1, d / 2600); }
+function speedAt(d) { return runLevel.v0 + runLevel.v1 * Math.min(1, d / 2600); }
 const ghostMat = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false });
 function makeGhost(dr) {
   const m = buildCreature(DRAGONS[dr]);
@@ -2376,7 +2397,7 @@ function placeSkyMsg() {
   const menuLike = mode === 'menu' || mode === 'shop' || mode === 'coop' || mode === 'map';
   const w = menuLike ? Math.min(vW * 0.6, vH * 1.1) : Math.min(vW * 0.7, vH * 1.5);
   const h = w * (288 / 1024);
-  const top = menuLike ? (camera.aspect < 1 ? 0.19 : 0.2) : 0.11;
+  const top = menuLike ? (camera.aspect < 1 ? 0.19 : 0.2) : (camera.aspect < 1 ? 0.175 : 0.11);
   skyMsg.mesh.scale.set(w, h, 1);
   skyMsg.mesh.position.set(0, vH * 0.5 - h * 0.5 - vH * top + Math.sin(time * 0.8) * vH * 0.006, -D);
   skyMsg.mesh.visible = mode !== 'hatch' && mode !== 'loading';
@@ -2596,6 +2617,12 @@ function toggleView() {
 $('#btnView').addEventListener('click', toggleView);
 $('#btnView2').addEventListener('click', () => { toggleView(); resumeGame(); });
 $('#btnOrient').addEventListener('click', cycleOrientation);
+function renderLevelBtn() { $('#btnLevel').textContent = '난이도: ' + LEVELS[levelOf(save.level)].name; }
+$('#btnLevel').addEventListener('click', () => {
+  ensureAudio(); const order = ['easy', 'normal', 'hard'];
+  save.level = order[(order.indexOf(levelOf(save.level)) + 1) % 3]; persist(); renderLevelBtn(); SFX.click();
+  toast('난이도: ' + LEVELS[save.level].name);
+});
 $('#btnOrient2').addEventListener('click', cycleOrientation);
 renderViewBtn();
 $('#btnSound').addEventListener('click', toggleSound);
@@ -2612,7 +2639,7 @@ const tmpPos = new THREE.Vector3(), tmpLook = new THREE.Vector3();
 function updatePlay(dt) {
   const D = cur();
   const d = difficulty();
-  p.speed = 15 + 13 * d;
+  p.speed = runLevel.v0 + runLevel.v1 * d;
   let dz = p.speed * dt;
   if (p.freeze > 0) {
     const before = Math.ceil(p.freeze);
@@ -2698,7 +2725,7 @@ function updatePlay(dt) {
     if (o.z > 5) { scene.remove(o.mesh); if (o.shadow) scene.remove(o.shadow); obstacles.splice(i, 1); continue; }
     if (mode === 'play' && Math.abs(o.z) < 3.5) {
       if (p.star > 0 && overlap(o, hx, hy, 0.15, 0.9)) { destroyObstacle(o); continue; }
-      if (overlap(o, hx, hy, 0.15, 0.62 * PLAY_SCALE) || overlap(o, hx, hy + 0.15, -1.6 * PLAY_SCALE, 0.42 * PLAY_SCALE)) hitPlayer();
+      if (overlap(o, hx, hy, 0.15, 0.62 * PLAY_SCALE * runLevel.hitR) || overlap(o, hx, hy + 0.15, -1.6 * PLAY_SCALE, 0.42 * PLAY_SCALE * runLevel.hitR)) hitPlayer();
       else if (!o.passed && o.z > 0.4 && p.inv <= 0 && overlap(o, hx, hy, 0.2, 1.7)) { o.passed = true; SFX.whoosh(); }
     }
   }
@@ -2742,7 +2769,7 @@ function updatePlay(dt) {
   $('#dist').textContent = Math.floor(p.dist);
   if (stageRun >= 0) updateStageHud();
   if (D.regen && mode === 'play') {
-    if (p.hearts < D.hearts) {
+    if (p.hearts < p.maxHearts) {
       p.regen += dz * 0.5;
       if (p.regen >= 250) { p.regen = 0; p.hearts++; renderHearts(); toast('하트 재생!'); SFX.shield(); }
     } else p.regen = 0;
@@ -2863,6 +2890,7 @@ function applyOrientation() {
   if (rotated) { app.style.width = vw() + 'px'; app.style.height = vh() + 'px'; }
   else { app.style.width = ''; app.style.height = ''; }
   $('#btnOrient2').textContent = ORIENT_LABEL[o];
+  $('#btnOrient').textContent = ORIENT_LABEL[o];
 }
 function cycleOrientation() {
   ensureAudio();
@@ -2929,11 +2957,13 @@ function start(data) {
   if (!Array.isArray(save.owned) || !save.owned.includes(0)) save.owned = [0].concat(Array.isArray(save.owned) ? save.owned : []);
   if (!save.owned.includes(save.sel)) save.sel = 0;
   if (!save.stages || typeof save.stages !== 'object') save.stages = {};
+  save.level = levelOf(save.level);
   try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ save })); } catch (e) { /* not in viewer */ }
   resize();
   makeThumbs();
   renderSoundBtn();
   renderViewBtn();
+  renderLevelBtn();
   $('#loading').hidden = true;
   goMenu();
   connectRoom();
