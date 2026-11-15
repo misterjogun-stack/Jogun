@@ -3,6 +3,7 @@ import { db, blobUrl, forgetUrl, loadSettings, saveSettings, uid } from './store
 import { analyzeVideo, analyzePhoto, grabFrame, smallJpegBase64, thumbDataUrl } from './media.js';
 import { TOPICS, TONES, draftWithoutAI, draftWithAI, ensureArticle, seoCheck, articleHtml } from './writer.js';
 import { WordPress } from './wp.js';
+import { prepareGoogle, googleToken, listBlogs, createBlogPost, bloggerEditUrl } from './blogger.js';
 import { CARD_THEMES, drawCard, ensureFonts, canvasBlob } from './cards.js';
 import { ASPECTS, MOTION_STYLES, Composer, buildPlan, recordMic, listElevenVoices, elevenTTS, audioDuration, pickMime } from './motion.js';
 
@@ -127,7 +128,7 @@ function saveSoon(job) {
 // ---------- 채널 ----------
 const CHANNELS = [
   { key: 'blog', label: '네이버 블로그', icon: 'doc', tab: 'blog', url: 'https://blog.naver.com/', desc: '글 + 이미지' },
-  { key: 'wordpress', label: '워드프레스', icon: 'globe', tab: 'wp', url: '', desc: '검색·AI 검색용 글' },
+  { key: 'blogger', label: '구글 블로그', icon: 'globe', tab: 'post', url: 'https://www.blogger.com/', desc: '검색·AI 검색용 글' },
   { key: 'feed', label: '인스타 카드뉴스', icon: 'insta', tab: 'cards', url: 'https://www.instagram.com/', desc: '카드 이미지 + 캡션' },
   { key: 'reels', label: '인스타 릴스', icon: 'insta', tab: 'short', url: 'https://www.instagram.com/', desc: '세로 영상 + 캡션' },
   { key: 'threads', label: '스레드', icon: 'at', tab: 'threads', url: 'https://www.threads.net/', desc: '이어지는 글' },
@@ -140,7 +141,7 @@ function channelState(job, ch) {
   if (!job.copy) return 'wait';
   if (['reels', 'shorts', 'tiktok'].includes(ch.key)) return job.outputs && job.outputs.short ? 'ready' : 'wait';
   if (ch.key === 'youtube') return job.outputs && job.outputs.youtube ? 'ready' : 'wait';
-  if (ch.key === 'wordpress' && job.wp && job.wp.status === 'publish') return 'posted';
+  if (ch.key === 'blogger' && ((job.blogger && job.blogger.status === 'LIVE') || (job.wp && job.wp.status === 'publish'))) return 'posted';
   return 'ready';
 }
 function jobProgress(job) {
@@ -226,7 +227,7 @@ function viewHome() {
     ${topbar('대시보드', `<a class="btn btn-blue btn-sm" href="#/new">${icon('plus')}새 작업</a>`)}
     <section class="hero">
       <h2>사진·영상만 올리면<br />오늘 올릴 콘텐츠가 다 나옵니다</h2>
-      <p>블로그 · 워드프레스 · 인스타 카드뉴스 · 스레드 · 릴스 · 쇼츠 · 틱톡 · 유튜브까지, 한 번 올린 소재로 자동으로 만들어 둡니다.</p>
+      <p>블로그 · 구글 블로그 · 인스타 카드뉴스 · 스레드 · 릴스 · 쇼츠 · 틱톡 · 유튜브까지, 한 번 올린 소재로 자동으로 만들어 둡니다.</p>
       <div class="cta"><a class="btn btn-white btn-lg" href="#/new">자동으로 만들기 ${icon('arrow')}</a><a class="btn btn-ghost-w btn-lg" href="#/publish">게시 센터</a></div>
       <div class="kpis">
         <div class="kpi"><small>${icon('layers')}전체 작업</small><b class="num">${jobs.length}<em>건</em></b></div>
@@ -294,7 +295,7 @@ function viewNew() {
       <section class="card" style="display:grid;gap:14px;align-content:start">
         <h3>자동으로 만들어지는 것</h3>
         <div class="channels">
-          ${[['image', '잘 나온 장면 이미지', '영상에서 선명한 장면을 골라 고화질로 저장'], ['doc', '블로그 글', '소제목까지 나눈 원고'], ['globe', '워드프레스 글', '검색·AI 검색 상위노출 구조'], ['insta', '인스타 캡션 · 카드뉴스', '1080×1350 카드 6~8장'], ['at', '스레드', '이어지는 글 3~5개'], ['film', '릴스 · 쇼츠 · 틱톡', '자막 · 모션그래픽 · 소리'], ['play', '유튜브', '가로 영상 + 설명']]
+          ${[['image', '잘 나온 장면 이미지', '영상에서 선명한 장면을 골라 고화질로 저장'], ['doc', '블로그 글', '소제목까지 나눈 원고'], ['globe', '구글 블로그 글', '검색·AI 검색 상위노출 구조'], ['insta', '인스타 캡션 · 카드뉴스', '1080×1350 카드 6~8장'], ['at', '스레드', '이어지는 글 3~5개'], ['film', '릴스 · 쇼츠 · 틱톡', '자막 · 모션그래픽 · 소리'], ['play', '유튜브', '가로 영상 + 설명']]
             .map(([ic, t, d]) => `<div class="ch" style="padding:10px 12px"><span class="ico blue" style="width:34px;height:34px">${icon(ic)}</span><div class="txt"><b>${t}</b><small>${d}</small></div></div>`).join('')}
         </div>
         ${hasKey ? `<div class="notice blue">${icon('sparkle')}<span>AI가 사진을 직접 보고 글을 씁니다.</span></div>`
@@ -508,6 +509,18 @@ function viewSettings() {
         <label class="field"><span>Claude API 키 — 사진을 읽고 글쓰기</span><div class="key-row"><input class="input" type="password" data-set="claudeKey" value="${esc(s.claudeKey)}" placeholder="sk-ant-..." autocomplete="off" /></div><span class="hint">console.anthropic.com 에서 발급</span></label>
         <label class="field"><span>ElevenLabs API 키 — AI 목소리 내레이션</span><div class="key-row"><input class="input" type="password" data-set="elevenKey" value="${esc(s.elevenKey)}" placeholder="xi-..." autocomplete="off" /><button class="btn btn-line" data-act="load-voices">목소리 불러오기</button></div></label>
         <label class="field"><span>AI 목소리</span><select class="select" data-set="elevenVoice" id="voice-sel">${s.elevenVoice ? `<option value="${esc(s.elevenVoice)}">${esc(s.elevenVoiceName || s.elevenVoice)}</option>` : '<option value="">먼저 목소리를 불러오세요</option>'}</select></label>
+        <h3 style="margin-top:6px">구글 블로그 연결</h3>
+        <details class="sub" style="font-size:13.5px"><summary style="cursor:pointer;font-weight:700;color:var(--accent)">처음 한 번 하는 설정 (무료, 5분)</summary>
+          <ol style="margin:8px 0 0;padding-left:18px;display:grid;gap:4px">
+            <li>console.cloud.google.com 에서 새 프로젝트를 만들어요.</li>
+            <li>'API 및 서비스 → 라이브러리'에서 <b>Blogger API v3</b>를 사용 설정해요.</li>
+            <li>'OAuth 동의 화면'을 외부 · 테스트로 만들고, 테스트 사용자에 내 구글 계정을 추가해요.</li>
+            <li>'사용자 인증 정보 → OAuth 클라이언트 ID → 웹 애플리케이션'을 만들고, 승인된 자바스크립트 원본에 <b>${esc(location.origin)}</b>를 넣어요.</li>
+            <li>만들어진 클라이언트 ID(…apps.googleusercontent.com)를 아래에 붙여 넣고 '내 블로그 불러오기'를 눌러요.</li>
+          </ol></details>
+        ${fld('googleClientId', '구글 OAuth 클라이언트 ID', '1234-abcd.apps.googleusercontent.com')}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn btn-line" data-act="bl-load-blogs">${icon('globe')}내 블로그 불러오기</button>
+          <select class="select" data-set="bloggerBlogId" id="blog-sel" style="flex:1;min-width:180px">${s.bloggerBlogId ? `<option value="${esc(s.bloggerBlogId)}">${esc(s.bloggerBlogName || s.bloggerBlogId)}</option>` : '<option value="">먼저 블로그를 불러오세요</option>'}</select></div>
         <h3 style="margin-top:6px">워드프레스 연결 (선택)</h3>
         <p class="sub" style="font-size:14px">워드프레스 관리자 → 사용자 → 프로필 → <b>응용 프로그램 비밀번호</b>에서 새 비밀번호를 만들어 넣어 주세요. 로그인 비밀번호와 다르며, 언제든 거기서 취소할 수 있어요.</p>
         ${fld('wpUrl', '워드프레스 사이트 주소', 'https://myblog.com')}
@@ -522,7 +535,7 @@ function viewSettings() {
 
 // ---------- 작업 상세 ----------
 const JOB_TABS = [
-  ['images', '이미지', 'image'], ['blog', '블로그', 'doc'], ['wp', '워드프레스', 'globe'], ['insta', '인스타', 'insta'], ['threads', '스레드', 'at'],
+  ['images', '이미지', 'image'], ['blog', '블로그', 'doc'], ['post', '구글 블로그', 'globe'], ['insta', '인스타', 'insta'], ['threads', '스레드', 'at'],
   ['cards', '카드뉴스', 'layers'], ['short', '숏폼 영상', 'film'], ['youtube', '유튜브', 'play'], ['publish', '게시', 'send'],
 ];
 
@@ -542,7 +555,7 @@ function viewJob(job, tab) {
   let body = '';
   if (tab === 'images') body = tabImages(job);
   else if (tab === 'blog') body = tabBlog(job);
-  else if (tab === 'wp') body = tabWordPress(job);
+  else if (tab === 'post' || tab === 'wp') body = tabPost(job);
   else if (tab === 'insta') body = tabInsta(job);
   else if (tab === 'threads') body = tabThreads(job);
   else if (tab === 'cards') body = tabCards(job);
@@ -670,13 +683,13 @@ function seoPanel(job) {
     <div><b style="font-size:15px">${score >= 85 ? '상위노출 준비 완료' : score >= 60 ? '조금만 더 채우면 좋아요' : '채울 곳이 남아 있어요'}</b><p class="sub" style="font-size:13px;margin-top:4px">검색(SEO)과 AI 검색(GEO) 기준 ${items.length}가지 점검</p></div></div>
     <ul style="list-style:none;padding:0;margin:0;display:grid;gap:8px">${items.map((it) => `<li style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px"><span class="ico ${it.ok ? 'green' : 'orange'}" style="width:22px;height:22px;border-radius:7px">${icon(it.ok ? 'check' : 'info')}</span><span><b style="font-weight:${it.ok ? 600 : 700}">${esc(it.label)}</b>${it.ok ? '' : `<br /><span class="sub">${esc(it.tip)}</span>`}</span></li>`).join('')}</ul>`;
 }
-function tabWordPress(job) {
+function tabPost(job) {
   ensureArticle(job.copy, job.memo, job.topic, settings);
   const a = job.copy.article;
   const connected = settings.wpUrl && settings.wpUser && settings.wpPass;
   return `<div class="studio wide" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)">
     <section class="card" style="display:grid;gap:14px;align-content:start">
-      <div class="card-head" style="margin:0"><h3>워드프레스 글</h3><div class="right"><button class="btn btn-line btn-sm" data-act="wp-copy-html">${icon('copy')}HTML 복사</button></div></div>
+      <div class="card-head" style="margin:0"><h3>구글 블로그 글</h3><div class="right"><button class="btn btn-line btn-sm" data-act="wp-copy-html">${icon('copy')}HTML 복사</button></div></div>
       <div class="notice blue">${icon('info')}<span>맨 앞 요약 → 질문형 소제목 → 자주 묻는 질문 순서는 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티 같은 AI 검색(GEO)에 인용되기 좋은 구조예요.</span></div>
       <div class="grid g2" style="gap:12px">
         <label class="field"><span>핵심 검색어</span><input class="input" data-bind="copy.article.focusKeyword" data-seo="1" value="${esc(a.focusKeyword)}" placeholder="예) 성수동 카페 추천" /></label>
@@ -695,19 +708,30 @@ function tabWordPress(job) {
           <input class="input" data-bind="copy.article.faq.${i}.q" data-seo="1" value="${esc(f.q)}" />
           <textarea class="textarea" style="min-height:70px" data-bind="copy.article.faq.${i}.a" data-seo="1">${esc(f.a)}</textarea></div>`).join('')}
         <div><button class="btn btn-line btn-sm" data-act="art-add" data-k="faq">${icon('plus')}질문 추가</button></div></div>
-      <label class="field"><span>태그 (쉼표로 구분)</span><input class="input" data-bind-csv="copy.article.tags" value="${esc(a.tags.join(', '))}" /></label>
+      <label class="field"><span>라벨 · 태그 (쉼표로 구분)</span><input class="input" data-bind-csv="copy.article.tags" value="${esc(a.tags.join(', '))}" /></label>
     </section>
     <div style="display:grid;gap:16px;align-content:start">
       <section class="card"><h3 style="margin-bottom:12px">상위노출 점검</h3><div id="seo-panel">${seoPanel(job)}</div></section>
       <section class="card" style="display:grid;gap:12px">
-        <h3>워드프레스에 올리기</h3>
-        ${connected ? `<p class="sub" style="font-size:13.5px">${esc(settings.wpUrl)} · 이미지 ${Math.min(job.stills.length, a.sections.length + 1)}장을 함께 올리고, 대표 이미지·태그·요약까지 넣어요.</p>
-          <div class="seg"><button class="${(job.wpStatus || settings.wpStatus) !== 'publish' ? 'on' : ''}" data-act="wp-status" data-v="draft">임시저장</button><button class="${(job.wpStatus || settings.wpStatus) === 'publish' ? 'on' : ''}" data-act="wp-status" data-v="publish">바로 발행</button></div>
-          <button class="btn btn-blue btn-lg" data-act="wp-publish" id="wp-btn">${icon('upload')}워드프레스에 올리기</button>`
-          : `<div class="notice">${icon('info')}<span>브랜드 설정에서 워드프레스 주소, 사용자 이름, 응용 프로그램 비밀번호를 넣으면 버튼 한 번으로 올라가요. 연결 전에는 'HTML 복사'로 붙여 넣을 수 있어요.</span></div><a class="btn btn-line" href="#/settings">워드프레스 연결하기</a>`}
-        ${job.wp ? `<div class="result"><b>${icon('check')} ${job.wp.status === 'publish' ? '발행했어요' : '임시저장했어요'}</b><a class="btn btn-line btn-sm" href="${esc(job.wp.link)}" target="_blank" rel="noopener">${icon('external')}글 열기</a></div>` : ''}
-        <p class="hint">발행 뒤에는 서치콘솔·서치어드바이저에서 '색인 요청'을 하면 더 빨리 검색에 잡혀요.</p>
+        <h3>구글 블로그에 올리기</h3>
+        ${settings.googleClientId && settings.bloggerBlogId ? `<p class="sub" style="font-size:13.5px">${esc(settings.bloggerBlogName || '내 블로그')}에 제목 · 본문 · 요약 · 자주 묻는 질문 · 라벨까지 넣어요. 사진은 넣을 자리를 표시해 두니, 블로거 편집기에서 끌어다 놓아 주세요.</p>
+          <div class="seg"><button class="${job.blStatus !== 'publish' ? 'on' : ''}" data-act="bl-status" data-v="draft">임시저장</button><button class="${job.blStatus === 'publish' ? 'on' : ''}" data-act="bl-status" data-v="publish">바로 발행</button></div>
+          <button class="btn btn-blue btn-lg" data-act="bl-publish" id="bl-btn">${icon('upload')}구글 블로그에 올리기</button>`
+          : `<div class="notice">${icon('info')}<span>처음 한 번만 브랜드 설정에서 구글 블로그를 연결해 주세요(무료). 연결 전에는 'HTML 복사' 후 블로거 글쓰기의 'HTML 보기'에 붙여 넣으면 돼요.</span></div><a class="btn btn-line" href="#/settings">구글 블로그 연결하기</a>`}
+        ${job.blogger ? `<div class="result"><b>${icon('check')} ${job.blogger.status === 'LIVE' ? '발행했어요' : '임시저장했어요'}</b>
+          <p style="font-size:13.5px">블로거 편집기에서 마지막으로: ① 사진 넣기 ② 오른쪽 '검색 설명'과 '맞춤 퍼머링크'에 아래 값 붙여넣기</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-blue btn-sm" href="${esc(bloggerEditUrl(job.blogger.blogId, job.blogger.id))}" target="_blank" rel="noopener">${icon('external')}블로거에서 열기</a>
+          <button class="btn btn-line btn-sm" data-act="copy-path" data-path="copy.article.metaDescription">${icon('copy')}검색 설명 복사</button>
+          <button class="btn btn-line btn-sm" data-act="copy-path" data-path="copy.article.slug">${icon('copy')}퍼머링크 복사</button>
+          <button class="btn btn-line btn-sm" data-act="stills-zip">${icon('download')}사진 저장</button></div></div>` : ''}
+        <p class="hint">처음 블로그라면 블로거 설정 → '검색 설명 사용'을 켜고, 구글 서치콘솔에 블로그를 등록하면 더 빨리 검색에 잡혀요.</p>
       </section>
+      ${settings.wpUrl && settings.wpUser && settings.wpPass ? `<section class="card" style="display:grid;gap:12px">
+        <h3>워드프레스에도 올리기</h3>
+        <div class="seg"><button class="${(job.wpStatus || settings.wpStatus) !== 'publish' ? 'on' : ''}" data-act="wp-status" data-v="draft">임시저장</button><button class="${(job.wpStatus || settings.wpStatus) === 'publish' ? 'on' : ''}" data-act="wp-status" data-v="publish">바로 발행</button></div>
+        <button class="btn btn-line" data-act="wp-publish" id="wp-btn">${icon('upload')}워드프레스에 올리기</button>
+        ${job.wp ? `<a class="btn btn-line btn-sm" href="${esc(job.wp.link)}" target="_blank" rel="noopener">${icon('external')}워드프레스 글 열기</a>` : ''}
+      </section>` : ''}
     </div>
   </div>`;
 }
@@ -715,7 +739,11 @@ async function wpImages(job) {
   const a = job.copy.article;
   const others = job.stills.filter((s) => s.id !== job.coverId);
   const picks = [job.coverId, ...others.map((s) => s.id)].slice(0, a.sections.length + 1);
-  return picks.map((id, i) => ({ id, alt: `${a.focusKeyword || job.title} - ${i === 0 ? job.title : (a.sections[i - 1] || {}).heading || ''}`.trim() }));
+  const kw = (a.focusKeyword || '').trim();
+  return picks.map((id, i) => {
+    const part = (i === 0 ? job.title : (a.sections[i - 1] || {}).heading || job.title).trim();
+    return { id, alt: kw && !part.includes(kw) ? `${kw} - ${part}` : part };
+  });
 }
 
 // ---------- 영상 스튜디오 (숏폼 · 유튜브) ----------
@@ -827,7 +855,7 @@ function tabPublish(job) {
         <div class="txt"><b>${c.label}</b><small>${s === 'posted' ? '게시 완료' : s === 'ready' ? c.desc + ' 준비됨' : '영상을 먼저 만들어 주세요'}</small></div>
         <div class="acts">
           <a class="btn btn-line btn-sm" href="#/job/${job.id}/${c.tab}">${s === 'wait' ? '만들러 가기' : '결과물 보기'}</a>
-          ${s !== 'wait' && (c.url || settings.wpUrl) ? `<a class="btn btn-line btn-sm" href="${esc(c.key === 'wordpress' ? (job.wp && job.wp.link) || wpAdminUrl() : c.url)}" target="_blank" rel="noopener">${icon('external')}열기</a>` : ''}
+          ${s !== 'wait' && c.url ? `<a class="btn btn-line btn-sm" href="${esc(c.key === 'blogger' ? (job.blogger ? bloggerEditUrl(job.blogger.blogId, job.blogger.id) : c.url) : c.url)}" target="_blank" rel="noopener">${icon('external')}열기</a>` : ''}
           <button class="btn ${s === 'posted' ? 'btn-soft' : 'btn-line'} btn-sm" data-act="mark-posted" data-k="${c.key}" ${s === 'wait' ? 'disabled' : ''}>${s === 'posted' ? icon('check') + '완료' : '게시 완료'}</button>
         </div></div>`;
     }).join('')}</div>
@@ -872,6 +900,7 @@ async function afterRender(r, job) {
     ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
     drop.addEventListener('drop', (e) => addFiles(e.dataTransfer.files));
   }
+  if ((r.name === 'settings' || (r.name === 'job' && (r.tab === 'post' || r.tab === 'wp'))) && settings.googleClientId) prepareGoogle(settings.googleClientId).catch(() => {});
   if (r.name === 'settings') {
     if (navigator.storage && navigator.storage.estimate) {
       navigator.storage.estimate().then((est) => { const el = document.getElementById('storage-info'); if (el) el.textContent = `사진·영상은 이 기기 브라우저에 저장돼요. 지금 ${fmtMB(est.usage || 0)} 사용 중 (여유 약 ${fmtMB(Math.max(0, (est.quota || 0) - (est.usage || 0)))})`; });
@@ -1061,6 +1090,55 @@ const actions = {
     saveSoon(job); render();
   },
   'art-del': (el) => { const job = curJob(); job.copy.article[el.dataset.k].splice(+el.dataset.i, 1); saveSoon(job); render(); },
+  'bl-status': (el) => { const job = curJob(); job.blStatus = el.dataset.v; saveSoon(job); render(); },
+  'bl-load-blogs': async (el) => {
+    if (!settings.googleClientId) { toast('구글 OAuth 클라이언트 ID를 먼저 넣어 주세요'); return; }
+    let tp;
+    try { tp = googleToken(); } catch (e) { tp = Promise.reject(e); }
+    el.disabled = true;
+    try {
+      await tp;
+      const blogs = await listBlogs();
+      if (!blogs.length) { toast('이 구글 계정에 블로그가 없어요. blogger.com에서 먼저 블로그를 만들어 주세요'); }
+      else {
+        const sel = document.getElementById('blog-sel');
+        sel.innerHTML = blogs.map((b) => `<option value="${esc(b.id)}" ${b.id === settings.bloggerBlogId ? 'selected' : ''}>${esc(b.name)}</option>`).join('');
+        if (!blogs.some((b) => b.id === settings.bloggerBlogId)) { settings.bloggerBlogId = blogs[0].id; settings.bloggerBlogName = blogs[0].name; }
+        settings.bloggerBlogName = (blogs.find((b) => b.id === settings.bloggerBlogId) || blogs[0]).name;
+        saveSettings(settings);
+        toast(`블로그 ${blogs.length}개를 불러왔어요`);
+      }
+    } catch (e) {
+      toast(e.message);
+      if (/준비되지 않았어요/.test(e.message)) prepareGoogle(settings.googleClientId).catch((er) => toast(er.message));
+    }
+    el.disabled = false;
+  },
+  'bl-publish': async (el) => {
+    const job = curJob(); const a = job.copy.article;
+    const draft = job.blStatus !== 'publish';
+    let tp;
+    try { tp = googleToken(); } catch (e) { tp = Promise.reject(e); }
+    if (!draft && !confirm('구글 블로그에 바로 공개 발행할까요?')) return;
+    el.disabled = true; el.innerHTML = '<span class="spin"></span>구글 로그인';
+    try {
+      await tp;
+      el.innerHTML = '<span class="spin"></span>글 올리는 중';
+      const imgs = await wpImages(job);
+      const content = articleHtml(a, imgs.slice(1).map((im, i) => ({ placeholder: i + 2, alt: im.alt })), { author: settings.ownerName });
+      const lead = `<p style="padding:14px;border:2px dashed #93C5FD;border-radius:10px;color:#1D4ED8">📷 대표 사진(사진 1) 넣는 자리 — 대체 텍스트: "${esc(imgs[0] ? imgs[0].alt : a.focusKeyword)}"</p>\n`;
+      const post = await createBlogPost({ blogId: settings.bloggerBlogId, title: a.seoTitle || job.title, content: lead + content, labels: a.tags, draft });
+      job.blogger = { ...post, at: Date.now() };
+      if (post.status === 'LIVE') job.publish.blogger = Date.now();
+      await db.putJob(job);
+      toast(post.status === 'LIVE' ? '구글 블로그에 발행했어요' : '구글 블로그에 임시저장했어요');
+      render();
+    } catch (e) {
+      toast(e.message || '구글 블로그에 올리지 못했어요');
+      if (/준비되지 않았어요/.test(e.message || '')) prepareGoogle(settings.googleClientId).catch(() => {});
+      el.disabled = false; el.innerHTML = `${icon('upload')}다시 올리기`;
+    }
+  },
   'wp-status': (el) => { const job = curJob(); job.wpStatus = el.dataset.v; saveSoon(job); render(); },
   'wp-copy-html': async () => {
     const job = curJob();
@@ -1095,7 +1173,7 @@ const actions = {
       const content = articleHtml(a, uploaded.slice(1), { author: settings.ownerName });
       const post = await wp.createPost({ title: a.seoTitle || job.title, content, excerpt: a.metaDescription, slug: a.slug, status, tags, featured: uploaded[0] && uploaded[0].id });
       job.wp = { id: post.id, link: post.link, status: post.status, at: Date.now() };
-      if (post.status === 'publish') job.publish.wordpress = Date.now();
+      if (post.status === 'publish') job.publish.blogger = Date.now();
       await db.putJob(job);
       toast(post.status === 'publish' ? '워드프레스에 발행했어요' : '워드프레스에 임시저장했어요');
       render();
@@ -1135,6 +1213,7 @@ root.addEventListener('input', (e) => {
   if (el.dataset.set) {
     settings[el.dataset.set] = el.value;
     if (el.dataset.set === 'elevenVoice') settings.elevenVoiceName = el.options[el.selectedIndex].text;
+    if (el.dataset.set === 'bloggerBlogId') settings.bloggerBlogName = el.options[el.selectedIndex].text;
     saveSettings(settings); return;
   }
   const job = curJob(); if (!job) return;
@@ -1156,7 +1235,8 @@ root.addEventListener('input', (e) => {
 
 root.addEventListener('change', async (e) => {
   const el = e.target;
-  if (el.dataset.set && el.tagName === 'SELECT') { settings[el.dataset.set] = el.value; if (el.dataset.set === 'elevenVoice') settings.elevenVoiceName = el.options[el.selectedIndex].text; saveSettings(settings); }
+  if (el.dataset.set && el.tagName === 'SELECT') { settings[el.dataset.set] = el.value; if (el.dataset.set === 'elevenVoice') settings.elevenVoiceName = el.options[el.selectedIndex].text; if (el.dataset.set === 'bloggerBlogId') settings.bloggerBlogName = el.options[el.selectedIndex].text; saveSettings(settings); }
+  if (el.dataset.set === 'googleClientId' && el.value.trim()) prepareGoogle(el.value.trim()).catch((er) => toast(er.message));
   if (el.dataset.actChange === 'bgm' && el.files[0]) {
     const job = curJob(); const o = job[current.tab]; const f = el.files[0];
     if (f.size > 40e6) { toast('음악 파일은 40MB 이하로 넣어 주세요'); return; }

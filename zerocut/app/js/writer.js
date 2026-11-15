@@ -102,7 +102,7 @@ export function draftWithoutAI({ memo, topic, title, settings, stillCount }) {
   };
 }
 
-// 워드프레스용 글: 검색(SEO)과 AI 검색(GEO)에 맞춘 구조 — 맨 앞 요약 답변, 소제목, 자주 묻는 질문
+// 구글 블로그·워드프레스용 글: 검색(SEO)과 AI 검색(GEO)에 맞춘 구조 — 맨 앞 요약 답변, 소제목, 자주 묻는 질문
 function basicArticle({ head, f, T, points, hashtags, end }) {
   const kw = (f[0] || head).split(' ').slice(0, 3).join(' ');
   const d = new Date();
@@ -173,7 +173,7 @@ export async function draftWithAI({ memo, topic, title, settings, images, onStat
     '- short: 9:16 숏폼. hook은 첫 1.5초에 띄울 14자 이내 문장. lines는 화면 자막 4~6개(각 16자 이내). narration은 25~35초 분량 내레이션 원고. keyword는 강조할 단어 하나.',
     '- youtube: 가로 영상 제목(40자 이내)과 설명(문단 + 해시태그 3~5개).',
     '- tiktok: 짧은 캡션과 해시태그 5~6개.',
-    '- article: 워드프레스용 글. 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티·구글 AI 요약 같은 AI 검색(GEO)에 인용되기 좋게 쓴다.',
+    '- article: 구글 블로그(블로거)·워드프레스용 글. 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티·구글 AI 요약 같은 AI 검색(GEO)에 인용되기 좋게 쓴다.',
     '  · focusKeyword: 사람들이 실제로 검색할 2~4단어 핵심 검색어 하나(예: "성수동 카페 추천").',
     '  · seoTitle: 60자 이내, 핵심 검색어를 앞쪽에. slug: 영어 소문자와 하이픈 3~6단어.',
     '  · metaDescription: 80~150자, 핵심 검색어 포함, 클릭하고 싶게.',
@@ -294,7 +294,8 @@ export function articleHtml(a, images = [], { author = '', updated = new Date() 
     parts.push(`<h2>${escH(sec.heading)}</h2>`);
     parts.push(bodyHtml(sec.body));
     const img = images[i];
-    if (img) parts.push(`<figure><img src="${escH(img.url)}" alt="${escH(img.alt)}" loading="lazy" /><figcaption>${escH(img.alt)}</figcaption></figure>`);
+    if (img && img.url) parts.push(`<figure><img src="${escH(img.url)}" alt="${escH(img.alt)}" loading="lazy" /><figcaption>${escH(img.alt)}</figcaption></figure>`);
+    else if (img && img.placeholder) parts.push(`<p style="padding:14px;border:2px dashed #93C5FD;border-radius:10px;color:#1D4ED8">📷 사진 ${img.placeholder} 넣는 자리 — 이 줄을 지우고 사진을 넣은 뒤, 사진 설명(대체 텍스트)에 "${escH(img.alt)}"를 적어 주세요.</p>`);
   });
   if (a.faq.length) {
     parts.push('<h2>자주 묻는 질문</h2>');
