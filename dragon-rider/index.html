@@ -30,6 +30,7 @@ body {
   color: var(--ink);
   -webkit-user-select: none; user-select: none;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
   touch-action: none;
   overscroll-behavior: none;
 }
@@ -45,7 +46,7 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
   box-sizing: border-box;
 }
 .screen > * { pointer-events: auto; }
-.screen.center { align-items: center; justify-content: center; background: rgba(29, 42, 74, 0.28); }
+.screen.center { align-items: center; justify-content: safe center; background: rgba(29, 42, 74, 0.28); overflow-y: auto; touch-action: pan-y; }
 .spacer { flex: 1; pointer-events: none !important; }
 
 /* ---------- Blocks & buttons ---------- */
@@ -121,7 +122,7 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 .logo { display: flex; flex-direction: column; gap: 2px; }
 .logo small { font-size: 18px; color: var(--ink); background: var(--sun); border: 3px solid var(--ink); border-radius: 6px; padding: 2px 10px; align-self: flex-start; transform: rotate(-3deg); }
 .logo h1 {
-  margin: 0; font-weight: 400; font-size: clamp(44px, 12vw, 76px); line-height: 1;
+  margin: 0; font-weight: 400; font-size: clamp(34px, min(12vw, 11vh), 76px); line-height: 1;
   color: var(--white);
   text-shadow: 0 4px 0 var(--ink), 3px 0 0 var(--ink), -3px 0 0 var(--ink), 0 -3px 0 var(--ink), 3px 4px 0 var(--ink), -3px 4px 0 var(--ink), 0 9px 0 rgba(29,42,74,.3);
   letter-spacing: 1px; word-break: keep-all; text-wrap: balance;
@@ -157,9 +158,9 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 .hud-right { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
 .hud-right .iconbtn { pointer-events: auto; }
 #hint {
-  position: fixed; left: 50%; top: calc(max(14px, env(safe-area-inset-top, 0px)) + 74px); transform: translateX(-50%);
+  position: fixed; left: 50%; bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 128px); transform: translateX(-50%);
   background: rgba(29,42,74,.85); color: var(--white); padding: 10px 18px; border-radius: 10px;
-  font-size: 19px; text-align: center; width: max-content; max-width: calc(100% - 32px); box-sizing: border-box;
+  font-size: 17px; text-align: center; width: max-content; max-width: calc(100% - 32px); box-sizing: border-box; word-break: keep-all;
   pointer-events: none; transition: opacity .6s; line-height: 1.4;
 }
 #hint.fade { opacity: 0; }
@@ -200,7 +201,8 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 .shop-head .btn { margin-bottom: 4px; }
 .shop-sub { margin: 10px 16px 0; font-size: 16px; color: var(--muted); line-height: 1.45; }
 .grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px;
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; align-content: start;
   padding: 14px 14px 22px; overflow-y: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch;
 }
 @media (max-width: 460px) { .grid { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px 10px 20px; } }
@@ -235,6 +237,48 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 #flash.on { opacity: 1; transition: none; }
 
 #loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--sky); font-size: 28px; color: var(--ink); z-index: 50; text-align: center; padding: 16px; }
+
+/* ---------- Phones ---------- */
+@media (max-width: 400px) {
+  #hearts { max-width: 132px; }
+  #hearts svg, #hearts .shield { width: 24px; height: 24px; }
+  .hud-mid b { font-size: 34px; }
+  .shop-head h2 { order: 3; flex-basis: 100%; font-size: 22px; }
+  .shop-head .coinpill { margin-left: auto; }
+  .shop-sub { font-size: 14px; margin: 8px 12px 0; }
+  .card .nm { font-size: 19px; }
+  .card .lvl { font-size: 12px; }
+  .card .btn { font-size: 16px; }
+}
+@media (max-height: 640px) and (orientation: portrait) {
+  .panel { padding: 16px 14px; gap: 10px; }
+  .panel h2 { font-size: 24px; }
+  .stats b { font-size: 24px; }
+  .note { font-size: 15px; }
+  .btn.big { font-size: 24px; padding: 10px 20px; }
+  .btn { font-size: 19px; padding: 9px 16px; }
+  #hint { bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 112px); font-size: 15px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .logo small { font-size: 14px; }
+  .dragon-tag { display: none; }
+  .menu-actions { flex-direction: row; width: min(560px, 100%); gap: 12px; }
+  .menu-actions .btn { flex: 1; }
+  .btn { font-size: 18px; padding: 8px 16px; }
+  .btn.big { font-size: 22px; padding: 8px 20px; }
+  .panel { padding: 12px 16px; gap: 8px; width: min(600px, 100%); }
+  .panel h2 { font-size: 22px; }
+  .stats > div { padding: 6px; }
+  .stats b { font-size: 22px; }
+  .note { font-size: 15px; }
+  .shop-sub { display: none; }
+  .shop-head { padding: 8px 12px; }
+  .reveal { align-self: flex-end; width: min(330px, 100%); }
+  .reveal h2 { font-size: 28px; }
+  #hatchMsg { font-size: 20px; }
+  #btnFire { width: 80px; height: 80px; }
+  #hint { bottom: max(12px, env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 280px); font-size: 15px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .badge, .reveal, .coinpill.bump { animation: none; }
@@ -1049,9 +1093,11 @@ canvas.addEventListener('pointermove', (e) => {
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   drag.x = e.clientX; drag.y = e.clientY;
   if (mode !== 'play') return;
-  const k = (2 * XR) / (Math.min(window.innerWidth, 900) * 0.68) * cur().agility;
+  const kx = (2 * XR) / (Math.min(window.innerWidth, 900) * 0.68);
+  const ky = (YMAX - YMIN) / (window.innerHeight * 0.6);
+  const k = Math.max(kx, ky) * cur().agility;
   p.tx = clamp(p.tx + dx * k, -XR, XR);
-  p.ty = clamp(p.ty - dy * k * 0.95, YMIN, YMAX);
+  p.ty = clamp(p.ty - dy * k, YMIN, YMAX);
 });
 const endDrag = (e) => { if (drag && e.pointerId === drag.id) drag = null; };
 canvas.addEventListener('pointerup', endDrag);
@@ -1083,6 +1129,7 @@ function renderMenu() {
 
 function goMenu() {
   mode = 'menu';
+  keepAwake(false);
   clearWorld();
   p.x = 0; p.y = 4; p.tx = 0; p.ty = 4;
   playerRoot.visible = true; playerShadow.visible = true;
@@ -1092,6 +1139,15 @@ function goMenu() {
   renderMenu();
 }
 let hintTimer = 0;
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && !wakeLock && navigator.wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!on && wakeLock) { const w = wakeLock; wakeLock = null; await w.release(); }
+  } catch (e) { wakeLock = null; }
+}
 function startGame() {
   ensureAudio(); SFX.click();
   mountPlayer();
@@ -1099,20 +1155,22 @@ function startGame() {
   resetRun();
   mode = 'play';
   show('hud');
+  keepAwake(true);
   const D = cur();
   $('#btnFire').hidden = !D.fire;
   const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  let msg = touch ? '화면을 손가락으로 끌어서 드래곤을 움직여요' : '방향키나 WASD, 또는 마우스로 끌어서 움직여요';
+  let msg = touch ? '손가락으로 화면을 끌어서 움직여요' : '방향키나 WASD, 또는 마우스로 끌어서 움직여요';
   msg += '<br>시훈아, 가시를 피하고 코인을 모으자!';
-  if (D.fire) msg += touch ? '<br>불꽃 버튼으로 가시를 부술 수 있어요' : '<br>스페이스바로 불꽃을 쏴요';
+  if (D.fire) msg += touch ? '<br>불꽃 버튼으로 가시를 부숴요' : '<br>스페이스바로 불꽃을 쏴요';
   const hint = $('#hint'); hint.innerHTML = msg; hint.hidden = false; hint.classList.remove('fade');
   clearTimeout(hintTimer);
   hintTimer = setTimeout(() => hint.classList.add('fade'), 3800);
 }
 function pauseGame() { if (mode !== 'play') return; mode = 'pause'; show('hud', 'pause'); drag = null; }
-function resumeGame() { if (mode !== 'pause') return; mode = 'play'; show('hud'); SFX.click(); }
+function resumeGame() { if (mode !== 'pause') return; mode = 'play'; show('hud'); SFX.click(); keepAwake(true); }
 function gameOver() {
   mode = 'over';
+  keepAwake(false);
   $('#btnFire').hidden = true; $('#hint').hidden = true;
   const dist = Math.floor(p.dist);
   if (p.dist > save.best) { save.best = p.dist; p.newBest = true; }
@@ -1145,7 +1203,7 @@ function renderShop() {
     card.className = 'card' + (isCur ? ' current' : '');
     const img = owned ? thumbs.dragon[i] : thumbs.egg[i];
     let btn, need = '';
-    if (owned) btn = `<button class="btn ${isCur ? 'ghost' : 'alt'}" data-act="ride" data-i="${i}" ${isCur ? 'disabled' : ''}>${isCur ? '타는 중' : '이 드래곤 타기'}</button>`;
+    if (owned) btn = `<button class="btn ${isCur ? 'ghost' : 'alt'}" data-act="ride" data-i="${i}" ${isCur ? 'disabled' : ''}>${isCur ? '타는 중' : '타기'}</button>`;
     else {
       const ok = save.coins >= D.price;
       btn = `<button class="btn" data-act="buy" data-i="${i}" ${ok ? '' : 'disabled'}><span class="price">${ICON.coin}${D.price}</span> 알 사기</button>`;
@@ -1376,10 +1434,20 @@ function updatePlay(dt) {
 }
 
 let last = performance.now();
+let perfAcc = 0, perfN = 0;
 function frame(now) {
   requestAnimationFrame(frame);
-  let dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const raw = (now - last) / 1000;
+  let dt = Math.min(0.05, raw); last = now;
   if (mode === 'loading') return;
+  if (mode === 'play' && raw < 0.2) {
+    perfAcc += raw; perfN++;
+    if (perfN >= 90) {
+      const pr = renderer.getPixelRatio();
+      if (perfAcc / perfN > 0.024 && pr > 1) { renderer.setPixelRatio(Math.max(1, pr - 0.5)); resize(); }
+      perfAcc = 0; perfN = 0;
+    }
+  }
   time += dt;
   let dz = 0;
   if (mode === 'play' || mode === 'dying') dz = updatePlay(dt);
@@ -1412,7 +1480,7 @@ function frame(now) {
   } else {
     const a = time * 0.22 + 0.6, r = 7.6 + camExtra * 0.8;
     tmpPos.set(Math.sin(a) * r, 5.3 + Math.sin(time * 0.3) * 0.5, Math.cos(a) * r);
-    tmpLook.set(0, 4.5, 0);
+    tmpLook.set(0, camera.aspect < 1 ? 2.9 : 4.5, 0);
   }
   const ce = 1 - Math.exp(-dt * 3.5);
   camera.position.lerp(tmpPos, mode === 'pause' ? 0 : ce);
