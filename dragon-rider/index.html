@@ -1078,7 +1078,7 @@ function mountPlayer() {
   playerRoot.add(playerModel.root);
 }
 
-function difficulty() { return Math.min(1, p.dist / 1600); }
+function difficulty() { return Math.min(1, p.dist / 2600); }
 
 function clearWorld() {
   for (const o of obstacles) { scene.remove(o.mesh); if (o.shadow) scene.remove(o.shadow); }
@@ -1089,37 +1089,41 @@ function clearWorld() {
 
 function pickX(used, minGap) {
   let x = 0;
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; k < 10; k++) {
     x = (Math.random() * 2 - 1) * XR;
-    if (used.every((u) => Math.abs(u - x) > minGap)) break;
+    if (used.every((u) => Math.abs(u - x) > minGap)) { used.push(x); return x; }
   }
-  used.push(x); return x;
+  return null; // no room left: skip it so there is always a gap to fly through
 }
 function spawnRow(z) {
   const d = difficulty();
+  // Warm-up: one obstacle per row at first, a second one only later and less often.
   let n = 1;
-  if (Math.random() < 0.35 + 0.45 * d) n++;
-  if (Math.random() < 0.25 * d) n++;
+  if (p.dist > 200 && Math.random() < 0.12 + 0.33 * d) n++;
+  if (d > 0.6 && Math.random() < 0.15) n++;
   const used = [];
   for (let i = 0; i < n; i++) {
-    const r = Math.random();
+    let r = Math.random();
+    if (n > 1 && r >= 0.8) r = Math.random() * 0.8; // long bars only when they are alone in a row
     let o;
     if (r < 0.45) {
       const h = 2.6 + Math.random() * (3.6 + 2.2 * d);
       const hv = Math.round(h / PILLAR_S);
-      const x = pickX(used, 2.6);
+      const x = pickX(used, 3.8);
+      if (x === null) continue;
       const mesh = obsMesh(pillarGeo(hv), 1.16, 1.02, 1.16);
       const H = hv * PILLAR_S;
       o = { kind: 'box', type: 'pillar', mesh, x, y: 0, z, hx: 0.76, hy: H / 2 + 0.25, hz: 0.76, cy: H / 2 + 0.25 };
       mesh.rotation.y = Math.floor(Math.random() * 4) * Math.PI / 2;
     } else if (r < 0.8) {
-      const x = pickX(used, 2.4);
+      const x = pickX(used, 3.8);
+      if (x === null) continue;
       const y = YMIN + 0.4 + Math.random() * (YMAX - YMIN - 0.8);
       const mesh = obsMesh(ballGeo(), 1.13, 1.13, 1.13);
       o = { kind: 'sphere', type: 'ball', mesh, x, y, baseY: y, z, r: 0.9, bob: d > 0.15 ? 0.4 + Math.random() * 0.9 : 0, phase: Math.random() * 6, vx: (d > 0.45 && Math.random() < 0.35) ? (Math.random() < 0.5 ? -1 : 1) * (1.5 + 2 * d) : 0 };
       o.shadow = makeShadow(1.6);
     } else {
-      const len = 3.6 + Math.random() * (2 + 3 * d);
+      const len = Math.min(3.2 + Math.random() * (1.5 + 2.5 * d), XR);
       const lv = Math.max(9, Math.round(len / BAR_S));
       const half = (Math.floor(lv / 2) + 2) * BAR_S;
       let x = (Math.random() * 2 - 1) * Math.max(0, XR - half * 0.6);
@@ -1155,8 +1159,8 @@ function spawnCoins(z) {
   }
 }
 function prepopulate() {
-  const G = 14;
-  for (let z = -42; z > SPAWN_Z; z -= G) { spawnRow(z); if (Math.random() < 0.6) spawnCoins(z + G / 2); }
+  const G = 22;
+  for (let z = -55; z > SPAWN_Z; z -= G) { spawnRow(z); if (Math.random() < 0.8) spawnCoins(z + G / 2); }
   spawnCoins(-22);
   p.untilRow = 4;
 }
@@ -1167,7 +1171,7 @@ function resetRun() {
   const D = cur();
   p.x = 0; p.y = 3.8; p.tx = 0; p.ty = 3.8;
   p.hearts = D.hearts; p.inv = 0; p.shield = !!D.shield; p.fireCd = 0;
-  p.runCoins = 0; p.dist = 0; p.speed = 17; p.dying = 0; p.newBest = false; p.nextMile = 100;
+  p.runCoins = 0; p.dist = 0; p.speed = 15; p.dying = 0; p.newBest = false; p.nextMile = 100;
   playerRoot.position.set(p.x, p.y, 0);
   if (playerModel) playerModel.root.rotation.set(0, 0, 0);
   prepopulate();
@@ -1499,7 +1503,7 @@ const tmpPos = new THREE.Vector3(), tmpLook = new THREE.Vector3();
 function updatePlay(dt) {
   const D = cur();
   const d = difficulty();
-  p.speed = 17 + 15 * d;
+  p.speed = 15 + 13 * d;
   let dz = p.speed * dt;
   if (mode === 'dying') { p.speed *= Math.max(0, p.dying / 1.3); dz = p.speed * dt; }
   p.dist += dz * 0.5 * (mode === 'play' ? 1 : 0);
@@ -1538,10 +1542,10 @@ function updatePlay(dt) {
   // spawn
   p.untilRow -= dz;
   if (p.untilRow <= 0 && mode === 'play') {
-    const G = 14.5 - 5 * d;
+    const G = 22 - 6 * d;
     p.untilRow += G;
     spawnRow(SPAWN_Z);
-    if (Math.random() < 0.5) spawnCoins(SPAWN_Z + G / 2);
+    if (Math.random() < 0.8) spawnCoins(SPAWN_Z + G / 2);
   }
 
   scrollDecos(dz);
@@ -1678,7 +1682,7 @@ function resize() {
   camera.aspect = aspect;
   camera.fov = aspect < 1 ? 66 : 60;
   camera.updateProjectionMatrix();
-  XR = aspect < 0.8 ? 4.6 : aspect < 1.25 ? 5.6 : 7;
+  XR = aspect < 0.8 ? 5 : aspect < 1.25 ? 5.8 : 7;
   camExtra = aspect < 1 ? (1 - aspect) * 9 : 0;
   p.tx = clamp(p.tx, -XR, XR);
 }
