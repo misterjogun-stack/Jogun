@@ -1,10 +1,9 @@
 // ZEROCUT 앱 본체: 화면 그리기 · 이동 · 작업 처리
 import { db, blobUrl, forgetUrl, loadSettings, saveSettings, uid } from './store.js';
 import { analyzeVideo, analyzePhoto, grabFrame, smallJpegBase64, thumbDataUrl } from './media.js';
-import { TOPICS, TONES, draftWithoutAI, draftWithAI, ensureArticle, seoCheck, articleHtml } from './writer.js';
-import { WordPress } from './wp.js';
+import { TOPICS, TONES, STYLES, perspectiveLabels, GEMINI_MODELS, GEMINI_VOICES, geminiTTS, draftWithoutAI, draftWithAI, ensureArticle, seoCheck, articleHtml } from './writer.js';
 import { prepareGoogle, googleToken, listBlogs, createBlogPost, bloggerEditUrl } from './blogger.js';
-import { CARD_THEMES, drawCard, ensureFonts, canvasBlob } from './cards.js';
+import { CARD_THEMES, CARD_LAYOUTS, drawCard, ensureFonts, canvasBlob } from './cards.js';
 import { ASPECTS, MOTION_STYLES, Composer, buildPlan, recordMic, listElevenVoices, elevenTTS, audioDuration, pickMime } from './motion.js';
 
 const root = document.getElementById('app');
@@ -125,6 +124,21 @@ function saveSoon(job) {
   saveTimers.set(job.id, setTimeout(() => { job.updatedAt = Date.now(); db.putJob(job).catch(() => toast('저장 공간이 부족해요')); }, 500));
 }
 
+const hasAI = () => !!(settings.geminiKey || settings.claudeKey);
+const hasBiz = () => !!(settings.bizName && settings.bizName.trim());
+const voiceReady = () => !!(settings.geminiKey || (settings.elevenKey && settings.elevenVoice));
+
+// 매장 정보를 블로그 · 인스타 글 끝에 붙이기
+function applyBiz(copy) {
+  if (!hasBiz()) return;
+  const s = settings;
+  const rows = [['📍 주소', s.bizAddress], ['🕘 영업시간', s.bizHours], ['📞 전화', s.bizPhone], ['🅿️ 주차', s.bizParking], ['💳 가격', s.bizPrice], ['📅 예약', s.bizBooking], ['🗺️ 지도', s.bizMap]].filter(([, v]) => v && v.trim());
+  if (!copy.blog.body.includes('## 매장 정보')) copy.blog.body = copy.blog.body.replace(/\s*$/, '') + `\n\n## 매장 정보\n${s.bizName}\n${rows.map(([k, v]) => `${k} ${v}`).join('\n')}`;
+  const line = [`📍 ${s.bizName}${s.bizAddress ? ' · ' + s.bizAddress : ''}`, s.bizBooking ? `📅 예약 ${s.bizBooking}` : ''].filter(Boolean).join('\n');
+  if (!copy.instagram.caption.includes(`📍 ${s.bizName}`)) copy.instagram.caption = copy.instagram.caption.replace(/\s*$/, '') + `\n\n${line}`;
+  if (copy.youtube && !copy.youtube.description.includes(`📍 ${s.bizName}`)) copy.youtube.description = copy.youtube.description.replace(/\s*$/, '') + `\n\n${line}`;
+}
+
 // ---------- 채널 ----------
 const CHANNELS = [
   { key: 'blog', label: '네이버 블로그', icon: 'doc', tab: 'blog', url: 'https://blog.naver.com/', desc: '글 + 이미지' },
@@ -141,7 +155,7 @@ function channelState(job, ch) {
   if (!job.copy) return 'wait';
   if (['reels', 'shorts', 'tiktok'].includes(ch.key)) return job.outputs && job.outputs.short ? 'ready' : 'wait';
   if (ch.key === 'youtube') return job.outputs && job.outputs.youtube ? 'ready' : 'wait';
-  if (ch.key === 'blogger' && ((job.blogger && job.blogger.status === 'LIVE') || (job.wp && job.wp.status === 'publish'))) return 'posted';
+  if (ch.key === 'blogger' && job.blogger && job.blogger.status === 'LIVE') return 'posted';
   return 'ready';
 }
 function jobProgress(job) {
@@ -267,13 +281,15 @@ function viewHome() {
 }
 
 // ---------- 새 작업 ----------
-const draft = { files: [], memo: '', title: '', topic: 'auto' };
+const draft = { files: [], memo: '', title: '', topic: 'auto', style: '', perspective: 'pro', useBiz: true };
 function draftThumbs() {
   return draft.files.map((f, i) => `<div class="thumb">${f.kind === 'video' ? `<video src="${f.url}#t=0.5" muted playsinline preload="metadata"></video>` : `<img src="${f.url}" alt="" />`}
     <span class="badge">${f.kind === 'video' ? '영상' : '사진'}</span><button class="x" data-act="draft-remove" data-i="${i}" aria-label="빼기">${icon('x')}</button></div>`).join('');
 }
 function viewNew() {
-  const hasKey = !!settings.claudeKey;
+  const hasKey = hasAI();
+  const style = draft.style || settings.writeStyle || 'story';
+  const pl = perspectiveLabels(draft.topic);
   const size = draft.files.reduce((a, f) => a + f.file.size, 0);
   const inner = `
     ${topbar('새 작업')}
@@ -290,16 +306,20 @@ function viewNew() {
           <textarea class="textarea" data-draft="memo" rows="3" placeholder="예) 성수동 ○○카페, 라떼 6천원, 웨이팅 20분 / 레이어드컷, 손상모, 클리닉 같이">${esc(draft.memo)}</textarea>
           <span class="hint">사실 정보(가격·장소·시술명)를 적으면 글에 그대로 넣고, 없는 내용은 지어내지 않아요.</span></label>
         <label class="field"><span>제목 (선택)</span><input class="input" data-draft="title" value="${esc(draft.title)}" placeholder="비워 두면 자동으로 지어요" /></label>
+        <div class="field"><span>글 스타일 (취향)</span><div class="chips">${Object.entries(STYLES).map(([k, v]) => `<button type="button" class="${style === k ? 'on' : ''}" data-act="draft-style" data-v="${k}" title="${v.desc}">${v.label}</button>`).join('')}</div><span class="hint">${esc(STYLES[style].desc)}</span></div>
+        <div class="field"><span>누구 입장에서 쓸까요?</span><div class="seg"><button type="button" class="${draft.perspective !== 'guest' ? 'on' : ''}" data-act="draft-persp" data-v="pro">${pl.pro}</button><button type="button" class="${draft.perspective === 'guest' ? 'on' : ''}" data-act="draft-persp" data-v="guest">${pl.guest}</button></div>
+          ${draft.perspective === 'guest' && hasBiz() ? `<span class="hint">매장 계정에서 고객인 것처럼 후기를 쓰면 거짓 후기가 될 수 있어요. 고객이 겪는 과정을 안내하는 글로 쓰거나, 고객님께 초안으로 전달해 직접 올리시게 해 주세요.</span>` : ''}</div>
+        ${hasBiz() ? `<label class="field" style="display:flex;gap:10px;align-items:center;flex-direction:row"><input type="checkbox" data-draft-check="useBiz" ${draft.useBiz ? 'checked' : ''} style="width:20px;height:20px" /><span style="color:var(--ink);font-weight:600">매장 정보 넣기 (${esc(settings.bizName)} · 주소 · 예약 링크)</span></label>` : ''}
         <div class="field"><span>주제</span><div class="chips">${Object.entries(TOPICS).filter(([k]) => hasKey || k !== 'auto').map(([k, t]) => `<button type="button" class="${(draft.topic === k || (!hasKey && draft.topic === 'auto' && k === 'daily')) ? 'on' : ''}" data-act="draft-topic" data-v="${k}">${t.label}</button>`).join('')}</div></div>
       </section>
       <section class="card" style="display:grid;gap:14px;align-content:start">
         <h3>자동으로 만들어지는 것</h3>
         <div class="channels">
-          ${[['image', '잘 나온 장면 이미지', '영상에서 선명한 장면을 골라 고화질로 저장'], ['doc', '블로그 글', '소제목까지 나눈 원고'], ['globe', '구글 블로그 글', '검색·AI 검색 상위노출 구조'], ['insta', '인스타 캡션 · 카드뉴스', '1080×1350 카드 6~8장'], ['at', '스레드', '이어지는 글 3~5개'], ['film', '릴스 · 쇼츠 · 틱톡', '자막 · 모션그래픽 · 소리'], ['play', '유튜브', '가로 영상 + 설명']]
+          ${[['image', '잘 나온 장면 이미지', '영상에서 선명한 장면을 골라 고화질로 저장'], ['doc', '블로그 글', '소제목까지 나눈 원고'], ['globe', '구글 블로그 글', '검색·AI 검색 상위노출 구조 + 매장 정보'], ['insta', '인스타 캡션 · 카드뉴스', '1080×1350 카드 6~8장'], ['at', '스레드', '이어지는 글 3~5개'], ['film', '릴스 · 쇼츠 · 틱톡', '자막 · 모션그래픽 · 소리'], ['play', '유튜브', '가로 영상 + 설명']]
             .map(([ic, t, d]) => `<div class="ch" style="padding:10px 12px"><span class="ico blue" style="width:34px;height:34px">${icon(ic)}</span><div class="txt"><b>${t}</b><small>${d}</small></div></div>`).join('')}
         </div>
-        ${hasKey ? `<div class="notice blue">${icon('sparkle')}<span>AI가 사진을 직접 보고 글을 씁니다.</span></div>`
-          : `<div class="notice">${icon('info')}<span>지금은 메모로 기본 문구를 만듭니다. <a href="#/settings" style="color:var(--accent);font-weight:700">브랜드 설정</a>에서 Claude API 키를 넣으면 AI가 사진을 직접 읽고 씁니다.</span></div>`}
+        ${hasKey ? `<div class="notice blue">${icon('sparkle')}<span>${settings.aiProvider === 'claude' && settings.claudeKey ? 'Claude' : '제미나이'}가 사진을 직접 보고 글을 씁니다.</span></div>`
+          : `<div class="notice">${icon('info')}<span>지금은 메모로 기본 문구를 만듭니다. <a href="#/settings" style="color:var(--accent);font-weight:700">브랜드 설정</a>에서 구글 AI 스튜디오(제미나이) 키를 넣으면 AI가 사진을 직접 읽고 씁니다(무료 사용량 있음).</span></div>`}
         <button class="btn btn-blue btn-lg" data-act="start" ${draft.files.length ? '' : 'disabled'}>${icon('sparkle')}자동으로 만들기</button>
       </section>
     </div>`;
@@ -345,7 +365,8 @@ async function startJob() {
   await new Promise((r) => setTimeout(r, 60)); // 진행 화면이 먼저 그려지도록
   const job = {
     id: uid('job'), createdAt: Date.now(), updatedAt: Date.now(),
-    title: draft.title.trim(), memo: draft.memo.trim(), topic: draft.topic === 'auto' && !settings.claudeKey ? 'daily' : draft.topic,
+    title: draft.title.trim(), memo: draft.memo.trim(), topic: draft.topic === 'auto' && !hasAI() ? 'daily' : draft.topic,
+    style: draft.style || settings.writeStyle || 'story', perspective: draft.perspective, useBiz: hasBiz() && draft.useBiz, cardLayout: settings.cardLayout || 'classic',
     media: [], stills: [], copy: null, coverId: null, cardTheme: settings.cardTheme, cardImages: [], outputs: {}, publish: {},
     short: { length: 30, style: settings.motionStyle, voice: 'none', voiceId: null, voiceSec: 0, bgmId: null, script: '' },
     youtube: { length: 45, style: settings.motionStyle, voice: 'none', voiceId: null, voiceSec: 0, bgmId: null, script: '' },
@@ -400,21 +421,8 @@ async function startJob() {
     setStep('analyze', 'done');
     // 3) 글
     setStep('write', 'run');
-    const args = { memo: job.memo, topic: job.topic, title: job.title, settings, stillCount: job.stills.length };
-    if (settings.claudeKey) {
-      try {
-        const top = [...job.stills].sort((a, b) => b.score - a.score).slice(0, 6).sort((a, b) => job.stills.indexOf(a) - job.stills.indexOf(b));
-        const images = [];
-        for (const s of top) images.push(await smallJpegBase64(await blobUrl(s.id)));
-        const msg = document.getElementById('proc-msg');
-        job.copy = await draftWithAI({ ...args, images, onStatus: (t) => { if (msg) { msg.hidden = false; msg.innerHTML = `${icon('sparkle')}<span>${esc(t)}</span>`; } } });
-      } catch (e) {
-        job.copyNotice = (e && e.message ? e.message : 'AI 글쓰기에 실패했어요') + ' 기본 문구로 만들었어요.';
-        job.copy = draftWithoutAI(args);
-      }
-    } else {
-      job.copy = draftWithoutAI(args);
-    }
+    const msg = document.getElementById('proc-msg');
+    await writeCopy(job, (t) => { if (msg) { msg.hidden = false; msg.innerHTML = `${icon('sparkle')}<span>${esc(t)}</span>`; } });
     job.topic = job.copy.topic || job.topic;
     if (!job.title) job.title = job.copy.title;
     job.short.script = job.copy.short.narration || '';
@@ -427,7 +435,7 @@ async function startJob() {
     jobs.unshift(job);
     setStep('done', 'done');
     draft.files.forEach((f) => URL.revokeObjectURL(f.url));
-    draft.files = []; draft.memo = ''; draft.title = ''; draft.topic = 'auto';
+    draft.files = []; draft.memo = ''; draft.title = ''; draft.topic = 'auto'; draft.style = ''; draft.perspective = 'pro'; draft.useBiz = true;
     processing = false;
     location.hash = `#/job/${job.id}/images`;
     toast('다 만들었어요');
@@ -439,6 +447,26 @@ async function startJob() {
     for (const m of job.media) await db.deleteBlob(m.id).catch(() => {});
     for (const s of job.stills) await db.deleteBlob(s.id).catch(() => {});
   }
+}
+
+// 글 쓰기 (새 작업 · 다시 쓰기 공통)
+async function writeCopy(job, onStatus) {
+  const args = { memo: job.memo, topic: job.topic, title: job.title, settings, stillCount: job.stills.length, style: job.style, perspective: job.perspective, useBiz: job.useBiz };
+  job.copyNotice = '';
+  if (hasAI()) {
+    try {
+      const top = [...job.stills].sort((a, b) => b.score - a.score).slice(0, 6).sort((a, b) => job.stills.indexOf(a) - job.stills.indexOf(b));
+      const images = [];
+      for (const s of top) images.push(await smallJpegBase64(await blobUrl(s.id)));
+      job.copy = await draftWithAI({ ...args, images, onStatus });
+    } catch (e) {
+      job.copyNotice = (e && e.message ? e.message : 'AI 글쓰기에 실패했어요') + ' 기본 문구로 만들었어요.';
+      job.copy = draftWithoutAI(args);
+    }
+  } else {
+    job.copy = draftWithoutAI(args);
+  }
+  if (job.useBiz) applyBiz(job.copy);
 }
 
 function defaultCardImages(job) {
@@ -501,14 +529,38 @@ function viewSettings() {
         <label class="field"><span>말투</span><select class="select" data-set="tone">${Object.entries(TONES).map(([k, v]) => `<option value="${k}" ${s.tone === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
         ${fld('baseTags', '항상 넣을 해시태그', '#성수동 #내브랜드', 'text', '띄어쓰기로 구분해요')}
         <label class="field"><span>카드뉴스 기본 색</span><select class="select" data-set="cardTheme">${Object.entries(CARD_THEMES).map(([k, v]) => `<option value="${k}" ${s.cardTheme === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></label>
+        <label class="field"><span>기본 글 스타일</span><select class="select" data-set="writeStyle">${Object.entries(STYLES).map(([k, v]) => `<option value="${k}" ${(s.writeStyle || 'story') === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
+        <label class="field"><span>카드뉴스 기본 레이아웃</span><select class="select" data-set="cardLayout">${Object.entries(CARD_LAYOUTS).map(([k, v]) => `<option value="${k}" ${(s.cardLayout || 'classic') === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
         <label class="field"><span>영상 모션 기본 스타일</span><select class="select" data-set="motionStyle">${Object.entries(MOTION_STYLES).map(([k, v]) => `<option value="${k}" ${s.motionStyle === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
+        <h3 style="margin-top:6px">매장 · 블로그 정보</h3>
+        <p class="sub" style="font-size:14px">한 번 적어 두면 블로그 글 끝 '매장 정보', 인스타 캡션의 주소·예약 줄, 검색엔진용 매장 정보(구조화 데이터)에 자동으로 들어가요. 비워 둔 칸은 빠져요.</p>
+        ${fld('bizName', '상호 (매장 이름)', '조군헤어 청담점')}
+        ${fld('bizAddress', '주소', '서울 강남구 청담동 00-0 2층')}
+        ${fld('bizHours', '영업시간', '화–일 10:00–20:00 (월 휴무)')}
+        ${fld('bizPhone', '전화', '02-000-0000')}
+        ${fld('bizBooking', '예약 링크', 'https://booking.naver.com/...')}
+        ${fld('bizMap', '지도 링크 (네이버·카카오·구글 지도)', 'https://naver.me/...')}
+        ${fld('bizParking', '주차 안내', '건물 뒤 2대 · 1시간 무료')}
+        ${fld('bizPrice', '가격 안내', '커트 3만원~ / 가격표 링크')}
+        ${fld('blogUrl', '내 블로그 주소 (네이버·구글 블로그)', 'https://blog.naver.com/...')}
       </section>
       <section class="card" style="display:grid;gap:14px;align-content:start">
-        <h3>AI 연결 (선택)</h3>
-        <p class="sub" style="font-size:14px">키는 이 기기 브라우저에만 저장되고, 해당 서비스로만 보내집니다. 공용 컴퓨터에서는 넣지 마세요. 사용량만큼 각 서비스에 요금이 나옵니다.</p>
-        <label class="field"><span>Claude API 키 — 사진을 읽고 글쓰기</span><div class="key-row"><input class="input" type="password" data-set="claudeKey" value="${esc(s.claudeKey)}" placeholder="sk-ant-..." autocomplete="off" /></div><span class="hint">console.anthropic.com 에서 발급</span></label>
-        <label class="field"><span>ElevenLabs API 키 — AI 목소리 내레이션</span><div class="key-row"><input class="input" type="password" data-set="elevenKey" value="${esc(s.elevenKey)}" placeholder="xi-..." autocomplete="off" /><button class="btn btn-line" data-act="load-voices">목소리 불러오기</button></div></label>
-        <label class="field"><span>AI 목소리</span><select class="select" data-set="elevenVoice" id="voice-sel">${s.elevenVoice ? `<option value="${esc(s.elevenVoice)}">${esc(s.elevenVoiceName || s.elevenVoice)}</option>` : '<option value="">먼저 목소리를 불러오세요</option>'}</select></label>
+        <h3>AI 연결</h3>
+        <p class="sub" style="font-size:14px">키는 이 기기 브라우저에만 저장되고, 해당 서비스로만 보내집니다. 공용 컴퓨터에서는 넣지 마세요.</p>
+        <details class="sub" style="font-size:13.5px"><summary style="cursor:pointer;font-weight:700;color:var(--accent)">제미나이 키 받는 법 (무료, 1분)</summary>
+          <ol style="margin:8px 0 0;padding-left:18px;display:grid;gap:4px"><li>aistudio.google.com 에 구글 계정으로 들어가요.</li><li>'Get API key → API 키 만들기'를 눌러요.</li><li>만들어진 키를 아래에 붙여 넣어요. 무료 사용량을 넘으면 그날은 기본 문구로 만들어져요.</li></ol></details>
+        <label class="field"><span>구글 AI 스튜디오(제미나이) API 키 — 사진 읽고 글쓰기 · AI 목소리</span><input class="input" type="password" data-set="geminiKey" value="${esc(s.geminiKey)}" placeholder="AIza..." autocomplete="off" /></label>
+        <div class="grid g2" style="gap:12px">
+          <label class="field"><span>제미나이 모델</span><select class="select" data-set="geminiModel">${Object.entries(GEMINI_MODELS).map(([k, v]) => `<option value="${k}" ${(s.geminiModel || 'gemini-flash-latest') === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+          <label class="field"><span>AI 목소리 (제미나이)</span><select class="select" data-set="geminiVoice">${GEMINI_VOICES.map((v) => `<option value="${v}" ${(s.geminiVoice || 'Kore') === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+        </div>
+        <details class="sub" style="font-size:13.5px"><summary style="cursor:pointer;font-weight:700">다른 AI 쓰기 (선택: Claude · ElevenLabs)</summary>
+          <div style="display:grid;gap:12px;margin-top:10px">
+            <label class="field"><span>글쓰기에 쓸 AI</span><select class="select" data-set="aiProvider"><option value="gemini" ${s.aiProvider !== 'claude' ? 'selected' : ''}>제미나이</option><option value="claude" ${s.aiProvider === 'claude' ? 'selected' : ''}>Claude</option></select></label>
+            <label class="field"><span>Claude API 키</span><input class="input" type="password" data-set="claudeKey" value="${esc(s.claudeKey)}" placeholder="sk-ant-..." autocomplete="off" /></label>
+            <label class="field"><span>ElevenLabs API 키 (제미나이 대신 이 목소리를 쓰려면)</span><div class="key-row"><input class="input" type="password" data-set="elevenKey" value="${esc(s.elevenKey)}" placeholder="xi-..." autocomplete="off" /><button class="btn btn-line" data-act="load-voices">목소리 불러오기</button></div></label>
+            <label class="field"><span>ElevenLabs 목소리</span><select class="select" data-set="elevenVoice" id="voice-sel">${s.elevenVoice ? `<option value="${esc(s.elevenVoice)}">${esc(s.elevenVoiceName || s.elevenVoice)}</option>` : '<option value="">먼저 목소리를 불러오세요</option>'}</select></label>
+          </div></details>
         <h3 style="margin-top:6px">구글 블로그 연결</h3>
         <details class="sub" style="font-size:13.5px"><summary style="cursor:pointer;font-weight:700;color:var(--accent)">처음 한 번 하는 설정 (무료, 5분)</summary>
           <ol style="margin:8px 0 0;padding-left:18px;display:grid;gap:4px">
@@ -521,11 +573,6 @@ function viewSettings() {
         ${fld('googleClientId', '구글 OAuth 클라이언트 ID', '1234-abcd.apps.googleusercontent.com')}
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn btn-line" data-act="bl-load-blogs">${icon('globe')}내 블로그 불러오기</button>
           <select class="select" data-set="bloggerBlogId" id="blog-sel" style="flex:1;min-width:180px">${s.bloggerBlogId ? `<option value="${esc(s.bloggerBlogId)}">${esc(s.bloggerBlogName || s.bloggerBlogId)}</option>` : '<option value="">먼저 블로그를 불러오세요</option>'}</select></div>
-        <h3 style="margin-top:6px">워드프레스 연결 (선택)</h3>
-        <p class="sub" style="font-size:14px">워드프레스 관리자 → 사용자 → 프로필 → <b>응용 프로그램 비밀번호</b>에서 새 비밀번호를 만들어 넣어 주세요. 로그인 비밀번호와 다르며, 언제든 거기서 취소할 수 있어요.</p>
-        ${fld('wpUrl', '워드프레스 사이트 주소', 'https://myblog.com')}
-        ${fld('wpUser', '사용자 이름', 'admin')}
-        <label class="field"><span>응용 프로그램 비밀번호</span><div class="key-row"><input class="input" type="password" data-set="wpPass" value="${esc(s.wpPass)}" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" autocomplete="off" /><button class="btn btn-line" data-act="wp-test">연결 확인</button></div></label>
         <h3 style="margin-top:6px">데이터</h3>
         <p class="sub" style="font-size:14px" id="storage-info">사진·영상은 이 기기 브라우저에 저장돼요.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-danger" data-act="clear-all">${icon('trash')}모든 작업 지우기</button></div>
@@ -551,6 +598,13 @@ function viewJob(job, tab) {
       <button class="btn btn-danger btn-sm" data-act="job-delete">${icon('trash')}<span class="hide-m">삭제</span></button>
     </div>
     ${job.copyNotice ? `<div class="notice">${icon('info')}<span>${esc(job.copyNotice)}</span></div>` : ''}
+    <details class="card" style="padding:14px 18px"><summary style="cursor:pointer;font-weight:700;display:flex;gap:8px;align-items:center">${icon('refresh')}스타일 · 입장 바꿔서 글 다시 쓰기 <span class="sub" style="font-weight:600;font-size:13px">지금: ${esc((STYLES[job.style] || STYLES.story).label)} · ${esc(perspectiveLabels(job.topic)[job.perspective === 'guest' ? 'guest' : 'pro'])}</span></summary>
+      <div style="display:grid;gap:12px;margin-top:12px">
+        <div class="chips">${Object.entries(STYLES).map(([k, v]) => `<button type="button" class="${(job.style || 'story') === k ? 'on' : ''}" data-act="job-style" data-v="${k}">${v.label}</button>`).join('')}</div>
+        <div class="seg"><button class="${job.perspective !== 'guest' ? 'on' : ''}" data-act="job-persp" data-v="pro">${perspectiveLabels(job.topic).pro}</button><button class="${job.perspective === 'guest' ? 'on' : ''}" data-act="job-persp" data-v="guest">${perspectiveLabels(job.topic).guest}</button></div>
+        ${hasBiz() ? `<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-job-check="useBiz" ${job.useBiz ? 'checked' : ''} style="width:20px;height:20px" />매장 정보 넣기</label>` : ''}
+        <div><button class="btn btn-blue btn-sm" data-act="rewrite" id="rewrite-btn">${icon('sparkle')}이 설정으로 글 다시 쓰기</button> <span class="hint">고친 글은 새로 써진 글로 바뀌어요 (영상·사진은 그대로)</span></div>
+      </div></details>
     <nav class="tabs" aria-label="결과물">${JOB_TABS.map(([k, l, ic]) => `<a href="#/job/${job.id}/${k}" class="${tab === k ? 'on' : ''}">${icon(ic)}${l}</a>`).join('')}</nav>`;
   let body = '';
   if (tab === 'images') body = tabImages(job);
@@ -622,7 +676,7 @@ function tabCards(job) {
   const cards = job.copy.cards;
   return `<section class="card" style="display:grid;gap:14px">
     <div class="card-head" style="margin:0"><h3>카드뉴스 ${cards.length}장 <small class="sub" style="font-weight:600">1080×1350</small></h3>
-      <div class="right"><div class="seg">${Object.entries(CARD_THEMES).map(([k, v]) => `<button class="${job.cardTheme === k ? 'on' : ''}" data-act="card-theme" data-v="${k}">${v.label}</button>`).join('')}</div>
+      <div class="right"><div class="seg">${Object.entries(CARD_LAYOUTS).map(([k, v]) => `<button class="${(job.cardLayout || 'classic') === k ? 'on' : ''}" data-act="card-layout" data-v="${k}" title="${v.desc}">${v.label}</button>`).join('')}</div><div class="seg">${Object.entries(CARD_THEMES).map(([k, v]) => `<button class="${job.cardTheme === k ? 'on' : ''}" data-act="card-theme" data-v="${k}">${v.label}</button>`).join('')}</div>
       <button class="btn btn-blue btn-sm" data-act="cards-zip">${icon('download')}전체 저장</button><button class="btn btn-line btn-sm" data-act="cards-share">${icon('share')}공유</button></div></div>
     <div class="cards-grid">${cards.map((c, i) => `
       <div class="cn"><img id="card-img-${i}" alt="카드 ${i + 1}" />
@@ -648,7 +702,7 @@ async function stillImage(id) {
 async function renderCard(job, i) {
   const canvas = document.createElement('canvas');
   const cards = job.copy.cards;
-  drawCard(canvas, { card: cards[i], img: await stillImage(job.cardImages[i]), index: i, total: cards.length, theme: job.cardTheme, settings, topicLabel: (TOPICS[job.topic] || {}).label });
+  drawCard(canvas, { card: cards[i], img: await stillImage(job.cardImages[i]), index: i, total: cards.length, theme: job.cardTheme, layout: job.cardLayout || 'classic', settings, topicLabel: (TOPICS[job.topic] || {}).label });
   return canvas;
 }
 async function paintCards(job, only) {
@@ -669,12 +723,7 @@ async function cardBlobs(job) {
   return out;
 }
 
-// ---------- 워드프레스 (SEO · GEO) ----------
-function wpAdminUrl() {
-  const u = String(settings.wpUrl || '').trim();
-  if (!u) return '';
-  return (/^https?:\/\//i.test(u) ? u : 'https://' + u).replace(/\/+$/, '') + '/wp-admin/';
-}
+// ---------- 구글 블로그 글 (SEO · GEO) ----------
 function seoPanel(job) {
   const a = job.copy.article;
   const { score, items } = seoCheck(a, Math.min(job.stills.length, a.sections.length + 1));
@@ -686,7 +735,6 @@ function seoPanel(job) {
 function tabPost(job) {
   ensureArticle(job.copy, job.memo, job.topic, settings);
   const a = job.copy.article;
-  const connected = settings.wpUrl && settings.wpUser && settings.wpPass;
   return `<div class="studio wide" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)">
     <section class="card" style="display:grid;gap:14px;align-content:start">
       <div class="card-head" style="margin:0"><h3>구글 블로그 글</h3><div class="right"><button class="btn btn-line btn-sm" data-act="wp-copy-html">${icon('copy')}HTML 복사</button></div></div>
@@ -726,16 +774,10 @@ function tabPost(job) {
           <button class="btn btn-line btn-sm" data-act="stills-zip">${icon('download')}사진 저장</button></div></div>` : ''}
         <p class="hint">처음 블로그라면 블로거 설정 → '검색 설명 사용'을 켜고, 구글 서치콘솔에 블로그를 등록하면 더 빨리 검색에 잡혀요.</p>
       </section>
-      ${settings.wpUrl && settings.wpUser && settings.wpPass ? `<section class="card" style="display:grid;gap:12px">
-        <h3>워드프레스에도 올리기</h3>
-        <div class="seg"><button class="${(job.wpStatus || settings.wpStatus) !== 'publish' ? 'on' : ''}" data-act="wp-status" data-v="draft">임시저장</button><button class="${(job.wpStatus || settings.wpStatus) === 'publish' ? 'on' : ''}" data-act="wp-status" data-v="publish">바로 발행</button></div>
-        <button class="btn btn-line" data-act="wp-publish" id="wp-btn">${icon('upload')}워드프레스에 올리기</button>
-        ${job.wp ? `<a class="btn btn-line btn-sm" href="${esc(job.wp.link)}" target="_blank" rel="noopener">${icon('external')}워드프레스 글 열기</a>` : ''}
-      </section>` : ''}
     </div>
   </div>`;
 }
-async function wpImages(job) {
+async function postImages(job) {
   const a = job.copy.article;
   const others = job.stills.filter((s) => s.id !== job.coverId);
   const picks = [job.coverId, ...others.map((s) => s.id)].slice(0, a.sections.length + 1);
@@ -786,8 +828,8 @@ function tabStudio(job, kind) {
           <label class="field"><span>내레이션 원고</span><textarea class="textarea" data-bind="${kind}.script" style="min-height:110px">${esc(o.script)}</textarea></label>
           ${o.voice === 'mic'
             ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-blue btn-sm" data-act="mic-rec" id="mic-btn">${icon('mic')}녹음 시작</button><span class="sub" id="mic-state" style="font-size:13px">원고를 보며 읽어 주세요</span></div>`
-            : `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-blue btn-sm" data-act="ai-voice" ${settings.elevenKey && settings.elevenVoice ? '' : 'disabled'}>${icon('sparkle')}AI 목소리 만들기</button>
-               ${settings.elevenKey && settings.elevenVoice ? '<span class="sub" style="font-size:13px">ElevenLabs 크레딧이 사용돼요</span>' : '<a href="#/settings" class="sub" style="font-size:13px;color:var(--accent);font-weight:700">설정에서 ElevenLabs 키와 목소리를 먼저 골라 주세요</a>'}</div>`}
+            : `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-blue btn-sm" data-act="ai-voice" ${voiceReady() ? '' : 'disabled'}>${icon('sparkle')}AI 목소리 만들기</button>
+               ${voiceReady() ? `<span class="sub" style="font-size:13px">${settings.elevenKey && settings.elevenVoice && !settings.geminiKey ? 'ElevenLabs' : `제미나이 목소리 ${esc(settings.geminiVoice || 'Kore')}`}로 만들어요</span>` : '<a href="#/settings" class="sub" style="font-size:13px;color:var(--accent);font-weight:700">설정에서 제미나이 키를 먼저 넣어 주세요</a>'}</div>`}
           ${o.voiceId ? `<audio id="voice-audio" controls style="width:100%"></audio><button class="btn btn-line btn-sm" data-act="voice-del">${icon('trash')}목소리 지우기</button>` : ''}
         </div>` : ''}</div>
       <div><h4>배경음악 (선택)</h4>
@@ -1067,7 +1109,9 @@ const actions = {
     if (!o.script.trim()) { toast('원고를 먼저 적어 주세요'); return; }
     el.disabled = true; el.innerHTML = '<span class="spin"></span>만드는 중';
     try {
-      const blob = await elevenTTS({ key: settings.elevenKey, voiceId: settings.elevenVoice, text: o.script.trim() });
+      const blob = settings.geminiKey
+        ? await geminiTTS({ key: settings.geminiKey, voice: settings.geminiVoice || 'Kore', text: o.script.trim() })
+        : await elevenTTS({ key: settings.elevenKey, voiceId: settings.elevenVoice, text: o.script.trim() });
       const id = uid('a'); await db.putBlob(id, blob);
       if (o.voiceId) { await db.deleteBlob(o.voiceId).catch(() => {}); forgetUrl(o.voiceId); }
       o.voiceId = id; o.voiceSec = await audioDuration(blob);
@@ -1124,8 +1168,8 @@ const actions = {
     try {
       await tp;
       el.innerHTML = '<span class="spin"></span>글 올리는 중';
-      const imgs = await wpImages(job);
-      const content = articleHtml(a, imgs.slice(1).map((im, i) => ({ placeholder: i + 2, alt: im.alt })), { author: settings.ownerName });
+      const imgs = await postImages(job);
+      const content = articleHtml(a, imgs.slice(1).map((im, i) => ({ placeholder: i + 2, alt: im.alt })), { author: settings.ownerName, biz: job.useBiz ? settings : null, topic: job.topic });
       const lead = `<p style="padding:14px;border:2px dashed #93C5FD;border-radius:10px;color:#1D4ED8">📷 대표 사진(사진 1) 넣는 자리 — 대체 텍스트: "${esc(imgs[0] ? imgs[0].alt : a.focusKeyword)}"</p>\n`;
       const post = await createBlogPost({ blogId: settings.bloggerBlogId, title: a.seoTitle || job.title, content: lead + content, labels: a.tags, draft });
       job.blogger = { ...post, at: Date.now() };
@@ -1139,48 +1183,31 @@ const actions = {
       el.disabled = false; el.innerHTML = `${icon('upload')}다시 올리기`;
     }
   },
-  'wp-status': (el) => { const job = curJob(); job.wpStatus = el.dataset.v; saveSoon(job); render(); },
   'wp-copy-html': async () => {
     const job = curJob();
-    copyText(articleHtml(job.copy.article, [], { author: settings.ownerName }));
+    copyText(articleHtml(job.copy.article, [], { author: settings.ownerName, biz: job.useBiz ? settings : null, topic: job.topic }));
   },
-  'wp-test': async (el) => {
-    el.disabled = true;
-    try { const me = await new WordPress({ url: settings.wpUrl, user: settings.wpUser, pass: settings.wpPass }).me(); toast(`연결됐어요: ${me.name || me.slug}`); }
-    catch (e) { toast(e.message); }
-    el.disabled = false;
-  },
-  'wp-publish': async (el) => {
-    const job = curJob(); const a = job.copy.article;
-    const status = (job.wpStatus || settings.wpStatus) === 'publish' ? 'publish' : 'draft';
-    if (status === 'publish' && !confirm('워드프레스에 바로 공개 발행할까요?')) return;
-    el.disabled = true;
-    const say = (t) => { el.innerHTML = `<span class="spin"></span>${t}`; };
+  'draft-style': (el) => { draft.style = el.dataset.v; render(); },
+  'draft-persp': (el) => { draft.perspective = el.dataset.v; render(); },
+  'job-style': (el) => { const job = curJob(); job.style = el.dataset.v; saveSoon(job); render(); },
+  'job-persp': (el) => { const job = curJob(); job.perspective = el.dataset.v; saveSoon(job); render(); },
+  'card-layout': (el) => { const job = curJob(); job.cardLayout = el.dataset.v; saveSoon(job); render(); },
+  rewrite: async (el) => {
+    const job = curJob();
+    if (!confirm('지금 글을 새 설정으로 다시 쓸까요? 직접 고친 글 내용은 바뀌어요.')) return;
+    el.disabled = true; el.innerHTML = '<span class="spin"></span>다시 쓰는 중';
+    const keepTitle = job.title;
     try {
-      const wp = new WordPress({ url: settings.wpUrl, user: settings.wpUser, pass: settings.wpPass });
-      say('연결 중');
-      await wp.me();
-      const imgs = await wpImages(job);
-      const uploaded = [];
-      for (let i = 0; i < imgs.length; i++) {
-        say(`이미지 올리는 중 ${i + 1}/${imgs.length}`);
-        const blob = await db.getBlob(imgs[i].id);
-        if (blob) uploaded.push({ ...(await wp.uploadImage(blob, `${a.slug || 'zerocut'}-${i + 1}.jpg`, imgs[i].alt)), alt: imgs[i].alt });
-      }
-      say('태그 정리 중');
-      const tags = await wp.tagIds(a.tags || []);
-      say('글 올리는 중');
-      const content = articleHtml(a, uploaded.slice(1), { author: settings.ownerName });
-      const post = await wp.createPost({ title: a.seoTitle || job.title, content, excerpt: a.metaDescription, slug: a.slug, status, tags, featured: uploaded[0] && uploaded[0].id });
-      job.wp = { id: post.id, link: post.link, status: post.status, at: Date.now() };
-      if (post.status === 'publish') job.publish.blogger = Date.now();
+      await writeCopy(job, (t) => { el.innerHTML = `<span class="spin"></span>${esc(t)}`; });
+      job.title = keepTitle || job.copy.title;
+      job.short.script = job.copy.short.narration || job.short.script;
+      job.youtube.script = job.copy.short.narration || job.youtube.script;
+      job.cardImages = defaultCardImages(job);
+      await disposeStudio();
       await db.putJob(job);
-      toast(post.status === 'publish' ? '워드프레스에 발행했어요' : '워드프레스에 임시저장했어요');
+      toast(job.copyNotice ? '기본 문구로 다시 썼어요' : '새 스타일로 다시 썼어요');
       render();
-    } catch (e) {
-      toast(e.message || '워드프레스에 올리지 못했어요');
-      el.disabled = false; el.innerHTML = `${icon('upload')}다시 올리기`;
-    }
+    } catch (e) { toast(e.message || '다시 쓰지 못했어요'); el.disabled = false; el.innerHTML = `${icon('sparkle')}이 설정으로 글 다시 쓰기`; }
   },
   'mark-posted': (el) => { const job = curJob(); job.publish[el.dataset.k] = job.publish[el.dataset.k] ? null : Date.now(); saveSoon(job); render(); },
   'load-voices': async () => {
@@ -1210,6 +1237,7 @@ let studioTimer;
 root.addEventListener('input', (e) => {
   const el = e.target;
   if (el.dataset.draft) { draft[el.dataset.draft] = el.value; return; }
+  if (el.dataset.draftCheck) { draft[el.dataset.draftCheck] = el.checked; return; }
   if (el.dataset.set) {
     settings[el.dataset.set] = el.value;
     if (el.dataset.set === 'elevenVoice') settings.elevenVoiceName = el.options[el.selectedIndex].text;
@@ -1235,6 +1263,7 @@ root.addEventListener('input', (e) => {
 
 root.addEventListener('change', async (e) => {
   const el = e.target;
+  if (el.dataset.jobCheck) { const job = curJob(); if (job) { job[el.dataset.jobCheck] = el.checked; saveSoon(job); } return; }
   if (el.dataset.set && el.tagName === 'SELECT') { settings[el.dataset.set] = el.value; if (el.dataset.set === 'elevenVoice') settings.elevenVoiceName = el.options[el.selectedIndex].text; if (el.dataset.set === 'bloggerBlogId') settings.bloggerBlogName = el.options[el.selectedIndex].text; saveSettings(settings); }
   if (el.dataset.set === 'googleClientId' && el.value.trim()) prepareGoogle(el.value.trim()).catch((er) => toast(er.message));
   if (el.dataset.actChange === 'bgm' && el.files[0]) {

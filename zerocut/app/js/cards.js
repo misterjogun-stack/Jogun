@@ -10,6 +10,12 @@ export const CARD_THEMES = {
   cream: { label: '크림',   bg: '#F6F1E9', bg2: '#ECE4D6', ink: '#2B2118', sub: '#7A6A58', accent: '#C2410C', chip: '#FBE3D2', chipInk: '#9A3412' },
 };
 
+export const CARD_LAYOUTS = {
+  classic: { label: '기본', desc: '사진 위 · 글 아래' },
+  magazine: { label: '매거진', desc: '사진 꽉 차게 · 글 겹침' },
+  minimal: { label: '미니멀', desc: '여백 많이 · 글 중심' },
+};
+
 export const FONT = '"Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
 export const NUM_FONT = 'Inter, "Pretendard Variable", Pretendard, sans-serif';
 
@@ -93,13 +99,24 @@ function footer(ctx, th, settings, index, total, onPhoto) {
 }
 
 /** 카드 한 장 그리기. card={title, body}, img=HTMLImageElement|null */
-export function drawCard(canvas, { card, img, index, total, theme = 'navy', settings, topicLabel }) {
+export function drawCard(canvas, { card, img, index, total, theme = 'navy', settings, topicLabel, layout = 'classic' }) {
   const th = CARD_THEMES[theme] || CARD_THEMES.navy;
   canvas.width = CARD_W; canvas.height = CARD_H;
   const ctx = canvas.getContext('2d');
   ctx.textAlign = 'left';
   const isCover = index === 0, isLast = index === total - 1 && total > 1;
 
+  if (isCover && layout === 'minimal') {
+    ctx.fillStyle = th.bg; ctx.fillRect(0, 0, CARD_W, CARD_H);
+    if (img) { ctx.save(); roundRect(ctx, 72, 72, CARD_W - 144, 700, 32); ctx.clip(); cover(ctx, img, 72, 72, CARD_W - 144, 700); ctx.restore(); }
+    chip(ctx, topicLabel || settings.brandName || 'ZEROCUT', 72, img ? 820 : 300, th);
+    ctx.fillStyle = th.ink; ctx.font = `800 80px ${FONT}`;
+    const y = drawLines(ctx, wrapText(ctx, card.title, CARD_W - 144), 72, (img ? 820 : 300) + 150, 96, 3);
+    ctx.fillStyle = th.sub; ctx.font = `500 38px ${FONT}`;
+    drawLines(ctx, wrapText(ctx, card.body, CARD_W - 144), 72, y + 20, 54, 2);
+    footer(ctx, th, settings, index, total, false);
+    return;
+  }
   if (isCover) {
     if (img) {
       cover(ctx, img, 0, 0, CARD_W, CARD_H);
@@ -145,6 +162,44 @@ export function drawCard(canvas, { card, img, index, total, theme = 'navy', sett
     ctx.textBaseline = 'alphabetic';
     ctx.strokeStyle = th.sub; ctx.lineWidth = 3; roundRect(ctx, 392, y + 50, 300, 92, 46); ctx.stroke();
     ctx.fillStyle = th.ink; ctx.textBaseline = 'middle'; ctx.fillText('팔로우', 470, y + 97); ctx.textBaseline = 'alphabetic';
+    footer(ctx, th, settings, index, total, false);
+    return;
+  }
+
+  if (layout === 'magazine' && img) {
+    cover(ctx, img, 0, 0, CARD_W, CARD_H);
+    const g = ctx.createLinearGradient(0, CARD_H * 0.4, 0, CARD_H);
+    g.addColorStop(0, 'rgba(5,8,16,0)'); g.addColorStop(0.6, 'rgba(5,8,16,0.75)'); g.addColorStop(1, 'rgba(5,8,16,0.95)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CARD_W, CARD_H);
+    ctx.font = `800 70px ${FONT}`;
+    const tl = wrapText(ctx, card.title, CARD_W - 144).slice(0, 3);
+    ctx.font = `500 38px ${FONT}`;
+    const bl = wrapText(ctx, card.body, CARD_W - 144).slice(0, 3);
+    let y = CARD_H - 150 - bl.length * 54 - 30 - tl.length * 86;
+    ctx.fillStyle = th.accent; ctx.font = `800 44px ${NUM_FONT}`;
+    ctx.fillText(String(index).padStart(2, '0'), 72, y - 50);
+    ctx.fillStyle = '#FFFFFF'; ctx.font = `800 70px ${FONT}`;
+    y = drawLines(ctx, tl, 72, y + 20, 86);
+    ctx.fillStyle = 'rgba(255,255,255,0.86)'; ctx.font = `500 38px ${FONT}`;
+    drawLines(ctx, bl, 72, y + 24, 54);
+    footer(ctx, th, settings, index, total, true);
+    return;
+  }
+  if (layout === 'minimal') {
+    let y = 150;
+    if (img) {
+      ctx.save(); roundRect(ctx, CARD_W - 72 - 360, 110, 360, 360, 28); ctx.clip();
+      cover(ctx, img, CARD_W - 72 - 360, 110, 360, 360);
+      ctx.restore();
+      y = 560;
+    }
+    ctx.fillStyle = th.accent; ctx.font = `800 40px ${NUM_FONT}`;
+    ctx.fillText(String(index).padStart(2, '0'), 72, img ? 170 : y);
+    ctx.fillStyle = th.ink; ctx.font = `800 76px ${FONT}`;
+    y = drawLines(ctx, wrapText(ctx, card.title, CARD_W - 144), 72, y + (img ? 0 : 110), 94, 3);
+    ctx.fillStyle = th.line || th.sub; ctx.fillRect(72, y + 10, 80, 6);
+    ctx.fillStyle = th.sub; ctx.font = `500 42px ${FONT}`;
+    drawLines(ctx, wrapText(ctx, card.body, CARD_W - 144), 72, y + 100, 64, 5);
     footer(ctx, th, settings, index, total, false);
     return;
   }

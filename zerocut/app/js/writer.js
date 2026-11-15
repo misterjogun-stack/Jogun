@@ -31,24 +31,30 @@ function facts(memo) {
 }
 
 // ---------- 키 없이 만드는 기본 문구 ----------
-export function draftWithoutAI({ memo, topic, title, settings, stillCount }) {
+export function draftWithoutAI({ memo, topic, title, settings, stillCount, style = 'story', perspective = 'pro' }) {
   const tp = TOPICS[topic] && topic !== 'auto' ? topic : 'daily';
   const T = TOPICS[tp];
   const f = facts(memo);
   const head = clean(title) || f[0] || T.hook;
   const pro = settings.tone === 'pro';
   const end = (friendly, formal) => (pro ? formal : friendly);
-  const points = T.points.map((p, i) => f[i + 1] || p);
+  const rawPoints = T.points.map((p, i) => f[i + 1] || p);
+  const points = style === 'list' ? rawPoints.map((p, i) => `${i + 1}. ${p}`)
+    : style === 'qa' ? rawPoints.map((p) => (/[?？]$/.test(p) ? p : `${p}, 어땠나요?`))
+    : rawPoints;
+  const guest = perspective === 'guest';
   const baseTags = String(settings.baseTags || '').split(/[\s,]+/).filter(Boolean).map((t) => (t.startsWith('#') ? t : '#' + t));
   const memoTags = f.slice(0, 3).map((x) => x.split(' ')[0]).filter((x) => x.length <= 10).map(tagify);
   const hashtags = uniq([...T.tags.map(tagify), ...memoTags, ...baseTags]).slice(0, 15);
 
   const blogBody = [
     (settings.ownerName ? `안녕하세요, ${settings.ownerName}입니다. ` : '안녕하세요. ')
-      + end(`오늘은 "${head}" 이야기를 사진과 함께 정리해 볼게요.`, `오늘은 "${head}"에 대해 사진과 함께 정리합니다.`),
+      + (guest
+        ? end(`오늘은 "${head}"을(를) 방문한 사람 입장에서 처음부터 끝까지 정리해 볼게요.`, `오늘은 "${head}"을(를) 방문한 사람 입장에서 정리합니다.`)
+        : end(`오늘은 "${head}" 이야기를 사진과 함께 정리해 볼게요.`, `오늘은 "${head}"에 대해 사진과 함께 정리합니다.`)),
     '',
     ...points.flatMap((p, i) => [
-      `## ${i + 1}. ${p}`,
+      `## ${style === 'list' ? p : `${i + 1}. ${p}`}`,
       i === 0 && f.length
         ? end(`${f.join(', ')}. 이번 기록의 핵심이에요.`, `${f.join(', ')}. 이번 기록의 핵심입니다.`)
         : end(`사진 ${Math.min(i + 1, Math.max(1, stillCount))}번째 장면을 보면 바로 느낌이 와요. 이 부분은 직접 한두 줄 덧붙여 주세요.`, `사진 ${Math.min(i + 1, Math.max(1, stillCount))}번째 장면이 이 부분입니다. 구체적인 내용을 한두 줄 덧붙여 주세요.`),
@@ -95,14 +101,14 @@ export function draftWithoutAI({ memo, topic, title, settings, stillCount }) {
     short: { hook: head, lines, narration: [head, ...lines].join('. ') + '.', keyword: (f[0] || T.label).split(' ')[0] },
     youtube: {
       title: `${head} | ${T.label}`,
-      description: [`${head}`, '', ...points.map((p, i) => `${i + 1}. ${p}`), '', T.cta, '', hashtags.slice(0, 8).join(' ')].join('\n'),
+      description: [`${head}`, '', ...points.map((p, i) => (style === 'list' ? p : `${i + 1}. ${p}`)), '', T.cta, '', hashtags.slice(0, 8).join(' ')].join('\n'),
     },
     tiktok: { caption: `${head} ${T.hook}`, hashtags: hashtags.slice(0, 6) },
     article: basicArticle({ head, f, T, points, hashtags, end }),
   };
 }
 
-// 구글 블로그·워드프레스용 글: 검색(SEO)과 AI 검색(GEO)에 맞춘 구조 — 맨 앞 요약 답변, 소제목, 자주 묻는 질문
+// 구글 블로그용 글: 검색(SEO)과 AI 검색(GEO)에 맞춘 구조 — 맨 앞 요약 답변, 소제목, 자주 묻는 질문
 function basicArticle({ head, f, T, points, hashtags, end }) {
   const kw = (f[0] || head).split(' ').slice(0, 3).join(' ');
   const d = new Date();
@@ -155,16 +161,41 @@ const SCHEMA = obj({
   }),
 });
 
-export async function draftWithAI({ memo, topic, title, settings, images, onStatus }) {
-  if (!settings.claudeKey) throw new Error('Claude API 키가 없습니다. 브랜드 설정에서 넣어 주세요.');
-  onStatus && onStatus('AI 연결 중');
-  const { default: Anthropic } = await import(/* webpackIgnore: true */ SDK_URL);
-  const client = new Anthropic({ apiKey: settings.claudeKey, dangerouslyAllowBrowser: true });
+// ---------- 취향 템플릿 · 시점 ----------
+export const STYLES = {
+  story: { label: '스토리형', desc: '경험을 이야기처럼', rule: '처음-과정-결과 순서의 이야기 흐름으로, 현장감 있게 쓴다.' },
+  info: { label: '정보형', desc: '핵심 정보·팁 정리', rule: '정보와 팁을 먼저, 군더더기 없이 정리한다. 목록과 숫자를 적극 쓴다.' },
+  review: { label: '후기형', desc: '좋은 점·아쉬운 점', rule: '좋았던 점과 아쉬운 점을 나눠 솔직하게 쓰고, 추천 대상을 분명히 한다.' },
+  list: { label: '리스트형', desc: 'TOP N · 체크리스트', rule: '번호를 붙인 목록(예: 꼭 알아둘 5가지) 구조로 쓴다.' },
+  qa: { label: 'Q&A형', desc: '질문과 답', rule: '소제목을 사람들이 실제로 묻는 질문으로 하고, 바로 답한다.' },
+};
 
+export function perspectiveLabels(topic) {
+  return topic === 'hair'
+    ? { pro: '디자이너(시술자) 입장', guest: '고객 입장' }
+    : { pro: '운영자·만든 사람 입장', guest: '방문자·이용자 입장' };
+}
+
+function bizFacts(s) {
+  const rows = [
+    ['상호', s.bizName], ['주소', s.bizAddress], ['영업시간', s.bizHours], ['전화', s.bizPhone],
+    ['예약', s.bizBooking], ['지도', s.bizMap], ['주차', s.bizParking], ['가격 안내', s.bizPrice],
+  ].filter(([, v]) => v && String(v).trim());
+  return rows.map(([k, v]) => `${k}: ${String(v).trim()}`).join('\n');
+}
+
+function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz }) {
+  const st = STYLES[style] || STYLES.story;
+  const pl = perspectiveLabels(topic);
+  const facts = useBiz ? bizFacts(settings) : '';
   const system = [
     '너는 한국어 SNS 콘텐츠 에디터다. 한 번의 촬영 소재(사진과 영상에서 뽑은 장면)를 보고, 여러 채널용 글을 한 번에 만든다.',
-    '사진에서 실제로 보이는 것과 사용자의 메모에 있는 사실만 쓴다. 가격, 상호, 위치, 효능처럼 보이지 않는 사실은 지어내지 않는다. 필요한 곳은 [가격 입력] 같은 빈칸으로 남긴다.',
+    '사진에서 실제로 보이는 것, 사용자의 메모, 아래 매장 정보에 있는 사실만 쓴다. 가격, 상호, 위치, 효능처럼 보이지 않는 사실은 지어내지 않는다. 필요한 곳은 [가격 입력] 같은 빈칸으로 남긴다.',
     `말투: ${TONES[settings.tone] || TONES.friendly}. 계정 이름: ${settings.brandName || ''} ${settings.handle || ''}.`,
+    `글 스타일: ${st.label} — ${st.rule}`,
+    perspective === 'guest'
+      ? `시점: ${pl.guest}. 방문한 사람의 경험 흐름(찾아가기→상담·주문→과정→결과)과 처음 오는 사람이 궁금해할 점 중심으로 쓴다. 실제 고객의 말, 별점, 이름을 지어내지 않는다.`
+      : `시점: ${pl.pro}. 만든 사람이 직접 과정, 이유, 노하우를 설명하는 전문가 시점으로 쓴다.`,
     '채널별 규칙:',
     '- blog: 네이버 블로그용. 제목은 검색에 걸릴 핵심어 포함. 본문 900~1500자, 소제목 줄은 "## "로 시작, 사진 순서대로 흐름을 만든다.',
     '- instagram.caption: 첫 줄은 멈추게 하는 한 문장, 3~6줄, 마지막에 행동 유도. 해시태그는 caption에 넣지 말고 hashtags 배열(10~15개, # 포함)로.',
@@ -173,32 +204,149 @@ export async function draftWithAI({ memo, topic, title, settings, images, onStat
     '- short: 9:16 숏폼. hook은 첫 1.5초에 띄울 14자 이내 문장. lines는 화면 자막 4~6개(각 16자 이내). narration은 25~35초 분량 내레이션 원고. keyword는 강조할 단어 하나.',
     '- youtube: 가로 영상 제목(40자 이내)과 설명(문단 + 해시태그 3~5개).',
     '- tiktok: 짧은 캡션과 해시태그 5~6개.',
-    '- article: 구글 블로그(블로거)·워드프레스용 글. 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티·구글 AI 요약 같은 AI 검색(GEO)에 인용되기 좋게 쓴다.',
-    '  · focusKeyword: 사람들이 실제로 검색할 2~4단어 핵심 검색어 하나(예: "성수동 카페 추천").',
+    '- article: 구글 블로그(블로거)용 글. 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티·구글 AI 요약 같은 AI 검색(GEO)에 인용되기 좋게 쓴다.',
+    '  · focusKeyword: 사람들이 실제로 검색할 2~4단어 핵심 검색어 하나(예: "성수동 카페 추천"). 매장 주소가 있으면 동네 이름을 넣는다.',
     '  · seoTitle: 60자 이내, 핵심 검색어를 앞쪽에. slug: 영어 소문자와 하이픈 3~6단어.',
     '  · metaDescription: 80~150자, 핵심 검색어 포함, 클릭하고 싶게.',
     '  · summary: 글 맨 앞에 둘 2~3문장 요약 답변. 질문에 바로 답하는 문장으로 시작하고 핵심 검색어와 구체적 사실(숫자·장소·이름)을 담는다.',
-    '  · sections: 4~6개. heading은 사람들이 물어볼 법한 질문형이나 핵심어가 든 소제목, body는 3~6문장. 본 것과 메모의 사실만 쓰고, 직접 경험한 사람의 시점으로 구체적으로 쓴다. 목록이 어울리면 줄마다 "- "로 시작한다.',
+    '  · sections: 4~6개. heading은 사람들이 물어볼 법한 질문형이나 핵심어가 든 소제목, body는 3~6문장. 목록이 어울리면 줄마다 "- "로 시작한다.',
     '  · faq: 3~5개. 실제 검색 질문 형태(q)와 1~3문장의 직접적인 답(a).',
     '  · tags: 5~8개, # 없이.',
     '- topic: 소재의 주제를 하나 고른다.',
   ].join('\n');
+  const userText = [
+    `메모: ${clean(memo) || '(없음)'}`,
+    title ? `원하는 제목: ${clean(title)}` : '',
+    topic && topic !== 'auto' ? `주제: ${TOPICS[topic].label}` : '주제: 사진을 보고 판단',
+    settings.baseTags ? `항상 넣을 해시태그: ${settings.baseTags}` : '',
+    facts ? `매장 정보(사실로 써도 됨):\n${facts}` : '',
+  ].filter(Boolean).join('\n');
+  return { system, userText };
+}
 
+function finishCopy(out) {
+  out.instagram.hashtags = uniq(out.instagram.hashtags.map((t) => (t.startsWith('#') ? t : '#' + t)));
+  out.article.tags = uniq(out.article.tags.map((t) => t.replace(/^#/, '')));
+  out.tiktok.hashtags = uniq(out.tiktok.hashtags.map((t) => (t.startsWith('#') ? t : '#' + t)));
+  return out;
+}
+
+/** 설정에 따라 제미나이(기본) 또는 Claude로 사진을 읽고 쓴다 */
+export async function draftWithAI(args) {
+  const { settings } = args;
+  const provider = settings.aiProvider === 'claude' && settings.claudeKey ? 'claude' : settings.geminiKey ? 'gemini' : settings.claudeKey ? 'claude' : null;
+  if (!provider) throw new Error('AI 키가 없습니다. 브랜드 설정에서 구글 AI 스튜디오(제미나이) 키를 넣어 주세요.');
+  const out = provider === 'gemini' ? await draftWithGemini(args) : await draftWithClaude(args);
+  out.source = 'ai';
+  out.engine = provider;
+  return finishCopy(out);
+}
+
+// ----- 제미나이 (구글 AI 스튜디오 키) -----
+const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models';
+export const GEMINI_MODELS = {
+  'gemini-flash-latest': '제미나이 플래시 (빠르고 무료 사용량 넉넉)',
+  'gemini-pro-latest': '제미나이 프로 (더 꼼꼼하게)',
+};
+
+// 제미나이 구조화 출력에 맞게 JSON 스키마를 단순화 (additionalProperties 제거)
+function geminiSchema(x) {
+  if (Array.isArray(x)) return x.map(geminiSchema);
+  if (!x || typeof x !== 'object') return x;
+  const o = {};
+  for (const [k, v] of Object.entries(x)) if (k !== 'additionalProperties') o[k] = geminiSchema(v);
+  return o;
+}
+
+async function geminiError(r) {
+  const j = await r.json().catch(() => ({}));
+  const msg = (j.error && j.error.message) || '';
+  if (r.status === 400 && /API key/i.test(msg)) return new Error('제미나이 키가 맞지 않아요. 구글 AI 스튜디오에서 키를 다시 확인해 주세요.');
+  if (r.status === 403) return new Error('제미나이 키에 권한이 없어요. 구글 AI 스튜디오에서 새 키를 만들어 주세요.');
+  if (r.status === 429) return new Error('제미나이 무료 사용량을 잠시 다 썼어요. 1분 뒤 다시 시도하거나 내일 다시 써 주세요.');
+  return new Error(`제미나이 오류 (${r.status}) ${msg}`.trim());
+}
+
+async function draftWithGemini({ memo, topic, title, settings, images, onStatus, style, perspective, useBiz }) {
+  const { system, userText } = buildPrompt({ memo, topic, title, settings, style, perspective, useBiz });
+  const parts = [];
+  images.slice(0, 6).forEach((b64, i) => {
+    parts.push({ text: `장면 ${i + 1}` });
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data: b64 } });
+  });
+  parts.push({ text: userText });
+  const model = settings.geminiModel || 'gemini-flash-latest';
+  onStatus && onStatus('제미나이가 사진을 읽고 글을 쓰는 중');
+  let r;
+  try {
+    r = await fetch(`${GEMINI_API}/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.geminiKey.trim() },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: 'user', parts }],
+        generationConfig: { responseMimeType: 'application/json', responseJsonSchema: geminiSchema(SCHEMA), maxOutputTokens: 16000 },
+      }),
+    });
+  } catch (e) { throw new Error('인터넷 연결을 확인해 주세요.'); }
+  if (!r.ok) throw await geminiError(r);
+  const j = await r.json();
+  if (j.promptFeedback && j.promptFeedback.blockReason) throw new Error('제미나이가 이 소재로는 글을 쓰지 않았어요. 기본 문구로 만들어 드릴게요.');
+  const c = (j.candidates || [])[0];
+  if (!c) throw new Error('제미나이 응답이 비어 있어요. 다시 시도해 주세요.');
+  if (c.finishReason === 'MAX_TOKENS') throw new Error('글이 너무 길어 중간에 끊겼어요. 다시 시도해 주세요.');
+  if (c.finishReason && !['STOP', 'FINISH_REASON_UNSPECIFIED'].includes(c.finishReason)) throw new Error('제미나이가 이 소재로는 글을 쓰지 않았어요. 기본 문구로 만들어 드릴게요.');
+  const text = ((c.content && c.content.parts) || []).filter((p) => p.text && !p.thought).map((p) => p.text).join('');
+  return JSON.parse(text);
+}
+
+/** 제미나이 목소리(TTS). WAV Blob을 돌려준다 */
+export const GEMINI_VOICES = ['Kore', 'Aoede', 'Leda', 'Zephyr', 'Puck', 'Charon', 'Fenrir', 'Orus'];
+export async function geminiTTS({ key, voice = 'Kore', text, model = 'gemini-3.8-flash-tts' }) {
+  let r;
+  try {
+    r = await fetch(`${GEMINI_API}/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key.trim() },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text }] }],
+        generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
+      }),
+    });
+  } catch (e) { throw new Error('인터넷 연결을 확인해 주세요.'); }
+  if (!r.ok) throw await geminiError(r);
+  const j = await r.json();
+  const part = (((j.candidates || [])[0] || {}).content || { parts: [] }).parts.find((p) => p.inlineData);
+  if (!part) throw new Error('제미나이 목소리를 만들지 못했어요. 다시 시도해 주세요.');
+  const { mimeType = '', data } = part.inlineData;
+  const bytes = Uint8Array.from(atob(data), (ch) => ch.charCodeAt(0));
+  if (/wav/i.test(mimeType) || (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46)) return new Blob([bytes], { type: 'audio/wav' });
+  const rate = Number((/rate=(\d+)/.exec(mimeType) || [])[1]) || 24000;
+  return pcmToWav(bytes, rate);
+}
+
+function pcmToWav(pcm, rate, ch = 1) {
+  const h = new DataView(new ArrayBuffer(44));
+  const w = (o, str) => { for (let i = 0; i < str.length; i++) h.setUint8(o + i, str.charCodeAt(i)); };
+  w(0, 'RIFF'); h.setUint32(4, 36 + pcm.length, true); w(8, 'WAVE'); w(12, 'fmt ');
+  h.setUint32(16, 16, true); h.setUint16(20, 1, true); h.setUint16(22, ch, true); h.setUint32(24, rate, true);
+  h.setUint32(28, rate * ch * 2, true); h.setUint16(32, ch * 2, true); h.setUint16(34, 16, true);
+  w(36, 'data'); h.setUint32(40, pcm.length, true);
+  return new Blob([h.buffer, pcm], { type: 'audio/wav' });
+}
+
+// ----- Claude (선택) -----
+async function draftWithClaude({ memo, topic, title, settings, images, onStatus, style, perspective, useBiz }) {
+  onStatus && onStatus('AI 연결 중');
+  const { default: Anthropic } = await import(/* webpackIgnore: true */ SDK_URL);
+  const client = new Anthropic({ apiKey: settings.claudeKey, dangerouslyAllowBrowser: true });
+  const { system, userText } = buildPrompt({ memo, topic, title, settings, style, perspective, useBiz });
   const content = [];
   images.slice(0, 6).forEach((b64, i) => {
     content.push({ type: 'text', text: `장면 ${i + 1}` });
     content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } });
   });
-  content.push({
-    type: 'text',
-    text: [
-      `메모: ${clean(memo) || '(없음)'}`,
-      title ? `원하는 제목: ${clean(title)}` : '',
-      topic && topic !== 'auto' ? `주제: ${TOPICS[topic].label}` : '주제: 사진을 보고 판단',
-      settings.baseTags ? `항상 넣을 해시태그: ${settings.baseTags}` : '',
-    ].filter(Boolean).join('\n'),
-  });
-
+  content.push({ type: 'text', text: userText });
   const params = {
     model: MODEL,
     max_tokens: 16000,
@@ -206,7 +354,6 @@ export async function draftWithAI({ memo, topic, title, settings, images, onStat
     messages: [{ role: 'user', content }],
     output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
   };
-
   onStatus && onStatus('사진을 읽고 글을 쓰는 중');
   let res;
   try {
@@ -225,17 +372,10 @@ export async function draftWithAI({ memo, topic, title, settings, images, onStat
   }
   if (res.stop_reason === 'refusal') throw new Error('AI가 이 소재로는 글을 쓰지 않았습니다. 기본 문구로 만들어 드릴게요.');
   if (res.stop_reason === 'max_tokens') throw new Error('글이 너무 길어 중간에 끊겼습니다. 다시 시도해 주세요.');
-  const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
-  const out = JSON.parse(text);
-  out.source = 'ai';
-  out.instagram.hashtags = uniq(out.instagram.hashtags.map((t) => (t.startsWith('#') ? t : '#' + t)));
-  out.article.tags = uniq(out.article.tags.map((t) => t.replace(/^#/, '')));
-  out.tiktok.hashtags = uniq(out.tiktok.hashtags.map((t) => (t.startsWith('#') ? t : '#' + t)));
-  return out;
+  return JSON.parse(res.content.filter((b) => b.type === 'text').map((b) => b.text).join(''));
 }
 
-
-/** 예전에 만든 작업에 워드프레스 글이 없으면 기본 구조를 채워 넣는다 */
+/** 예전에 만든 작업에 블로그 글이 없으면 기본 구조를 채워 넣는다 */
 export function ensureArticle(copy, memo, topic, settings) {
   if (copy.article) return copy.article;
   const base = draftWithoutAI({ memo, topic, title: copy.title, settings, stillCount: 1 });
@@ -284,10 +424,10 @@ function bodyHtml(text) {
 }
 
 /**
- * 워드프레스 본문 HTML. images: [{url, alt}] (섹션 사이에 하나씩)
+ * 구글 블로그 본문 HTML. images: [{url, alt}] (섹션 사이에 하나씩)
  * 요약 → 소제목별 본문(+이미지) → 자주 묻는 질문 → FAQ 구조화 데이터
  */
-export function articleHtml(a, images = [], { author = '', updated = new Date() } = {}) {
+export function articleHtml(a, images = [], { author = '', updated = new Date(), biz = null, topic = '' } = {}) {
   const parts = [];
   parts.push(`<p><strong>핵심 요약</strong> ${escH(a.summary)}</p>`);
   a.sections.forEach((sec, i) => {
@@ -301,11 +441,27 @@ export function articleHtml(a, images = [], { author = '', updated = new Date() 
     parts.push('<h2>자주 묻는 질문</h2>');
     a.faq.forEach((f) => { parts.push(`<h3>${escH(f.q)}</h3>`); parts.push(`<p>${escH(f.a)}</p>`); });
   }
+  if (biz && biz.bizName) {
+    const rows = [['주소', biz.bizAddress], ['영업시간', biz.bizHours], ['전화', biz.bizPhone], ['주차', biz.bizParking], ['가격 안내', biz.bizPrice]].filter(([, v]) => v);
+    const links = [['예약하기', biz.bizBooking], ['지도 보기', biz.bizMap]].filter(([, v]) => v && /^https?:\/\//.test(v));
+    parts.push(`<h2>${escH(biz.bizName)} 정보</h2>`);
+    parts.push(`<ul>${rows.map(([k, v]) => `<li><strong>${k}</strong> ${escH(v)}</li>`).join('')}</ul>`);
+    if (links.length) parts.push(`<p>${links.map(([k, v]) => `<a href="${escH(v)}" target="_blank" rel="noopener">${k}</a>`).join(' · ')}</p>`);
+  }
   const d = updated.toISOString().slice(0, 10);
   parts.push(`<p><em>${author ? escH(author) + ' 작성 · ' : ''}${d} 업데이트 · 직접 촬영한 사진과 경험을 바탕으로 썼습니다.</em></p>`);
   if (a.faq.length) {
     const ld = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: a.faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) };
     parts.push(`<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
+  }
+  if (biz && biz.bizName) {
+    const lb = { '@context': 'https://schema.org', '@type': topic === 'hair' ? 'HairSalon' : topic === 'food' ? 'FoodEstablishment' : 'LocalBusiness', name: biz.bizName };
+    if (biz.bizAddress) lb.address = biz.bizAddress;
+    if (biz.bizPhone) lb.telephone = biz.bizPhone;
+    if (biz.bizHours) lb.openingHours = biz.bizHours;
+    const sameAs = [biz.bizMap, biz.bizBooking].filter((v) => v && /^https?:\/\//.test(v));
+    if (sameAs.length) lb.sameAs = sameAs;
+    parts.push(`<script type="application/ld+json">${JSON.stringify(lb).replace(/</g, '\\u003c')}</script>`);
   }
   return parts.join('\n');
 }
