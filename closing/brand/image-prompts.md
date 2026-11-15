@@ -85,3 +85,42 @@ Photorealistic phone, soft reflection, no hands, no text, no logos.
 ## 만들지 않아도 되는 것
 - 앱 안 화면용 일러스트: 지금 디자인은 숫자·아이콘 중심이라, 그림을 넣으면 오히려 화면이 무거워져요.
 - 앱 화면 그 자체: 실제 앱 캡처(`preview/` 폴더)를 쓰는 게 정확해요.
+
+
+---
+
+# 받은 이미지 사용처 (2026-11-15)
+| 받은 이미지 | 쓴 곳 |
+|---|---|
+| 흰 바탕 ZB (`user/zb-light.png`) | 정산 이미지 아래 로고, 앱 더보기·소개 페이지 맨 아래 로고 (`zb-mark-light.png`) |
+| 어두운 정사각형 ZB (`user/zb-dark-square.png`) | 홈 화면 앱 아이콘(180·192·512), 인스타 프로필(`instagram-profile-1080.png`), 앱 헤더·정산 이미지 위쪽 마크(`zb-mark.png`) |
+| 빈 화면 폰 (`user/phone-mockup.png`) | 실제 앱 화면을 끼운 홍보 이미지 4종 (`promo/`, 2:3과 인스타 피드 4:5) |
+| 아이콘 7개 (`user/icon-set.png`) | 하이라이트 커버 7개 (`highlights/`) — 상자(02-재고)는 제로카운트(재고 앱) 소개용으로 |
+| 배너 (`user/banner.png`) | 카톡·인스타 링크 미리보기 (`zerobalance/og-image.png`, 1200×630) |
+| 원본 로고 | 소개 페이지 첫 화면·마지막 화면 큰 마크 (`zb-mark-glossy.png`) |
+
+# 아직 없는 이미지 프롬프트
+
+## 7. 하이라이트 아이콘 추가 2개 — 1024×1024
+**아이콘 7개 이미지(`user/icon-set.png`)를 첨부**하고, 같은 스타일로 만들어 달라고 하세요. 지금 세트에는 '문의'와 '마감(달력)'이 없어요.
+```
+Using the attached icon set as the exact style reference, create ONE more icon in the same style: a thin white line icon with blue (#2F6BFF) accents inside a circle with a white-to-blue gradient ring, on the same deep navy background with faint grid lines and a soft blue glow from the top-right.
+Icon: [ICON]. Center it in a 1024x1024 square, the circle about 60% of the width. Same line weight and glow as the reference. No text.
+```
+`[ICON]`: 문의 → `a chat bubble with three dots` · 마감 → `a calendar with a check mark`
+
+## 8. 인스타 스토리용 폰 목업 (화면 비움) — 1024×1792 (9:16에 가깝게)
+지금 폰 목업은 2:3이라 스토리(9:16)에서는 위아래가 비어요. **폰 목업 이미지를 첨부**하세요.
+```
+Using the attached image as the style reference, create a taller vertical version (about 9:16, 1024x1792) of the same scene: the same iPhone with a completely blank pure white screen, the same deep navy background with grid floor and a blue glow from the top-right.
+Place the phone in the lower 60%, slightly tilted the same way, and leave the top 40% empty for a headline.
+No text, no UI on the screen, no hands, no logos.
+```
+
+## 9. 흰 바탕용 글자 로고 (투명 배경) — 1536×512 (선택)
+명함·전단처럼 흰 종이에 'ZERO BALANCE' 글자를 넣을 때. 지금 글자 로고는 ZERO가 흰색이라 흰 바탕에서 안 보여요. **원본 로고를 첨부**하세요.
+```
+Using the attached logo as reference, recreate only the "ZERO BALANCE" wordmark in the same wide geometric uppercase font and letter spacing.
+Color "ZERO" in deep navy (#0A1428) and "BALANCE" in vivid blue (#2F6BFF). Flat, no glow, no shadow.
+Transparent background PNG, 1536x512, wordmark centered with padding. No monogram, no other text.
+```
