@@ -2,10 +2,11 @@
 import { db, blobUrl, forgetUrl, loadSettings, saveSettings, uid, brandOf } from './store.js';
 import { analyzeVideo, analyzePhoto, grabFrame, smallJpegBase64, thumbDataUrl, extractSpeechAudio } from './media.js';
 import { exportBackup, importBackup } from './backup.js';
+import { heuristicEdit, geminiEdit, editLength } from './smartedit.js';
 import { TOPICS, TONES, STYLES, perspectiveLabels, GEMINI_MODELS, GEMINI_VOICES, geminiTTS, geminiTranscribe, draftWithoutAI, draftWithAI, ensureArticle, seoCheck, articleHtml } from './writer.js';
 import { prepareGoogle, googleToken, listBlogs, createBlogPost, scheduleBlogPost, bloggerEditUrl } from './blogger.js';
 import { CARD_THEMES, CARD_LAYOUTS, drawCard, ensureFonts, canvasBlob } from './cards.js';
-import { ASPECTS, MOTION_STYLES, Composer, buildPlan, recordMic, listElevenVoices, elevenTTS, elevenCloneVoice, audioDuration, pickMime } from './motion.js';
+import { ASPECTS, MOTION_STYLES, TEMPLATES, scriptChunks, Composer, buildPlan, recordMic, listElevenVoices, elevenTTS, elevenCloneVoice, audioDuration, pickMime } from './motion.js';
 
 const root = document.getElementById('app');
 let settings = loadSettings();
@@ -152,6 +153,17 @@ async function transcribeJob(job, onProgress) {
     } catch (e) { m.transcriptError = e.message || '받아쓰기 실패'; }
     onProgress && onProgress(++n / vids.length);
   }
+}
+
+// 목소리를 받아써서 대본 자막을 말 속도에 맞춘다 (제미나이 키가 있을 때만, 실패해도 그냥 넘어감)
+async function voiceTimings(blob) {
+  if (!settings.geminiKey) return null;
+  try {
+    const ex = await extractSpeechAudio(blob, 300);
+    if (!ex) return null;
+    const segs = await geminiTranscribe({ key: settings.geminiKey, model: settings.geminiModel || 'gemini-flash-latest', wav: ex.blob });
+    return segs && segs.length ? segs : null;
+  } catch (e) { return null; }
 }
 
 // 매장 정보를 블로그 · 인스타 글 끝에 붙이기
@@ -351,6 +363,7 @@ function resetDraftChoices() {
     useBiz: settings.lastUseBiz !== false,
     transcribe: settings.lastTranscribe !== false,
     autoVideo: settings.lastAutoVideo !== false,
+    videoLen: settings.lastVideoLen || 30,
   });
 }
 resetDraftChoices();
@@ -379,7 +392,7 @@ function viewNew() {
           <textarea class="textarea" data-draft="memo" rows="3" placeholder="예) 광주 수완지구 ○○카페, 라떼 6천원, 웨이팅 20분 / 레이어드컷, 손상모, 클리닉 같이">${esc(draft.memo)}</textarea>
           <span class="hint">사실 정보(가격·장소·시술명)를 적으면 글에 그대로 넣고, 없는 내용은 지어내지 않아요.</span></label>
         <label class="field"><span>제목 (선택)</span><input class="input" data-draft="title" value="${esc(draft.title)}" placeholder="비워 두면 자동으로 지어요" /></label>
-        <details class="voice-box" data-keep="newOpts" ${uiOpen.newOpts ? 'open' : ''} style="background:var(--surface-2)"><summary style="cursor:pointer;font-weight:700;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${icon('sliders')}옵션 <span class="sub" style="font-weight:600;font-size:13px">${esc((TOPICS[draft.topic] || TOPICS.hair).label)} · ${esc(STYLES[style].label)} · ${esc(pl[draft.perspective === 'guest' ? 'guest' : 'pro'])}${hasVideo && settings.geminiKey && draft.transcribe ? ' · 받아쓰기' : ''}${hasVideo && draft.autoVideo ? ' · 영상 자동' : ''}</span></summary>
+        <details class="voice-box" data-keep="newOpts" ${uiOpen.newOpts ? 'open' : ''} style="background:var(--surface-2)"><summary style="cursor:pointer;font-weight:700;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${icon('sliders')}옵션 <span class="sub" style="font-weight:600;font-size:13px">${esc((TOPICS[draft.topic] || TOPICS.hair).label)} · ${esc(STYLES[style].label)} · ${esc(pl[draft.perspective === 'guest' ? 'guest' : 'pro'])}${hasVideo && settings.geminiKey && draft.transcribe ? ' · 받아쓰기' : ''}${hasVideo && draft.autoVideo ? ` · 영상 ${draft.videoLen}초` : ''}</span></summary>
           <div style="display:grid;gap:14px;margin-top:12px">
             <p class="hint">한 번 고르면 다음 작업에도 그대로 쓰여요.</p>
             <div class="field"><span>주제</span><div class="chips">${Object.entries(TOPICS).filter(([k]) => hasKey || k !== 'auto').map(([k, t]) => `<button type="button" class="${draft.topic === k ? 'on' : ''}" data-act="draft-topic" data-v="${k}">${t.label}</button>`).join('')}</div></div>
@@ -388,6 +401,7 @@ function viewNew() {
               ${draft.perspective === 'guest' && hasBiz() ? `<span class="hint">매장 계정에서 고객인 것처럼 후기를 쓰면 거짓 후기가 될 수 있어요. 고객이 겪는 과정을 안내하는 글로 쓰거나, 고객님께 초안으로 전달해 직접 올리시게 해 주세요.</span>` : ''}</div>
             ${settings.geminiKey ? `<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-draft-check="transcribe" ${draft.transcribe ? 'checked' : ''} style="width:20px;height:20px" />영상 속 말소리 받아쓰기 (설명한 말을 글·자막에 그대로)</label>` : ''}
             <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-draft-check="autoVideo" ${draft.autoVideo ? 'checked' : ''} style="width:20px;height:20px" />세로 영상(릴스·쇼츠·틱톡)까지 바로 만들기</label>
+            ${hasVideo && draft.autoVideo ? `<div class="field"><span>세로 영상 길이 (긴 영상도 이 길이로 알아서 잘라요)</span><div class="seg">${[15, 30, 45, 60].map((s) => `<button type="button" class="${draft.videoLen === s ? 'on' : ''}" data-act="draft-vlen" data-v="${s}">${s}초</button>`).join('')}</div></div>` : ''}
             ${hasBiz() ? `<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-draft-check="useBiz" ${draft.useBiz ? 'checked' : ''} style="width:20px;height:20px" />매장 정보 넣기 (${esc(settings.bizName)} · 주소 · 예약 링크)</label>` : ''}
           </div></details>
         <button class="btn btn-blue btn-lg show-m" data-act="start" ${draft.files.length ? '' : 'disabled'}>${icon('sparkle')}자동으로 만들기</button>
@@ -445,7 +459,7 @@ async function startJob() {
   if (processing || !draft.files.length) return;
   processing = true;
   getAC(); // 버튼을 누른 순간 소리 장치를 깨워 둔다 (영상 자동 만들기용)
-  Object.assign(settings, { lastTopic: draft.topic, lastStyle: draft.style, lastPerspective: draft.perspective, lastUseBiz: draft.useBiz, lastTranscribe: draft.transcribe, lastAutoVideo: draft.autoVideo });
+  Object.assign(settings, { lastTopic: draft.topic, lastStyle: draft.style, lastPerspective: draft.perspective, lastUseBiz: draft.useBiz, lastTranscribe: draft.transcribe, lastAutoVideo: draft.autoVideo, lastVideoLen: draft.videoLen });
   saveSettings(settings);
   location.hash = '#/working';
   await new Promise((r) => setTimeout(r, 60)); // 진행 화면이 먼저 그려지도록
@@ -527,7 +541,10 @@ async function startJob() {
         const stage = document.getElementById('proc-stage'); if (stage) stage.hidden = false;
         const canvas = document.getElementById('proc-canvas');
         const o = job.short;
-        const plan = buildPlan({ sources: await studioSources(job), copy: job.copy.short, targetSec: o.length, aspect: '9:16', captionMode: hasSpeech(job) ? 'speech' : 'summary' });
+        o.length = draft.videoLen || o.length;
+        const pm = document.getElementById('proc-msg');
+        o.edit = await runSmartEdit(job, o.length, (t) => { if (pm) { pm.hidden = false; pm.innerHTML = `${icon('sparkle')}<span>${esc(t)}</span>`; } });
+        const plan = buildPlan({ sources: await studioSources(job), copy: job.copy.short, targetSec: o.length, aspect: '9:16', captionMode: hasSpeech(job) ? 'speech' : 'summary', edit: o.edit });
         if (hasSpeech(job)) o.captionMode = 'speech';
         const comp = new Composer({ canvas, plan, settings, style: o.style, audio: { ac: getAC(), originalGain: o.voice === 'original' ? 1 : 0 } });
         await comp.prepare();
@@ -963,17 +980,19 @@ function tabStudio(job, kind) {
       ${isShort ? '' : `<div><h4>유튜브 제목 · 설명</h4><div style="display:grid;gap:8px"><input class="input" data-bind="copy.youtube.title" value="${esc(job.copy.youtube.title)}" />
         <textarea class="textarea" data-bind="copy.youtube.description">${esc(job.copy.youtube.description)}</textarea>
         <div style="display:flex;gap:8px"><button class="btn btn-line btn-sm" data-act="copy-path" data-path="copy.youtube.title">${icon('copy')}제목 복사</button><button class="btn btn-line btn-sm" data-act="copy-path" data-path="copy.youtube.description">${icon('copy')}설명 복사</button></div></div></div>`}
-      <div><h4>길이</h4><div class="seg">${[15, 30, 45, 60].map((s) => `<button class="${o.length === s ? 'on' : ''}" data-act="st-set" data-k="length" data-v="${s}" ${o.voice === 'mic' || o.voice === 'ai' ? (o.voiceId ? 'disabled' : '') : ''}>${s}초</button>`).join('')}</div>
-        ${(o.voice === 'mic' || o.voice === 'ai') && o.voiceId ? `<p class="hint" style="margin-top:6px">목소리 길이(${fmtTime(o.voiceSec)})에 맞춰 자동으로 정해져요.</p>` : ''}</div>
-      <div><h4>모션 스타일</h4><div class="seg">${Object.entries(MOTION_STYLES).map(([k, v]) => `<button class="${o.style === k ? 'on' : ''}" data-act="st-set" data-k="style" data-v="${k}" title="${v.desc}">${v.label}</button>`).join('')}</div></div>
+      ${smartEditBox(job, kind)}
+      <div><h4>템플릿</h4><div class="tpl-grid">${Object.entries(TEMPLATES).map(([k, v]) => `<button class="${o.style === k ? 'on' : ''}" data-act="st-set" data-k="style" data-v="${k}" style="--tc:${v.accent}"><i></i><b>${v.label}</b><small>${v.desc}</small></button>`).join('')}</div></div>
       <div><h4>첫 화면 문구 (훅)</h4><input class="input" data-bind="copy.short.hook" data-studio="1" value="${esc(job.copy.short.hook)}" maxlength="40" /></div>
       <div><h4>강조 단어</h4><input class="input" data-bind="copy.short.keyword" data-studio="1" value="${esc(job.copy.short.keyword)}" maxlength="12" /></div>
-      <div><h4>자막 내용</h4><div class="seg"><button class="${(o.captionMode || 'summary') === 'summary' ? 'on' : ''}" data-act="st-set" data-k="captionMode" data-v="summary">요약 자막</button><button class="${o.captionMode === 'speech' ? 'on' : ''}" data-act="st-set" data-k="captionMode" data-v="speech" ${hasSpeech(job) ? '' : 'disabled'}>말한 그대로</button></div>
-        <p class="hint" style="margin-top:6px">${hasSpeech(job) ? '말한 그대로: 영상 속에서 실제로 한 말이 그 장면에 맞춰 자막으로 떠요. 말소리는 원본 소리로 두면 잘 맞아요.' : '영상 말소리를 받아쓰면 \'말한 그대로\' 자막을 쓸 수 있어요 (블로그 탭에서 받아쓰기).'}</p></div>
-      <div><h4>요약 자막 (한 줄에 하나)</h4><textarea class="textarea" data-bind-lines="copy.short.lines" data-studio="1" style="min-height:130px">${esc(lines.join('\n'))}</textarea></div>
+      <div><h4>자막 내용</h4><div class="seg"><button class="${(o.captionMode || 'summary') === 'summary' ? 'on' : ''}" data-act="st-set" data-k="captionMode" data-v="summary">요약 자막</button><button class="${o.captionMode === 'speech' ? 'on' : ''}" data-act="st-set" data-k="captionMode" data-v="speech" ${hasSpeech(job) ? '' : 'disabled'}>말한 그대로</button><button class="${o.captionMode === 'script' ? 'on' : ''}" data-act="st-set" data-k="captionMode" data-v="script">내 대본</button></div>
+        <p class="hint" style="margin-top:6px">${o.captionMode === 'script' ? '대본을 붙여 넣으면 한 줄씩 자막으로 들어가요. 긴 줄은 알아서 나눠요. 대본으로 목소리를 만들면 말하는 속도에 맞춰 떠요.' : hasSpeech(job) ? '말한 그대로: 영상 속에서 실제로 한 말이 그 장면에 맞춰 자막으로 떠요. 말소리는 원본 소리로 두면 잘 맞아요.' : '영상 말소리를 받아쓰면 \'말한 그대로\' 자막을 쓸 수 있어요 (블로그 탭에서 받아쓰기). 대본이 있으면 \'내 대본\'을 눌러 붙여 넣으세요.'}</p></div>
+      ${o.captionMode === 'script'
+        ? `<div><h4>대본 (한 줄 = 자막 한 장면)</h4><textarea class="textarea" data-bind="${kind}.script" data-studio="1" style="min-height:150px" placeholder="예)\n손상모라 고민이셨던 고객님\n클리닉부터 꼼꼼하게\n레이어드컷으로 가볍게 완성">${esc(o.script)}</textarea>
+          <p class="hint" style="margin-top:6px">${(o.script || '').trim() ? `자막 ${scriptChunks(o.script).length}개` : '비어 있으면 요약 자막을 써요'}${o.voiceTimings ? ' · 목소리 속도에 맞춤' : ''}</p></div>`
+        : `<div><h4>요약 자막 (한 줄에 하나)</h4><textarea class="textarea" data-bind-lines="copy.short.lines" data-studio="1" style="min-height:130px">${esc(lines.join('\n'))}</textarea></div>`}
       <div><h4>말소리</h4><div class="seg">${voiceOpts.map(([k, l]) => `<button class="${o.voice === k ? 'on' : ''}" data-act="st-set" data-k="voice" data-v="${k}">${l}</button>`).join('')}</div>
         ${o.voice === 'mic' || o.voice === 'ai' ? `<div class="voice-box" style="margin-top:10px">
-          <label class="field"><span>내레이션 원고</span><textarea class="textarea" data-bind="${kind}.script" style="min-height:110px">${esc(o.script)}</textarea></label>
+          ${o.captionMode === 'script' ? '<p class="hint">위 대본을 그대로 읽어요.</p>' : `<label class="field"><span>내레이션 원고</span><textarea class="textarea" data-bind="${kind}.script" style="min-height:110px">${esc(o.script)}</textarea></label>`}
           ${o.voice === 'mic'
             ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-blue btn-sm" data-act="mic-rec" id="mic-btn">${icon('mic')}녹음 시작</button><span class="sub" id="mic-state" style="font-size:13px">원고를 보며 읽어 주세요</span></div>`
             : `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-blue btn-sm" data-act="ai-voice" ${voiceReady() ? '' : 'disabled'}>${icon('sparkle')}AI 목소리 만들기</button>
@@ -1002,11 +1021,60 @@ async function studioSources(job) {
   return sources;
 }
 
+async function smartInputs(job) {
+  const videos = [];
+  for (const m of job.media) {
+    if (m.kind !== 'video' || !m.analysis || m.missing) continue;
+    const url = await blobUrl(m.id);
+    if (url) videos.push({ url, analysis: m.analysis, transcript: m.transcript || [] });
+  }
+  const photoUrls = [];
+  if (videos.length) for (const s of job.stills.filter((x) => x.t == null)) photoUrls.push(await blobUrl(s.id));
+  return { videos, photoUrls };
+}
+const sourceSec = (job) => job.media.filter((m) => m.kind === 'video' && m.analysis && !m.missing).reduce((a, m) => a + m.analysis.duration, 0);
+
+/** 스마트 편집: 제미나이 키가 있으면 제미나이가, 없거나 실패하면 규칙으로 컷을 고른다. 영상이 없으면 null */
+async function runSmartEdit(job, targetSec, onStatus) {
+  const { videos, photoUrls } = await smartInputs(job);
+  if (!videos.length) return null;
+  if (settings.geminiKey) {
+    try {
+      const ed = await geminiEdit({ key: settings.geminiKey, model: settings.geminiModel || 'gemini-flash-latest', videos, photoUrls, targetSec, topicLabel: (TOPICS[job.topic] || {}).label || '', onStatus });
+      if (ed.hook) job.copy.short.hook = ed.hook;
+      return ed;
+    } catch (e) { onStatus && onStatus(e.message || '기본 자동 편집으로 할게요'); }
+  }
+  onStatus && onStatus('좋은 장면을 고르는 중');
+  return heuristicEdit({ videos, photos: photoUrls.length, targetSec });
+}
+
+function smartEditBox(job, kind) {
+  const o = job[kind];
+  const lens = kind === 'short' ? [15, 30, 45, 60] : [30, 45, 60, 90, 120];
+  const voiceLock = (o.voice === 'mic' || o.voice === 'ai') && o.voiceId;
+  const src = sourceSec(job);
+  const ed = o.edit;
+  const vidNames = job.media.filter((m) => m.kind === 'video' && m.analysis && !m.missing);
+  const lenChips = `<div class="seg">${lens.map((s) => `<button class="${o.length === s ? 'on' : ''}" data-act="st-set" data-k="length" data-v="${s}" ${voiceLock ? 'disabled' : ''}>${s >= 60 && s % 60 === 0 ? `${s / 60}분` : `${s}초`}</button>`).join('')}</div>
+    ${voiceLock ? `<p class="hint" style="margin-top:6px">목소리 길이(${fmtTime(o.voiceSec)})에 맞춰 자동으로 정해져요.</p>` : ''}`;
+  if (!src) return `<div><h4>길이</h4>${lenChips}</div>`;
+  return `<div class="smart-box"><h4>${icon('sparkle')}자동 편집</h4>
+    <p class="hint">원본 ${fmtTime(src)} → 몇 초로 만들까요? 준비 동작·흔들린 장면·"음, 어" 같은 군더더기를 빼고 핵심만 이어 붙여요.${settings.geminiKey ? ' 제미나이가 장면과 말을 보고 골라요.' : ''}</p>
+    ${lenChips}
+    <button class="btn ${ed ? 'btn-line' : 'btn-blue'} btn-sm" data-act="smart-edit" id="smart-btn" style="justify-self:start">${icon('sparkle')}${ed ? '다시 편집' : '스마트 편집'}</button>
+    <span class="sub" id="smart-state" style="font-size:13px"></span>
+    ${ed ? `<div class="edit-sum">${icon('check')}<span>원본 ${fmtTime(src)} → ${Math.round(editLength(ed))}초 · 컷 ${ed.clips.length}개 · ${ed.engine === 'gemini' ? '제미나이 편집' : '자동 편집'}</span></div>
+      <div class="cut-list">${ed.clips.map((c, i) => `<div class="cut"><span class="num">${i + 1}</span><span>${c.kind === 'image' ? `사진 · ${c.dur.toFixed(1)}초` : `${vidNames.length > 1 ? `영상${c.src + 1} ` : ''}${fmtTime(c.in)}~${fmtTime(c.out)} · ${(c.out - c.in).toFixed(1)}초`}${c.caption ? ` · <b>${esc(c.caption)}</b>` : ''}</span><button class="iconbtn" data-act="cut-del" data-i="${i}" aria-label="이 컷 빼기">${icon('x')}</button></div>`).join('')}</div>
+      <button class="btn btn-line btn-sm" data-act="edit-clear" style="justify-self:start">자동 편집 끄기 (예전 방식)</button>` : ''}
+  </div>`;
+}
+
 async function buildComposer(job, kind) {
   const o = job[kind];
   const aspect = kind === 'short' ? '9:16' : '16:9';
   const voiceOn = (o.voice === 'mic' || o.voice === 'ai') && o.voiceId;
-  const plan = buildPlan({ sources: await studioSources(job), copy: job.copy.short, targetSec: o.length, voiceSec: voiceOn ? o.voiceSec : 0, aspect, captionMode: o.captionMode || 'summary' });
+  const plan = buildPlan({ sources: await studioSources(job), copy: job.copy.short, targetSec: o.length, voiceSec: voiceOn ? o.voiceSec : 0, aspect, captionMode: o.captionMode || 'summary', edit: o.edit || null, script: o.script || '', voiceTimings: voiceOn ? o.voiceTimings || null : null });
   const canvas = document.getElementById('stage-canvas');
   if (!canvas) return null;
   const comp = new Composer({
@@ -1024,7 +1092,7 @@ async function buildComposer(job, kind) {
 
 async function ensureComposer(job, kind) {
   const o = job[kind];
-  const key = JSON.stringify([job.id, kind, o.length, o.style, o.captionMode, o.voice, o.voiceId, o.voiceSec, o.bgmId, job.copy.short.hook, job.copy.short.keyword, job.copy.short.lines, settings.brandName, settings.handle]);
+  const key = JSON.stringify([job.id, kind, o.length, o.style, o.captionMode, o.voice, o.voiceId, o.voiceSec, o.bgmId, o.edit, o.captionMode === 'script' ? o.script : '', o.voiceTimings, job.copy.short.hook, job.copy.short.keyword, job.copy.short.lines, settings.brandName, settings.handle]);
   if (studio.composer && studio.key === key) return studio.composer;
   await disposeStudio();
   studio.composer = await buildComposer(job, kind);
@@ -1227,8 +1295,32 @@ const actions = {
   },
   'st-set': (el) => {
     const job = curJob(); const kind = current.tab; const k = el.dataset.k;
+    if (k === 'length' && job[kind].edit && +el.dataset.v !== job[kind].length) { job[kind].edit = null; toast('길이를 바꿨어요. 스마트 편집을 다시 눌러 주세요'); }
     job[kind][k] = k === 'length' ? +el.dataset.v : el.dataset.v;
     saveSoon(job); render();
+  },
+  'smart-edit': async (el) => {
+    const job = curJob(); const kind = current.tab; const o = job[kind];
+    if (studio.busy) return;
+    if (studio.playing && studio.composer) studio.composer.stop();
+    studio.busy = true; el.disabled = true; el.innerHTML = '<span class="spin"></span>편집 중';
+    const st = document.getElementById('smart-state');
+    try {
+      o.edit = await runSmartEdit(job, o.length, (t) => { if (st) st.textContent = t; });
+      await db.putJob(job);
+      toast(`${Math.round(editLength(o.edit))}초로 편집했어요. 미리보기로 확인해 보세요`);
+    } catch (e) { toast(e.message || '편집하지 못했어요'); }
+    studio.busy = false; render();
+  },
+  'cut-del': (el) => {
+    const job = curJob(); const o = job[current.tab];
+    if (!o.edit) return;
+    o.edit.clips.splice(+el.dataset.i, 1);
+    if (!o.edit.clips.length) o.edit = null;
+    saveSoon(job); render();
+  },
+  'edit-clear': (el) => {
+    const job = curJob(); job[current.tab].edit = null; saveSoon(job); render();
   },
   'studio-play': async (el) => {
     const job = curJob(); const kind = current.tab;
@@ -1292,6 +1384,7 @@ const actions = {
       const o = job[kind];
       if (o.voiceId) { await db.deleteBlob(o.voiceId).catch(() => {}); forgetUrl(o.voiceId); }
       o.voiceId = id; o.voiceSec = await audioDuration(blob).catch(() => 20);
+      o.voiceTimings = await voiceTimings(blob);
       await db.putJob(job); toast('녹음했어요'); render(); return;
     }
     try {
@@ -1310,13 +1403,14 @@ const actions = {
       const id = uid('a'); await db.putBlob(id, blob);
       if (o.voiceId) { await db.deleteBlob(o.voiceId).catch(() => {}); forgetUrl(o.voiceId); }
       o.voiceId = id; o.voiceSec = await audioDuration(blob);
+      o.voiceTimings = await voiceTimings(blob);
       await db.putJob(job); toast('AI 목소리를 만들었어요'); render();
     } catch (e) { toast(e.message); el.disabled = false; el.innerHTML = `${icon('sparkle')}AI 목소리 만들기`; }
   },
   'voice-del': async () => {
     const job = curJob(); const o = job[current.tab];
     if (o.voiceId) { await db.deleteBlob(o.voiceId).catch(() => {}); forgetUrl(o.voiceId); }
-    o.voiceId = null; o.voiceSec = 0; await db.putJob(job); render();
+    o.voiceId = null; o.voiceSec = 0; o.voiceTimings = null; await db.putJob(job); render();
   },
   'bgm-del': async () => {
     const job = curJob(); const o = job[current.tab];
@@ -1390,6 +1484,7 @@ const actions = {
   },
   'draft-style': (el) => { draft.style = el.dataset.v; render(); },
   'draft-persp': (el) => { draft.perspective = el.dataset.v; render(); },
+  'draft-vlen': (el) => { draft.videoLen = +el.dataset.v; render(); },
   'job-style': (el) => { const job = curJob(); job.style = el.dataset.v; saveSoon(job); render(); },
   'job-persp': (el) => { const job = curJob(); job.perspective = el.dataset.v; saveSoon(job); render(); },
   'card-layout': (el) => { const job = curJob(); job.cardLayout = el.dataset.v; saveSoon(job); render(); },

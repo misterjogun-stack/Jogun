@@ -8,11 +8,57 @@ export const ASPECTS = {
   '16:9': { w: 1920, h: 1080, label: '유튜브 (가로)' },
 };
 
-export const MOTION_STYLES = {
-  clean:   { label: '클린', desc: '흰 자막 상자 · 파란 강조' },
-  bold:    { label: '볼드', desc: '큰 글씨 · 노란 강조 · 빠른 전환' },
-  minimal: { label: '미니멀', desc: '작은 자막 · 잔잔한 전환' },
+// 영상 템플릿: 자막 모양 · 전환 · 색 · 화면 효과 묶음
+export const TEMPLATES = {
+  clean:      { label: '클린', desc: '흰 자막 상자 · 줌 전환', caption: 'box', trans: 'zoom', hook: 'pop', accent: '#3B82F6' },
+  bold:       { label: '볼드 임팩트', desc: '큰 글씨 · 노란 강조 · 빠른 전환', caption: 'stroke', trans: 'whip', hook: 'stroke', accent: '#FACC15', btnInk: '#0A0A0A' },
+  minimal:    { label: '미니멀', desc: '작은 자막 · 잔잔한 전환', caption: 'pill', trans: 'soft', hook: 'soft', accent: '#93C5FD' },
+  beforeafter:{ label: '비포 · 애프터', desc: 'BEFORE → AFTER 표시', caption: 'box', trans: 'zoom', hook: 'pop', accent: '#F43F5E', badge: 'ba' },
+  step:       { label: '스텝 튜토리얼', desc: 'STEP 1·2·3 번호 자막', caption: 'box', trans: 'zoom', hook: 'pop', accent: '#22C55E', badge: 'step' },
+  cinema:     { label: '감성 시네마', desc: '위아래 검은 띠 · 따뜻한 색감', caption: 'plain', trans: 'fade', hook: 'soft', accent: '#FBBF24', overlay: 'letterbox', grade: 'warm' },
+  news:       { label: '뉴스 자막', desc: '아래 자막 띠 · 브랜드 이름표', caption: 'lowerthird', trans: 'cut', hook: 'pop', accent: '#2563EB' },
+  typing:     { label: '타자기', desc: '한 글자씩 써지는 자막', caption: 'type', trans: 'fade', hook: 'soft', accent: '#A78BFA' },
 };
+export const MOTION_STYLES = TEMPLATES;
+
+/** 대본을 자막 조각으로: 줄마다, 긴 줄은 문장·띄어쓰기 단위로 (한 조각 ~18자) */
+export function scriptChunks(script) {
+  const out = [];
+  String(script || '').split(/\n+/).map((l) => l.trim()).filter(Boolean).forEach((line) => {
+    line.split(/(?<=[.!?。…])\s+/).forEach((sent) => {
+      let cur = '';
+      sent.split(/\s+/).forEach((w) => {
+        if (cur && (cur + ' ' + w).length > 18) { out.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w;
+      });
+      if (cur) out.push(cur);
+    });
+  });
+  return out;
+}
+
+/** 대본 조각에 시간을 붙인다. timings(목소리 받아쓰기)가 있으면 실제 말 속도에 맞춘다 */
+export function scriptToCaptions(script, start, end, timings) {
+  const chunks = scriptChunks(script);
+  if (!chunks.length || end <= start) return [];
+  const total = chunks.reduce((a, c) => a + c.length, 0);
+  let map = (frac) => start + frac * (end - start);
+  if (timings && timings.length) {
+    // 목소리 받아쓰기의 글자 누적 비율 → 시간으로 구간별 선형 대응
+    const tl = timings.reduce((a, s) => a + s.text.length, 0) || 1;
+    const pts = [[0, start + timings[0].start]];
+    let acc = 0;
+    timings.forEach((s) => { pts.push([acc / tl, start + s.start]); acc += s.text.length; pts.push([acc / tl, start + s.end]); });
+    map = (frac) => {
+      for (let i = 1; i < pts.length; i++) if (frac <= pts[i][0]) { const [f0, t0] = pts[i - 1], [f1, t1] = pts[i]; return f1 === f0 ? t1 : t0 + ((frac - f0) / (f1 - f0)) * (t1 - t0); }
+      return pts[pts.length - 1][1];
+    };
+  }
+  let acc = 0;
+  return chunks.map((text) => {
+    const a = map(acc / total); acc += text.length; const b = map(acc / total);
+    return { text, start: a, end: Math.max(a + 0.6, b - 0.05) };
+  });
+}
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const easeOutCubic = (p) => 1 - (1 - p) ** 3;
@@ -37,7 +83,8 @@ export function pickMime() {
  * sources: [{kind:'video', url, analysis}|{kind:'image', url}]
  * 반환: { total, segs:[{kind,url,in,out,start,dur,kb}], hook, lines:[{text,start,end}], outroStart }
  */
-export function buildPlan({ sources, copy, targetSec = 30, voiceSec = 0, aspect = '9:16', captionMode = 'summary' }) {
+export function buildPlan({ sources, copy, targetSec = 30, voiceSec = 0, aspect = '9:16', captionMode = 'summary', edit = null, script = '', voiceTimings = null }) {
+  if (edit && edit.clips && edit.clips.length) return buildEditPlan({ sources, copy, voiceSec, aspect, captionMode, edit, script, voiceTimings });
   const outroLen = 2.2;
   const total = Math.min(90, Math.max(8, voiceSec ? voiceSec + 1.6 : targetSec));
   const bodyLen = total - outroLen;
@@ -96,6 +143,10 @@ export function buildPlan({ sources, copy, targetSec = 30, voiceSec = 0, aspect 
   const per = lineTexts.length ? (bodyLen - hookEnd) / lineTexts.length : 0;
   let lines = lineTexts.map((text, i) => ({ text, start: hookEnd + i * per + 0.1, end: hookEnd + (i + 1) * per - 0.05 }));
   // '말한 그대로' 자막: 각 영상 구간에서 실제로 한 말을 그 시간에 맞춰 띄운다
+  if (captionMode === 'script' && script) {
+    const sc = voiceSec ? scriptToCaptions(script, 0.3, 0.3 + voiceSec, voiceTimings) : scriptToCaptions(script, hookEnd, bodyLen - 0.1);
+    if (sc.length) lines = sc;
+  }
   if (captionMode === 'speech') {
     const spoken = [];
     segs.filter((sg) => !sg.outro && sg.kind === 'video' && sg.transcript && sg.transcript.length).forEach((sg) => {
@@ -108,6 +159,64 @@ export function buildPlan({ sources, copy, targetSec = 30, voiceSec = 0, aspect 
     if (spoken.length) lines = spoken;
   }
   return { total, segs, hook: copy.hook || '', hookEnd, keyword: copy.keyword || '', lines, outroStart: bodyLen, aspect };
+}
+
+// 스마트 편집 결과(컷 목록)로 계획 만들기
+function buildEditPlan({ sources, copy, voiceSec, aspect, captionMode, edit, script, voiceTimings }) {
+  const outroLen = 2.2;
+  const videos = sources.filter((s) => s.kind === 'video');
+  const images = sources.filter((s) => s.kind === 'image');
+  const segs = [];
+  let t = 0;
+  edit.clips.forEach((c, k) => {
+    if (c.kind === 'image') {
+      const img = images[c.src % Math.max(1, images.length)];
+      if (!img) return;
+      segs.push({ kind: 'image', url: img.url, start: t, dur: c.dur, caption: c.caption, kb: { zoomFrom: 1.0, zoomTo: 1.1, panX: (k % 2 ? 1 : -1) * 0.03, panY: -0.02 } });
+      t += c.dur;
+    } else {
+      const v = videos[c.src];
+      if (!v) return;
+      const dur = c.out - c.in;
+      segs.push({ kind: 'video', url: v.url, in: c.in, out: c.out, start: t, dur, caption: c.caption, transcript: v.transcript });
+      t += dur;
+    }
+  });
+  if (!segs.length) throw new Error('편집할 장면이 없어요');
+  // 목소리가 더 길면 마지막 장면을 늘려 목소리가 끝까지 나오게
+  if (voiceSec && voiceSec + 0.6 > t) {
+    const last = segs[segs.length - 1];
+    const extra = voiceSec + 0.6 - t;
+    last.dur += extra; if (last.kind === 'video') last.hold = true;
+    t += extra;
+  }
+  const bodyLen = t;
+  const total = bodyLen + outroLen;
+  const last = segs[segs.length - 1];
+  segs.push({ ...last, start: bodyLen, dur: outroLen, outro: true, in: last.kind === 'video' ? Math.max(last.in, last.out - 0.1) : undefined, freeze: last.kind === 'video' });
+  const hookEnd = Math.min(2.4, bodyLen * 0.25);
+  let lines = [];
+  if (captionMode === 'script' && script) {
+    lines = voiceSec ? scriptToCaptions(script, 0.3, 0.3 + voiceSec, voiceTimings) : scriptToCaptions(script, hookEnd, bodyLen - 0.1);
+  } else if (captionMode === 'speech') {
+    segs.filter((sg) => !sg.outro && sg.kind === 'video' && sg.transcript && sg.transcript.length).forEach((sg) => {
+      sg.transcript.forEach((ts) => {
+        const a = Math.max(ts.start, sg.in), b = Math.min(ts.end, sg.out);
+        if (b - a >= 0.4) lines.push({ text: ts.text, start: sg.start + (a - sg.in), end: sg.start + (b - sg.in) });
+      });
+    });
+  }
+  if (!lines.length) {
+    // 컷마다 붙은 자막(제미나이) → 없으면 요약 자막을 컷 경계에 맞춰 나눠 배치
+    const capSegs = segs.filter((sg) => !sg.outro && sg.caption && sg.start + sg.dur > hookEnd);
+    if (capSegs.length) lines = capSegs.map((sg) => ({ text: sg.caption, start: Math.max(hookEnd, sg.start) + 0.05, end: sg.start + sg.dur - 0.05 }));
+    else {
+      const texts = (copy.lines || []).filter(Boolean);
+      const per = texts.length ? (bodyLen - hookEnd) / texts.length : 0;
+      lines = texts.map((text, i) => ({ text, start: hookEnd + i * per + 0.1, end: hookEnd + (i + 1) * per - 0.05 }));
+    }
+  }
+  return { total, segs, hook: copy.hook || edit.hook || '', hookEnd, keyword: copy.keyword || '', lines, outroStart: bodyLen, aspect, edited: true };
 }
 
 function drawCoverKB(ctx, src, W, H, zoom, px, py, offX = 0) {
@@ -158,12 +267,14 @@ export class Composer {
     this.stopped = false;
   }
 
-  get accent() { return this.style === 'bold' ? '#FACC15' : '#3B82F6'; }
+  get tpl() { return TEMPLATES[this.style] || TEMPLATES.clean; }
+  get accent() { return this.tpl.accent; }
 
   async prepare(onProgress) {
     const p = this.plan;
     await ensureFonts([p.hook, ...p.lines.map((l) => l.text), brandOf(this.settings), this.settings.handle].join(' '));
     const imgCache = new Map();
+    const vpool = new Map(), useCount = new Map();
     let done = 0;
     for (let i = 0; i < p.segs.length; i++) {
       const s = p.segs[i];
@@ -175,14 +286,24 @@ export class Composer {
         }
         this.els.set(i, imgCache.get(s.url));
       } else {
-        const v = document.createElement('video');
-        v.playsInline = true; v.preload = 'auto'; v.muted = true; v.src = s.url;
-        await new Promise((res) => { v.addEventListener('loadeddata', res, { once: true }); v.addEventListener('error', res, { once: true }); });
-        await new Promise((res) => { const done2 = () => res(); v.addEventListener('seeked', done2, { once: true }); v.currentTime = s.in || 0; setTimeout(done2, 3000); });
+        // 같은 영상은 플레이어 2개를 번갈아 쓴다 (컷이 많아도 브라우저 플레이어 수 제한에 안 걸리게)
+        const prevEl = this.els.get(i - 1);
+        if (s.outro && prevEl && prevEl.tagName === 'VIDEO' && p.segs[i - 1].url === s.url) { this.els.set(i, prevEl); done++; continue; }
+        const pool = vpool.get(s.url) || [];
+        const k = useCount.get(s.url) || 0;
+        useCount.set(s.url, k + 1);
+        let v = pool[k % 2];
+        if (!v) {
+          v = document.createElement('video');
+          v.playsInline = true; v.preload = 'auto'; v.muted = true; v.src = s.url;
+          await new Promise((res) => { v.addEventListener('loadeddata', res, { once: true }); v.addEventListener('error', res, { once: true }); });
+          pool.push(v); vpool.set(s.url, pool);
+        }
         this.els.set(i, v);
       }
       done++; onProgress && onProgress(done / p.segs.length);
     }
+    await this.cueStart();
     // 소리
     const AC = window.AudioContext || window.webkitAudioContext;
     this.ownAc = !this.audioOpt.ac;
@@ -199,7 +320,7 @@ export class Composer {
       this.origGain = this.ac.createGain();
       this.origGain.gain.value = this.audioOpt.originalGain;
       this.origGain.connect(this.master);
-      this.els.forEach((el) => {
+      new Set(this.els.values()).forEach((el) => {
         if (el.tagName === 'VIDEO') {
           el.muted = false;
           try { this.ac.createMediaElementSource(el).connect(this.origGain); } catch (e) { el.muted = true; }
@@ -209,10 +330,24 @@ export class Composer {
     this.hasAudio = !!(this.voiceBuf || this.bgmBuf || this.useOriginal);
   }
 
+  /** 각 플레이어를 처음 쓰는 컷의 시작점으로 맞춘다 */
+  async cueStart() {
+    const seen = new Set();
+    const jobs = [];
+    this.plan.segs.forEach((s, i) => {
+      const el = this.els.get(i);
+      if (!el || el.tagName !== 'VIDEO' || seen.has(el)) return;
+      seen.add(el);
+      jobs.push(new Promise((res) => { el.addEventListener('seeked', res, { once: true }); el.currentTime = s.in || 0; setTimeout(res, 3000); }));
+    });
+    await Promise.all(jobs);
+  }
+
   /** 재생(미리보기) 또는 녹화. record=true면 영상 파일(Blob)을 돌려준다 */
   async run({ record = false, onTime } = {}) {
     const p = this.plan;
     this.stopped = false;
+    await this.cueStart();
     if (this.ac.state === 'suspended') await this.ac.resume();
     let recorder = null, chunks = [], mime = '';
     if (record) {
@@ -284,7 +419,7 @@ export class Composer {
 
   async dispose() {
     this.stop();
-    this.els.forEach((el) => { if (el.tagName === 'VIDEO') { el.pause(); el.removeAttribute('src'); el.load(); } });
+    new Set(this.els.values()).forEach((el) => { if (el.tagName === 'VIDEO') { el.pause(); el.removeAttribute('src'); el.load(); } });
     try { this.master && this.master.disconnect(); } catch (e) { /* 이미 끊김 */ }
     if (this.ac && this.ownAc) await this.ac.close().catch(() => {});
   }
@@ -318,16 +453,21 @@ export class Composer {
         px = seg.kb.panX * q; py = seg.kb.panY * q;
       }
       // 컷 전환: 줌 펀치(클린) · 휙 밀기(볼드) · 부드럽게(미니멀)
+      const tr = this.tpl.trans;
       if (idx > 0 && !seg.outro) {
-        const tp = clamp(u / (this.style === 'minimal' ? 0.45 : 0.28));
-        if (this.style === 'bold') offX = (1 - easeOutCubic(tp)) * W * 0.18;
-        else zoom *= 1 + (this.style === 'minimal' ? 0.04 : 0.1) * (1 - easeOutCubic(tp));
+        const tp = clamp(u / (tr === 'soft' ? 0.45 : 0.28));
+        if (tr === 'whip') offX = (1 - easeOutCubic(tp)) * W * 0.18;
+        else if (tr === 'zoom' || tr === 'soft') zoom *= 1 + (tr === 'soft' ? 0.04 : 0.1) * (1 - easeOutCubic(tp));
       }
       drawCoverKB(ctx, el, W, H, zoom, px, py, offX);
-      if (idx > 0 && !seg.outro && u < 0.22 && this.style !== 'minimal') {
+      if (idx > 0 && !seg.outro && u < 0.22 && (tr === 'zoom' || tr === 'whip')) {
         ctx.fillStyle = `rgba(255,255,255,${0.28 * (1 - u / 0.22)})`; ctx.fillRect(0, 0, W, H);
       }
+      if (idx > 0 && !seg.outro && u < 0.35 && tr === 'fade') {
+        ctx.fillStyle = `rgba(0,0,0,${0.85 * (1 - u / 0.35)})`; ctx.fillRect(0, 0, W, H);
+      }
     }
+    if (this.tpl.grade === 'warm') { ctx.save(); ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = 'rgba(255,160,80,0.35)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     // 자막 가독성용 그라데이션
     const g = ctx.createLinearGradient(0, H * 0.45, 0, H);
     g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)');
@@ -336,12 +476,14 @@ export class Composer {
     gt.addColorStop(0, 'rgba(0,0,0,0.35)'); gt.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = gt; ctx.fillRect(0, 0, W, H * 0.25);
 
+    if (this.tpl.overlay === 'letterbox') { const bh = (portrait ? H * 0.09 : H * 0.11); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bh); ctx.fillRect(0, H - bh, W, bh); }
     if (t < p.outroStart) {
-      this.drawProgress(t);
+      if (this.tpl.overlay !== 'letterbox') this.drawProgress(t);
       this.drawBrandTag(t);
+      if (this.tpl.badge === 'ba') this.drawBeforeAfter(t);
       if (t < p.hookEnd) this.drawHook(t);
-      const line = p.lines.find((l) => t >= l.start && t < l.end);
-      if (line) this.drawCaption(line, t);
+      const li = p.lines.findIndex((l) => t >= l.start && t < l.end);
+      if (li >= 0) this.drawCaption(p.lines[li], t, li);
     } else {
       this.drawOutro(t - p.outroStart);
     }
@@ -373,7 +515,8 @@ export class Composer {
   drawHook(t) {
     const { ctx, W, H, plan: p } = this;
     const portrait = H > W;
-    const fs = portrait ? (this.style === 'bold' ? 112 : 96) : 92;
+    const hk = this.tpl.hook;
+    const fs = portrait ? (hk === 'stroke' ? 112 : 96) : 92;
     ctx.font = `800 ${fs}px ${FONT}`;
     const maxW = portrait ? W - 160 : W * 0.62;
     const { lines, space } = layoutWords(ctx, p.hook, maxW);
@@ -389,7 +532,7 @@ export class Composer {
         const at = 0.12 + wi * 0.09;
         const q = clamp((t - at) / 0.38);
         if (q > 0) {
-          const s = this.style === 'minimal' ? 0.92 + 0.08 * easeOutCubic(q) : easeOutBack(q);
+          const s = hk === 'soft' ? 0.92 + 0.08 * easeOutCubic(q) : easeOutBack(q);
           const isKey = p.keyword && w.text.includes(p.keyword);
           ctx.save();
           ctx.globalAlpha = clamp(q * 2) * fadeOut;
@@ -400,8 +543,8 @@ export class Composer {
             ctx.fillStyle = this.accent;
             rr(ctx, -w.w / 2 - 14, -fs * 0.62, bw, fs * 1.1, 14); ctx.fill();
           }
-          ctx.fillStyle = isKey && this.style === 'bold' ? '#0A0A0A' : '#FFFFFF';
-          if (this.style === 'bold' && !isKey) { ctx.lineWidth = 14; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineJoin = 'round'; ctx.strokeText(w.text, -w.w / 2, fs * 0.35); }
+          ctx.fillStyle = isKey && this.tpl.btnInk ? this.tpl.btnInk : '#FFFFFF';
+          if (hk === 'stroke' && !isKey) { ctx.lineWidth = 14; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineJoin = 'round'; ctx.strokeText(w.text, -w.w / 2, fs * 0.35); }
           else { ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 24; }
           ctx.fillText(w.text, -w.w / 2, fs * 0.35);
           ctx.restore();
@@ -411,41 +554,94 @@ export class Composer {
     });
   }
 
-  drawCaption(line, t) {
-    const { ctx, W, H, plan: p } = this;
+  drawCaption(line, t, index = 0) {
+    const { ctx, W, H } = this;
     const portrait = H > W;
-    const st = this.style;
-    const fs = portrait ? (st === 'bold' ? 84 : st === 'minimal' ? 54 : 66) : (st === 'minimal' ? 44 : 54);
-    ctx.font = `${st === 'minimal' ? 600 : 800} ${fs}px ${FONT}`;
+    const cs = this.tpl.caption;
+    const fs = portrait ? ({ stroke: 84, pill: 54, plain: 58, lowerthird: 56, type: 62 }[cs] || 66) : ({ pill: 44, plain: 46, lowerthird: 46 }[cs] || 54);
+    ctx.font = `${cs === 'pill' || cs === 'plain' ? 600 : 800} ${fs}px ${FONT}`;
     const maxW = portrait ? W - 200 : W * 0.7;
-    const rows = wrapText(ctx, line.text, maxW).slice(0, 3);
+    // 타자기: 한 글자씩
+    let text = line.text;
+    if (cs === 'type') { const n = Math.ceil(clamp((t - line.start) / Math.min(0.9, (line.end - line.start) * 0.5)) * text.length); text = text.slice(0, n); }
+    const rows = wrapText(ctx, text, maxW).slice(0, 3);
     const lh = fs * 1.3;
     const q = clamp((t - line.start) / 0.28);
     const out = clamp((line.end - t) / 0.18);
-    const dy = (1 - easeOutCubic(q)) * 46;
-    const baseY = (portrait ? H * (st === 'minimal' ? 0.8 : 0.7) : H * 0.8) + dy;
+    const dy = cs === 'type' || cs === 'lowerthird' ? 0 : (1 - easeOutCubic(q)) * 46;
+    const baseY = (portrait ? H * ({ pill: 0.8, plain: 0.8, lowerthird: 0.82 }[cs] || 0.7) : H * ({ lowerthird: 0.86, plain: 0.8 }[cs] || 0.8)) + dy;
     ctx.save();
-    ctx.globalAlpha = Math.min(q * 1.6, out, 1);
+    ctx.globalAlpha = cs === 'type' ? Math.min(out, 1) : Math.min(q * 1.6, out, 1);
+    if (this.tpl.badge === 'step') {
+      const label = `STEP ${index + 1}`;
+      ctx.font = `800 ${Math.round(fs * 0.55)}px ${NUM_FONT}`;
+      const bw = ctx.measureText(label).width + 36, bh = fs * 0.85;
+      ctx.fillStyle = this.accent; rr(ctx, (W - bw) / 2, baseY - fs * 1.1 - bh - 14, bw, bh, bh / 2); ctx.fill();
+      ctx.fillStyle = '#FFFFFF'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center'; ctx.fillText(label, W / 2, baseY - fs * 1.1 - bh / 2 - 14); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      ctx.font = `800 ${fs}px ${FONT}`;
+    }
+    if (cs === 'lowerthird') {
+      const barH = rows.length * lh + fs * 0.6;
+      const top = baseY - fs * 1.05;
+      const slide = easeOutCubic(q);
+      ctx.fillStyle = 'rgba(10,15,28,0.88)'; ctx.fillRect(0, top, W * slide, barH);
+      ctx.fillStyle = this.accent; ctx.fillRect(0, top, 14, barH);
+      const name = this.settings.handle || brandOf(this.settings);
+      if (name) {
+        ctx.font = `800 ${Math.round(fs * 0.5)}px ${FONT}`;
+        const tw = ctx.measureText(name).width + 32;
+        ctx.fillStyle = this.accent; ctx.fillRect(48, top - fs * 0.8, tw, fs * 0.8);
+        ctx.fillStyle = '#FFFFFF'; ctx.textBaseline = 'middle'; ctx.fillText(name, 64, top - fs * 0.4); ctx.textBaseline = 'alphabetic';
+        ctx.font = `800 ${fs}px ${FONT}`;
+      }
+    }
     rows.forEach((row, i) => {
       const w = ctx.measureText(row).width;
-      const x = (W - w) / 2;
+      const x = cs === 'lowerthird' ? 56 : (W - w) / 2;
       const y = baseY + i * lh;
-      if (st === 'clean') {
+      if (cs === 'box' || cs === 'type') {
         ctx.fillStyle = 'rgba(255,255,255,0.96)';
-        rr(ctx, x - 26, y - fs * 0.98, w + 52, fs * 1.32, 18); ctx.fill();
+        rr(ctx, x - 26, y - fs * 0.98, Math.max(w, cs === 'type' ? fs : 0) + 52, fs * 1.32, 18); ctx.fill();
         this.fillWithKeyword(row, x, y, '#0F172A', this.accent);
-      } else if (st === 'bold') {
+        if (cs === 'type' && i === rows.length - 1 && text.length < line.text.length) { ctx.fillStyle = this.accent; ctx.fillRect(x + w + 6, y - fs * 0.8, 6, fs * 0.9); }
+      } else if (cs === 'stroke') {
         ctx.lineWidth = 16; ctx.strokeStyle = '#000'; ctx.lineJoin = 'round';
         ctx.strokeText(row, x, y);
         this.fillWithKeyword(row, x, y, '#FFFFFF', this.accent);
-      } else {
+      } else if (cs === 'pill') {
         ctx.fillStyle = 'rgba(10,15,28,0.6)';
         rr(ctx, x - 22, y - fs * 0.95, w + 44, fs * 1.3, fs * 0.65); ctx.fill();
+        this.fillWithKeyword(row, x, y, '#FFFFFF', this.accent);
+      } else if (cs === 'plain') {
+        ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 18;
+        this.fillWithKeyword(row, x, y, '#FFF8EC', this.accent);
+        ctx.shadowBlur = 0;
+      } else {
         this.fillWithKeyword(row, x, y, '#FFFFFF', '#93C5FD');
       }
     });
     ctx.restore();
-    void p;
+  }
+
+  // 비포 · 애프터: 앞쪽은 BEFORE, 마지막 30%는 AFTER (바뀌는 순간 번쩍)
+  drawBeforeAfter(t) {
+    const { ctx, W, H, plan: p } = this;
+    const body = p.outroStart;
+    const switchAt = body * 0.7;
+    const isAfter = t >= switchAt;
+    if (t < p.hookEnd * 0.6) return;
+    const label = isAfter ? 'AFTER' : 'BEFORE';
+    const fs = H > W ? 46 : 38;
+    ctx.save();
+    ctx.font = `800 ${fs}px ${NUM_FONT}`;
+    const bw = ctx.measureText(label).width + 40, bh = fs * 1.4;
+    const x = W - bw - 50, y = H > W ? 110 : 56;
+    const pop = isAfter ? easeOutBack(clamp((t - switchAt) / 0.4)) : 1;
+    ctx.translate(x + bw / 2, y + bh / 2); ctx.scale(pop, pop);
+    ctx.fillStyle = isAfter ? this.accent : 'rgba(10,15,28,0.75)'; rr(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2); ctx.fill();
+    ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, 0, 2);
+    ctx.restore();
+    if (isAfter && t - switchAt < 0.25) { ctx.fillStyle = `rgba(255,255,255,${0.6 * (1 - (t - switchAt) / 0.25)})`; ctx.fillRect(0, 0, W, H); }
   }
 
   fillWithKeyword(row, x, y, ink, accent) {
@@ -506,8 +702,8 @@ export class Composer {
       const label = '팔로우하고 다음 편 보기';
       ctx.font = `700 ${portrait ? 40 : 34}px ${FONT}`;
       const bw = ctx.measureText(label).width + 80, bh = portrait ? 96 : 82;
-      ctx.fillStyle = this.style === 'bold' ? '#FACC15' : '#2563EB'; rr(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2); ctx.fill();
-      ctx.fillStyle = this.style === 'bold' ? '#0A0A0A' : '#FFFFFF'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = this.accent; rr(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2); ctx.fill();
+      ctx.fillStyle = this.tpl.btnInk || '#FFFFFF'; ctx.textBaseline = 'middle';
       ctx.fillText(label, 0, 2);
       ctx.restore();
     }

@@ -92,7 +92,7 @@ export async function analyzeVideo(url, { maxPicks = 6, onProgress } = {}) {
   const sh = Math.max(2, Math.round(SAMPLE_W * h / w));
   const c = document.createElement('canvas'); c.width = SAMPLE_W; c.height = sh;
   const ctx = c.getContext('2d', { willReadFrequently: true });
-  const step = Math.max(0.4, duration / 90);
+  const step = Math.max(0.4, duration / 200);
   const samples = [];
   let prev = null;
   for (let t = Math.min(0.15, duration / 2); t < duration - 0.05; t += step) {
@@ -209,4 +209,20 @@ export async function extractSpeechAudio(blob, maxSec = 600) {
   h.setUint32(28, rate * 2, true); h.setUint16(32, 2, true); h.setUint16(34, 16, true);
   w(36, 'data'); h.setUint32(40, pcm.byteLength, true);
   return { blob: new Blob([h.buffer, pcm.buffer], { type: 'audio/wav' }), duration: buf.duration, truncated: buf.duration > maxSec };
+}
+
+/** 영상의 여러 시점을 작은 JPEG(base64)로 뽑는다 (스마트 편집용) */
+export async function sampleFrames(url, times, maxSide = 224) {
+  const v = await loadVideo(url);
+  const [w, h] = fitSize(v.videoWidth, v.videoHeight, maxSide);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  const out = [];
+  for (const t of times) {
+    await seek(v, Math.min(Math.max(0, t), Math.max(0, v.duration - 0.05)));
+    ctx.drawImage(v, 0, 0, w, h);
+    out.push({ t, b64: c.toDataURL('image/jpeg', 0.6).split(',')[1] });
+  }
+  v.removeAttribute('src'); v.load();
+  return out;
 }
