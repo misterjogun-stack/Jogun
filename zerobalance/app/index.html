@@ -201,6 +201,30 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var
 .filebtn{position:relative;overflow:hidden;cursor:pointer}
 .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
 .mwarn{margin:0;color:var(--warn);font-weight:600}.mwarn:empty{display:none}
+.lockscr{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px calc(24px + env(safe-area-inset-bottom,0px));color:#fff;text-align:center;overflow:auto;
+  background:radial-gradient(120% 60% at 100% 0%,rgba(76,125,255,.42),transparent 60%),linear-gradient(165deg,#15295A 0%,#0A1428 72%)}
+.lockscr .lm{height:52px;width:auto;margin-bottom:22px}
+.lockscr h1{font-size:21px;font-weight:800;letter-spacing:-.03em;margin:0}
+.lockscr p{color:#B4C2E2;font-size:14.5px;line-height:1.75;margin:14px 0 0}
+.pindots{display:flex;gap:18px;margin:24px 0 6px}
+.pindots i{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.55)}
+.pindots i.on{background:#fff;border-color:#fff}
+.pindots.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.lockmsg{min-height:24px;color:#FFB4B7!important;font-weight:600;margin:6px 0 0!important}
+.keypad{display:grid;grid-template-columns:repeat(3,74px);gap:14px 22px;margin-top:14px}
+.keypad button{width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fff;font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
+.keypad button:active{background:rgba(255,255,255,.22)}
+.keypad button.txt{background:none;border:0;font-size:15px;font-weight:600;color:#C8D4F0}
+.keypad button[disabled]{opacity:.35}
+.lockforgot{background:none;border:0;color:#9FB0D6;font-size:14px;margin-top:26px;text-decoration:underline;text-underline-offset:3px}
+.lockbtns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;margin-top:26px}
+@media (max-width:419px){.lockbtn{display:none}}
+.cpr{width:100%;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;font:inherit;color:inherit;cursor:pointer}
+.cpr .t small{color:var(--mute);font-weight:500;font-size:12.5px}
+.cpr .v{font-weight:700;white-space:nowrap}
+.cpr.done .t{color:var(--ink)}.cpr:not(.done) .t,.cpr:not(.done) .v{color:var(--mute2)}
+.card.soft .x{background:#fff}
 .sumbox span{font-size:14px;font-weight:700;color:var(--ink2)}
 .sumbox b{font-size:21px;font-weight:800;color:var(--pri);letter-spacing:-.03em}
 
@@ -450,6 +474,7 @@ const ICON={
   insta:'<rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/>',
   arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>'
 };
@@ -521,9 +546,13 @@ function daysSince(iso){if(!iso)return Infinity;const t=Date.parse(iso);return i
 function backupDue(){return hasData()&&daysSince(meta.lastBackup)>=14}
 function installDue(){return IS_IOS&&!isStandalone()&&daysSince(meta.installLater)>=7}
 window.addEventListener('pagehide',flush);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){flush();ui.hiddenAt=Date.now();if(lock&&!ui.locked&&n(lock.after)===0)lockNow();return}
+  if(lock&&!ui.locked&&ui.hiddenAt&&Date.now()-ui.hiddenAt>=n(lock.after)*1000)lockNow();
+});
+window.addEventListener('pageshow',e=>{if(e.persisted&&lock&&!ui.locked)lockNow()});
 
-const ui={tab:'home',inSub:'day',day:'',moreAll:false,pendingRestore:null,month:ym(new Date()),view:null,open:{},sub:'save',modal:null,confirmDel:null,confirmReset:false,aiOut:'',aiErr:'',aiBusy:false};
+const ui={locked:false,pinIn:'',lockMsg:'',lockForgot:0,tab:'home',inSub:'day',day:'',moreAll:false,pendingRestore:null,month:ym(new Date()),view:null,open:{},sub:'save',modal:null,confirmDel:null,confirmReset:false,aiOut:'',aiErr:'',aiBusy:false};
 
 /* ---------- 일별 입력 ---------- */
 const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
@@ -839,15 +868,92 @@ function shell(){
   const settings=ui.view==='settings';
   const head_=`<header class="top"><div class="wrap">${
     settings?`<button class="backbtn" data-act="back">${I('chevL')}돌아가기</button><span style="font-weight:700">설정</span><span style="width:72px"></span>`
-    :`<div class="logo" aria-label="ZeroBalance"><i><img src="${MARK}" alt=""></i><span class="wm"><b>ZERO</b><em>BALANCE</em></span><img class="hwm" src="${WORDMARK_LIGHT}" alt=""></div><div class="hr-right"><div class="mnav"><button data-act="mprev" aria-label="이전 달">${I('chevL')}</button><b class="num">${mlabel(ui.month)}</b><button data-act="mnext" aria-label="다음 달">${I('chev')}</button></div><button class="iconbtn" data-act="settings" aria-label="설정">${I('gear')}</button></div>`
+    :`<div class="logo" aria-label="ZeroBalance"><i><img src="${MARK}" alt=""></i><span class="wm"><b>ZERO</b><em>BALANCE</em></span><img class="hwm" src="${WORDMARK_LIGHT}" alt=""></div><div class="hr-right"><div class="mnav"><button data-act="mprev" aria-label="이전 달">${I('chevL')}</button><b class="num">${mlabel(ui.month)}</b><button data-act="mnext" aria-label="다음 달">${I('chev')}</button></div>${lock?`<button class="iconbtn lockbtn" data-act="lockNow" aria-label="지금 잠그기">${I('lock')}</button>`:''}<button class="iconbtn" data-act="settings" aria-label="설정">${I('gear')}</button></div>`
   }</div></header>`;
   const body=settings?vSettings():(({home:vHome,input:vInput,pay:vPay,tax:vTax,aid:vAid,more:vMore}[ui.tab])||vHome)();
   const cur=ui.tab==='aid'?'more':ui.tab;
   const tabs=settings?'':`<nav class="tabbar" aria-label="메뉴"><div class="wrap">${TABS.map(([k,l,ic])=>`<button data-act="tab" data-tab="${k}" ${cur===k?'aria-current="page"':''}>${I(ic)}<span>${l}</span></button>`).join('')}</div></nav>`;
   return head_+`<main class="wrap v-${settings?'settings':ui.tab}">${body}</main>`+tabs+(ui.modal?vModal():'');
 }
+/* ---------- 잠금 (비밀번호 4자리) ----------
+   다른 사람이 화면을 보지 못하게 하는 기능. 기록 자체를 암호화하지는 않는다.
+   비밀번호는 이 기기에만(해시로) 저장하고 백업 파일에는 넣지 않는다. */
+const LOCKKEY='zerobalance-lock-v1';
+function lockLoad(){try{const o=JSON.parse(localStorage.getItem(LOCKKEY)||'null');return o&&o.hash&&o.salt?o:null}catch(e){return null}}
+let lock=lockLoad();
+const lockSave=()=>{try{lock?localStorage.setItem(LOCKKEY,JSON.stringify(lock)):localStorage.removeItem(LOCKKEY)}catch(e){}};
+async function pinHash(pin,salt){
+  const txt='zb:'+salt+':'+pin;
+  try{if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}}catch(e){}
+  let h=2166136261;for(const c of txt){h^=c.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return 'f'+h.toString(16);
+}
+const lockWait=()=>lock&&n(lock.waitUntil)>Date.now()?Math.ceil((n(lock.waitUntil)-Date.now())/1000):0;
+let lockTimer;
+function vLock(){
+  clearTimeout(lockTimer);
+  if(ui.lockForgot)return `<div class="lockscr" role="dialog" aria-modal="true" aria-label="비밀번호 찾기"><img class="lm" src="${MARK}" alt="">
+    <h1>비밀번호를 잊으셨나요?</h1>
+    <p>비밀번호는 이 ${DEV}에만 있어서 찾아 드릴 수 없어요.<br>잠금을 풀려면 이 ${DEV}의 기록을 모두 지워야 해요.<br>백업 파일이 있으면 지운 뒤 더보기 › 기기 맞추기에서 되돌릴 수 있어요.</p>
+    <div class="lockbtns"><button class="btn ${ui.lockForgot===2?'danger':'white'} pill block" data-act="lockWipe">${ui.lockForgot===2?'정말 모두 지우고 풀기':'기록 지우고 잠금 풀기'}</button><button class="btn glass pill block" data-act="lockBack">비밀번호 다시 입력</button></div></div>`;
+  const w=lockWait();
+  if(w)lockTimer=setTimeout(()=>{if(ui.locked)render(true)},1000);
+  const dots=[0,1,2,3].map(i=>`<i class="${i<ui.pinIn.length?'on':''}"></i>`).join('');
+  const keys=['1','2','3','4','5','6','7','8','9','','0','back'];
+  return `<div class="lockscr" role="dialog" aria-modal="true" aria-label="잠금"><img class="lm" src="${MARK}" alt="">
+    <h1>비밀번호를 입력하세요</h1>
+    <div class="pindots ${ui.lockShake?'shake':''}" aria-label="${ui.pinIn.length}자리 입력됨">${dots}</div>
+    <p class="lockmsg" role="status">${w?`여러 번 틀렸어요. ${w}초 뒤에 다시 입력해 주세요.`:esc(ui.lockMsg||'')}</p>
+    <div class="keypad">${keys.map(k=>k===''?'<span></span>':`<button type="button" data-act="pinKey" data-val="${k}" ${w?'disabled':''} ${k==='back'?'class="txt" aria-label="지우기"':''}>${k==='back'?'지우기':k}</button>`).join('')}</div>
+    <button class="lockforgot" data-act="lockForgot">비밀번호를 잊었어요</button></div>`;
+}
+async function pinPress(k){
+  if(!ui.locked||ui.lockForgot||lockWait())return;
+  ui.lockShake=false;
+  if(k==='back'){ui.pinIn=ui.pinIn.slice(0,-1);render(true);return}
+  if(!/^\d$/.test(k)||ui.pinIn.length>=4)return;
+  ui.pinIn+=k;ui.lockMsg='';render(true);
+  if(ui.pinIn.length<4)return;
+  const ok=(await pinHash(ui.pinIn,lock.salt))===lock.hash;
+  ui.pinIn='';
+  if(ok){ui.locked=false;lock.fails=0;lock.waitUntil=0;lockSave();render(false);return}
+  lock.fails=n(lock.fails)+1;
+  if(lock.fails>=5){lock.fails=0;lock.waitUntil=Date.now()+30000}
+  lockSave();ui.lockMsg='비밀번호가 달라요';ui.lockShake=true;render(true);
+}
+function lockNow(){if(!lock)return;ui.locked=true;ui.pinIn='';ui.lockMsg='';ui.lockForgot=0;ui.modal=null;render(false)}
+function lockCard(){
+  const pf=(id,label,ph)=>`<label class="fld"><span>${label}</span><input class="inp" id="${id}" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="${ph||'숫자 4자리'}"></label>`;
+  let h=`<div class="card" id="lockcard"><div class="sec"><span>잠금</span>${lock?'<span class="pill ok">켜짐</span>':'<span class="pill">꺼짐</span>'}</div>
+  <p class="note" style="margin:-4px 0 14px">직원이 매장 PC나 폰을 열어도 급여와 남는 돈이 보이지 않게 비밀번호 4자리로 잠가요.</p>`;
+  if(!lock||ui.pinChange){
+    h+=`<div class="stk">${ui.pinChange?pf('pinCur','지금 비밀번호'):''}<div class="g2">${pf('pinNew','새 비밀번호')}${pf('pinNew2','한 번 더')}</div></div>
+    <div class="btns" style="margin-top:12px"><button class="btn sm" data-act="pinSet">${ui.pinChange?'비밀번호 바꾸기':'잠금 켜기'}</button>${ui.pinChange?'<button class="btn sm ghost" data-act="pinChangeNo">취소</button>':''}</div>`;
+  }else{
+    const a=n(lock.after);
+    h+=`<div class="fld"><span>다른 앱을 쓰다 돌아오면</span><div class="seg">${[[0,'바로 잠금'],[60,'1분 뒤'],[300,'5분 뒤']].map(([v,l])=>`<button type="button" data-act="lockAfter" data-val="${v}" aria-pressed="${a===v}">${l}</button>`).join('')}</div></div>
+    <div class="btns" style="margin-top:14px"><button class="btn sm" data-act="lockNow">${I('lock')}지금 잠그기</button><button class="btn sm ghost" data-act="pinChange">비밀번호 바꾸기</button></div>
+    <div class="hr"></div>${ui.pinOff?`<div class="stk">${pf('pinCur','지금 비밀번호')}</div><div class="btns" style="margin-top:10px"><button class="btn sm danger" data-act="pinOff">잠금 끄기</button><button class="btn sm ghost" data-act="pinOffNo">취소</button></div>`:`<button class="btn sm ghost" data-act="pinOffAsk">잠금 끄기</button>`}`;
+  }
+  return h+`<p class="note" style="margin:14px 0 0">비밀번호는 이 ${DEV}에만 저장되고 백업 파일에는 들어가지 않아요. 잊으면 이 ${DEV} 기록을 지워야 풀 수 있으니 백업을 꼭 해 두세요. 잠금은 화면을 가리는 기능이고, 기록을 암호화하지는 않아요.</p></div>`;
+}
+async function pinSet(){
+  const v=id=>(($('#'+id)||{}).value||'').trim();
+  if(ui.pinChange&&(await pinHash(v('pinCur'),lock.salt))!==lock.hash){toast('지금 비밀번호가 달라요.');return}
+  const a=v('pinNew'),b=v('pinNew2');
+  if(!/^\d{4}$/.test(a)){toast('숫자 4자리로 정해 주세요.');return}
+  if(a!==b){toast('두 번 입력한 비밀번호가 달라요.');return}
+  const salt=uid()+uid(),after=lock?n(lock.after):60;
+  lock={salt,hash:await pinHash(a,salt),after,fails:0,waitUntil:0};lockSave();
+  toast(ui.pinChange?'비밀번호를 바꿨어요':'잠금을 켰어요. 다음에 열 때부터 비밀번호를 물어봐요');ui.pinChange=false;render(true);
+}
+async function pinOff(){
+  const v=(($('#pinCur')||{}).value||'').trim();
+  if((await pinHash(v,lock.salt))!==lock.hash){toast('비밀번호가 달라요.');return}
+  lock=null;lockSave();ui.pinOff=false;toast('잠금을 껐어요');render(true);
+}
 function render(keep){
   const y=window.scrollY||0;
+  if(ui.locked){$('#app').innerHTML=vLock();return}
   $('#app').innerHTML=shell();
   try{window.scrollTo(0,keep===false?0:y)}catch(e){}
   live();
@@ -1077,7 +1183,7 @@ function vMore(){
     ['AI 상담을 쓰면 무엇이 전송되나요?','질문과 이번 달 매출·지출 합계, 직원 수만 Google Gemini로 전송돼요. 상호와 직원 이름은 보내지 않아요. 직접 발급한 Gemini API 키가 필요해요.']
   ];
   return head('더보기','도구와 도움말','자주 쓰지 않는 기능을 모아뒀어요.')+safetyCards()
-  +`<div class="card">${M_('goAid','spark','','절세 체크 · AI 상담','놓치기 쉬운 공제와 세금 줄이는 방법')}${M_('settings','gear','o','설정','상호, 과세유형, 수수료율, 4대보험 요율')}${M_('goFb','insta','r','문의 · 개선 제안','인스타그램 @'+IG+' DM으로 바로 연결')}${M_('goBackup','shield','g','기기 맞추기 · 백업','폰↔매장 PC 맞추기 · 마지막으로 보낸 때 '+(d===Infinity?'없음':d===0?'오늘':d+'일 전'))}</div>`
+  +`<div class="card">${M_('goAid','spark','','절세 체크 · AI 상담','놓치기 쉬운 공제와 세금 줄이는 방법')}${M_('settings','gear','o','설정','상호, 과세유형, 수수료율, 4대보험 요율')}${lock?M_('lockNow','lock','','지금 잠그기','비밀번호를 넣어야 다시 열려요'):M_('goLock','lock','','잠금 설정','직원이 급여·남는 돈을 못 보게 비밀번호로 잠가요')}${M_('goFb','insta','r','문의 · 개선 제안','인스타그램 @'+IG+' DM으로 바로 연결')}${M_('goBackup','shield','g','기기 맞추기 · 백업','폰↔매장 PC 맞추기 · 마지막으로 보낸 때 '+(d===Infinity?'없음':d===0?'오늘':d+'일 전'))}</div>`
   +backupCard()
   +`<div class="eyebrow sechead">자주 묻는 질문</div><div class="ttl">궁금한 점</div><div class="faq">${Q.map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join('')}</div>`
   +fbCard()
@@ -1112,10 +1218,42 @@ function itemRows(list,m,withTax){
     ${withTax?`<div class="chk">${IN.chk('item','taxable',i.taxable!==false,'과세 매입 (부가세 포함 금액)',{id:i.id,list,rr:1})}</div>`:''}
   </div>`).join('');
 }
+/* 지난달 지출 불러오기: 지출이 있는 가장 가까운 지난달(최대 12개월 전)에서 항목을 골라 복사 */
+function prevExpMonth(k){for(let i=1;i<=12;i++){const p=shiftMonth(k,-i),m=state.months[p];if(m&&(m.purchases.length||m.expenses.length))return p}return null}
+function copyItems(){
+  const p=prevExpMonth(ui.month);if(!p)return null;
+  const pm=M(p),cm=M(ui.month),nm=s=>String(s||'').trim();
+  const has=(list,name)=>cm[list].some(i=>nm(i.name)&&nm(i.name)===nm(name));
+  const items=[];
+  for(const list of ['purchases','expenses'])for(const i of pm[list]){if(!nm(i.name)&&!n(i.amt))continue;items.push({key:p+':'+list+':'+i.id,list,item:i,exists:has(list,i.name)})}
+  return {p,items};
+}
+function copyCard(){
+  const c=copyItems();if(!c||!c.items.length)return '';
+  const sel=ui.copySel||{},on=x=>x.key in sel?sel[x.key]:!x.exists;
+  const fresh=c.items.filter(x=>!x.exists);
+  const mon=Number(c.p.slice(5))+'월';
+  if(!ui.copyOpen){
+    if(!fresh.length)return '';
+    return `<div class="card soft"><div class="today"><span class="ic">${I('copy')}</span><div class="tt"><b>${mon} 지출 불러오기</b><span>월세·관리비처럼 매달 같은 항목 ${fresh.length}개 · ${wonT(fresh.reduce((a,x)=>a+n(x.item.amt),0))}</span></div><button class="btn sm" data-act="copyOpen">보기</button></div></div>`;
+  }
+  const cnt=c.items.filter(on).length;
+  return `<div class="card soft"><div class="sec"><span>${mon} 지출 불러오기</span><button class="x" data-act="copyClose" aria-label="닫기">×</button></div><div class="cap">불러올 항목을 고르세요. 금액은 그대로 복사돼요. 이번 달에 달라졌으면 불러온 뒤 고쳐 주세요.</div>
+  ${c.items.map(x=>`<button type="button" class="ck cpr ${on(x)?'done':''}" data-act="copyTog" data-val="${x.key}" aria-pressed="${on(x)}"><span class="dot">${I('check')}</span><span class="t">${esc(x.item.name||'(이름 없음)')} <small>${x.list==='purchases'?'매입':'경비'}</small>${x.exists?' <span class="pill">이미 있음</span>':''}</span><span class="v num">${wonT(x.item.amt)}</span></button>`).join('')}
+  <div class="btns" style="margin-top:14px"><button class="btn sm" data-act="copyDo" ${cnt?'':'disabled'}>선택한 ${cnt}개 불러오기</button><button class="btn sm ghost" data-act="copyClose">닫기</button></div></div>`;
+}
+function copyDo(){
+  const c=copyItems();if(!c)return;
+  const sel=ui.copySel||{},on=x=>x.key in sel?sel[x.key]:!x.exists,m=getMonth();let k=0;const lists=new Set();
+  for(const x of c.items)if(on(x)){const o=Object.assign({},x.item,{id:uid()});m[x.list].push(o);lists.add(x.list);k++}
+  for(const l of lists)stamp((l==='purchases'?'pur:':'exp:')+ui.month);
+  ui.copyOpen=false;ui.copySel=null;save();render(true);
+  toast(k?`${k}개 불러왔어요. 금액이 달라졌으면 고쳐 주세요.`:'선택한 항목이 없어요');
+}
 function vExp(){
   const m=getMonth();
   const chips=(list,names)=>`<div class="chips">${names.map(x=>`<button class="chip" data-act="addItem" data-list="${list}" data-name="${x}">+ ${x}</button>`).join('')}</div>`;
-  return `${head('입력','지출','매입과 경비를 나눠 적어요. 인건비는 급여에서 자동으로 넘어와요.')}
+  return `${head('입력','지출','매입과 경비를 나눠 적어요. 인건비는 급여에서 자동으로 넘어와요.')}${copyCard()}
   <div class="card"><div class="sec">전체 지출</div><div class="big" data-live="sum:x"></div><div class="note" style="margin-top:6px">매입 + 경비 + 인건비 + 결제 수수료</div></div>
   <div class="card"><div class="sec">매입</div><div class="cap">세금계산서를 받은 것 (재료·월세 등)</div>${chips('purchases',['재료·약제','월세','관리비','소모품'])}${itemRows('purchases',m,true)}
     <div class="btns" style="margin-top:10px"><button class="btn sm ghost" data-act="addItem" data-list="purchases">${I('plus')}항목 추가</button></div>
@@ -1400,6 +1538,7 @@ function vSettings(){
     ${fld('부가세 과세유형',IN.seg('set','taxType',S.taxType==='simple'?'simple':'general',[['general','일반과세'],['simple','간이과세']]))}${fld('기본공제 (만원, 본인 150만원)',IN.num('set','basicDeduction',S.basicDeduction))}</div></div>
   <div class="card"><div class="sec">결제 수수료율</div><div class="g2">${fees}</div><p class="note" style="margin:10px 0 0">카드는 연매출 3억원 이하 영세가맹점 신용카드 우대수수료(0.40%)가 기본값이에요. 3~5억 1.00%, 5~10억 1.15%, 10~30억 1.45%예요(2026년 2월 기준). 간편결제·예약금 수수료는 예시라서, 내 정산서에 찍힌 수수료율로 바꿔 주세요.</p></div>
   <div class="card"><div class="sec">4대보험 요율 (%)</div><div class="g2">${fld('국민연금 (근로자분)',IN.pct('set','ins.pension',IR.pension))}${fld('건강보험 (근로자분)',IN.pct('set','ins.health',IR.health))}${fld('장기요양 (건강보험료 대비)',IN.pct('set','ins.ltc',IR.ltc))}${fld('고용보험 (근로자분)',IN.pct('set','ins.emp',IR.emp))}${fld('고용보험 (사업주분)',IN.pct('set','ins.empEr',IR.empEr))}${fld('산재보험 (사업주분)',IN.pct('set','ins.accident',IR.accident))}</div><p class="note" style="margin:10px 0 0">요율은 해마다 바뀌어요. 공단 고지서 기준으로 맞춰 주세요. 국민연금과 건강보험의 사업주분은 근로자분과 같다고 계산해요.</p></div>
+  ${lockCard()}
   <div class="card"><div class="sec">카드 발행세액공제</div><div class="g2">${fld('공제율 (%)',IN.pct('set','cardRate',S.cardRate))}${fld('연 한도 (만원)',IN.num('set','cardCap',S.cardCap))}</div>
     <p class="note" style="margin:10px 0 0">카드·현금영수증·간편결제 매출에 대해 부가세에서 빼 주는 금액이에요. 2026년 12월 31일까지는 <b>1.3%·연 1,000만원</b>이에요. 2027년부터는 아직 확정 전이에요(정부안 1.2%·500만원, 국회 법안 1.3%·1,000만원 유지). 확정되면 여기서 바꿔 주세요.</p></div>
   ${aiCard}
@@ -1665,8 +1804,8 @@ document.addEventListener('click',e=>{
       toast(pr.merge.changed?'합쳤어요. 이 기기에서 다시 보내면 양쪽이 똑같아져요':'이미 같은 내용이라 바뀐 게 없어요');render(true);break}
     case 'restoreAll':if(ui.pendingRestore){ui.pendingRestore.full=true;render(true)}break;
     case 'pasteBox':ui.pasteOpen=!ui.pasteOpen;render(true);break;
-    case 'mprev':ui.month=shiftMonth(ui.month,-1);render(false);break;
-    case 'mnext':ui.month=shiftMonth(ui.month,1);render(false);break;
+    case 'mprev':ui.month=shiftMonth(ui.month,-1);ui.copyOpen=false;ui.copySel=null;render(false);break;
+    case 'mnext':ui.month=shiftMonth(ui.month,1);ui.copyOpen=false;ui.copySel=null;render(false);break;
     case 'settings':ui.view='settings';ui.confirmReset=false;render(false);break;
     case 'back':ui.view=null;render(false);break;
     case 'sub':ui.sub=d.val;render(false);break;
@@ -1698,6 +1837,27 @@ document.addEventListener('click',e=>{
     case 'aiPreset':state.plan.aiQ=AI_PRESETS[Number(d.val)]||'';save();render(true);break;
     case 'aiAsk':runAsk();break;
     case 'aiTest':runTest();break;
+    case 'pinKey':pinPress(d.val);break;
+    case 'copyOpen':ui.copyOpen=true;ui.copySel=null;render(true);break;
+    case 'copyClose':ui.copyOpen=false;ui.copySel=null;render(true);break;
+    case 'copyTog':{const c=copyItems();if(!c)break;const x=c.items.find(i=>i.key===d.val);if(!x)break;ui.copySel=ui.copySel||{};const cur=d.val in ui.copySel?ui.copySel[d.val]:!x.exists;ui.copySel[d.val]=!cur;render(true);break}
+    case 'copyDo':copyDo();break;
+    case 'lockNow':lockNow();break;
+    case 'lockForgot':ui.lockForgot=1;ui.pinIn='';render(true);break;
+    case 'lockBack':ui.lockForgot=0;render(true);break;
+    case 'lockWipe':
+      if(ui.lockForgot!==2){ui.lockForgot=2;render(true);break}
+      try{localStorage.removeItem(KEY)}catch(e){}
+      state=defaults();lock=null;lockSave();ui.locked=false;ui.lockForgot=0;ui.tab='home';ui.view=null;flush();
+      render(false);toast('기록을 지우고 잠금을 풀었어요. 백업 파일이 있으면 더보기에서 되돌릴 수 있어요.');break;
+    case 'pinSet':pinSet();break;
+    case 'pinChange':ui.pinChange=true;render(true);break;
+    case 'pinChangeNo':ui.pinChange=false;render(true);break;
+    case 'pinOffAsk':ui.pinOff=true;render(true);break;
+    case 'pinOffNo':ui.pinOff=false;render(true);break;
+    case 'pinOff':pinOff();break;
+    case 'lockAfter':if(lock){lock.after=Number(d.val);lockSave();render(true)}break;
+    case 'goLock':ui.view='settings';render(false);setTimeout(()=>{const el=$('#lockcard');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},30);break;
     case 'fbCat':{const box=$('#fbText');ui.fbText=box?box.value:'';ui.fbCat=d.val;render(true);break}
     case 'fbSend':fbSend();break;
     case 'goFb':ui.tab='more';ui.view=null;render(false);setTimeout(()=>{const el=$('#fb');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},30);break;
@@ -1713,11 +1873,14 @@ document.addEventListener('click',e=>{
       else{ui.confirmReset=true;render(true)}break;
   }
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ui.modal){ui.modal=null;render(true)}});
+document.addEventListener('keydown',e=>{
+  if(ui.locked&&!ui.lockForgot){if(/^\d$/.test(e.key)){e.preventDefault();pinPress(e.key)}else if(e.key==='Backspace'){e.preventDefault();pinPress('back')}return}
+  if(e.key==='Escape'&&ui.modal){ui.modal=null;render(true)}});
 
-window.__app={calcYear,canon,mergeState,prepImport,stamp,setDayVal,delDay,parseBackup,backupJSON,get meta(){return meta},safetyCards,pickDay,todayStr,drawSettlePng:st=>{const c=drawSettle(st);return c?c.toDataURL('image/png'):null},get state(){return state},get ai(){return ai},askGemini,aiContext,runAsk,ui,calcStaff,calcTax,laborOf,salesTotal,incomeTaxAnnual,settleData,render,loadSample,getMonth};
+window.__app={get lock(){return lock},pinHash,pinPress,lockNow,calcYear,canon,mergeState,prepImport,stamp,setDayVal,delDay,parseBackup,backupJSON,get meta(){return meta},safetyCards,pickDay,todayStr,drawSettlePng:st=>{const c=drawSettle(st);return c?c.toDataURL('image/png'):null},get state(){return state},get ai(){return ai},askGemini,aiContext,runAsk,ui,calcStaff,calcTax,laborOf,salesTotal,incomeTaxAnnual,settleData,render,loadSample,getMonth};
 try{const q=new URLSearchParams(location.search);
   if(q.has('sample')){if(!anyData()){loadSample();ui.tab='home'}history.replaceState(null,'',location.pathname)}}catch(e){}
+ui.locked=!!lock;
 render(false);
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 })();
