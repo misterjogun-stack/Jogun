@@ -115,10 +115,11 @@ def test_normalize_plan_empty_uses_full():
 
 
 def test_cinematic_look_filter_and_caption_style():
-    from app.looks import caption_style, grade_filter
+    from app.looks import caption_style, grade_graph
     from app.render import build_filter
-    assert grade_filter("none") == "" and "colorbalance" in grade_filter("cinematic")
-    assert grade_filter("unknown") == ""
+    assert grade_graph("none", "a", "b") == "" and "colorbalance" in grade_graph("cinematic", "a", "b")
+    assert grade_graph("unknown", "a", "b") == ""
+    assert grade_graph("airy", "vs", "vg").startswith("[vs]") and grade_graph("airy", "vs", "vg").endswith("[vg]")
     plan = Plan(segments=[Seg(start=0, end=2)], captions=[])
     f = build_filter(plan, 1080, 1920, "cover", True, False, "cinematic")
     assert "[vs]curves=" in f and "[vg]null[v]" in f
@@ -134,3 +135,15 @@ def test_cinematic_ass_is_small_white_with_amber_emphasis():
     assert size(cine) < size(pop)
     assert "&H00FFFFFF&,&H00FFFFFF&" in cine      # 기본 글자색 흰색
     assert "&H001EBEFA&" in cine                  # 강조는 호박색
+
+
+def test_airy_look_and_caption_style():
+    from app.looks import LOOKS, caption_style, grade_graph
+    assert "airy" in LOOKS and caption_style("airy") == "airy"
+    g = grade_graph("airy", "vs", "vg")
+    assert "gblur" in g and "blend=all_mode=screen" in g       # 하이라이트 번짐
+    ass = build_ass([Cap(start=0, end=2, text="물결 소리가 좋은 날", emphasis=["좋은"])], 1080, 1920, "airy")
+    assert "\\fad(450,450)" in ass                              # 천천히 나타남
+    assert "&H001EBEFA&" not in ass and "\\fscx" not in ass     # 강조 색·크기 없음
+    style = ass.split("Style: Default,")[1].split("\n")[0].split(",")
+    assert style[17 - 0 + 0] is not None and int(style[1]) < 60   # 작은 글씨

@@ -56,6 +56,8 @@ def wrap_text(text: str, per_line: int) -> str:
 def _styled(cap: Cap, per_line: int, style: str = "pop") -> str:
     """줄바꿈을 원문 기준으로 먼저 정한 뒤 강조 단어에 색과 크기를 입힌다."""
     text = wrap_text(_escape(cap.text), per_line)
+    if style == "airy":      # 조용한 룩: 강조 색 없이, 천천히 나타났다 사라진다
+        return "{\\fad(450,450)}" + text
     color, scale = (AMBER, 112) if style == "cinematic" else (WHITE, 118)
     for w in cap.emphasis:
         w = _escape(w)
@@ -66,23 +68,31 @@ def _styled(cap: Cap, per_line: int, style: str = "pop") -> str:
 
 def build_ass(caps: list[Cap], width: int, height: int, style: str = "pop") -> str:
     vertical = height > width
-    cine = style == "cinematic"
-    # cinematic: 작고 조용한 흰 글씨, 얇은 그림자, 화면 아래쪽 안전 영역 안
-    fs = int(width * (0.045 if cine else 0.075)) if vertical else int(height * (0.045 if cine else 0.07))
-    per_line = max(6, int((width * 0.9) / (fs * 0.98)))
-    margin_v = int(height * (0.20 if cine else 0.22)) if vertical else int(height * 0.08)
-    outline = 0 if cine else max(3, fs // 13)
-    primary = WHITE if cine else YELLOW
-    bold = 0 if cine else -1
-    shadow = 3 if cine else 2
+    base = width if vertical else height
+    if style == "airy":
+        # 레퍼런스처럼 화면 옆쪽 좁은 칸, 중간보다 약간 아래 높이에 작고 연하게
+        fs, primary, outline, shadow, spacing = int(base * 0.040), "&H18FFFFFF&", 0, 2, 2
+        align, bold = 1, 0
+        ml, mr = int(width * 0.06), int(width * 0.44)
+        margin_v = int(height * (0.36 if vertical else 0.12))
+        per_line = max(4, int((width - ml - mr) / (fs + spacing)))
+    else:
+        cine = style == "cinematic"
+        fs = int(width * (0.045 if cine else 0.075)) if vertical else int(height * (0.045 if cine else 0.07))
+        primary = WHITE if cine else YELLOW
+        outline = 0 if cine else max(3, fs // 13)
+        shadow, spacing, align, bold = (3 if cine else 2), (1 if cine else 0), 2, (0 if cine else -1)
+        ml = mr = int(width * 0.05)
+        margin_v = int(height * (0.20 if cine else 0.22)) if vertical else int(height * 0.08)
+        per_line = max(6, int((width * 0.9) / (fs * 0.98)))
     head = (
         "[Script Info]\nScriptType: v4.00+\n"
         f"PlayResX: {width}\nPlayResY: {height}\nWrapStyle: 0\nScaledBorderAndShadow: yes\n\n"
         "[V4+ Styles]\n"
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Default,{config.FONT_NAME},{fs},{primary},{primary},&H00000000&,&H99000000&,{bold},0,0,0,100,100,{1 if cine else 0},0,1,{outline},{shadow},2,"
-        f"{int(width * 0.05)},{int(width * 0.05)},{margin_v},1\n\n"
+        f"Style: Default,{config.FONT_NAME},{fs},{primary},{primary},&H00000000&,&H66000000&,{bold},0,0,0,100,100,{spacing},0,1,{outline},{shadow},{align},"
+        f"{ml},{mr},{margin_v},1\n\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
     lines = []

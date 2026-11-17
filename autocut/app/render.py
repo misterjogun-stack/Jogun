@@ -8,7 +8,7 @@ from typing import Callable
 
 from . import config
 from .captions import build_ass, remap_captions
-from .looks import grade_filter, caption_style
+from .looks import caption_style, grade_graph
 from .models import MediaInfo, Plan
 
 FADE = 0.02  # 컷 경계에서 '틱' 소리를 막는 짧은 페이드(초)
@@ -68,9 +68,9 @@ def build_filter(plan: Plan, w: int, h: int, fit: str, has_audio: bool, burn_cap
     else:
         parts.append(f"[vc]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[vs]")
 
-    grade = grade_filter(look)
+    grade = grade_graph(look, "vs", "vg")
     if grade:
-        parts.append(f"[vs]{grade}[vg]")
+        parts.append(grade)
         last = "vg"
     else:
         last = "vs"
