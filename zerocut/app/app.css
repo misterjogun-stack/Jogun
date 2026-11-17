@@ -350,3 +350,11 @@ h1, h2, h3, h4, p { margin: 0; }
 .thumb-box img { width: 100%; border-radius: 12px; background: var(--surface-2); display: block; }
 .thumb-box img.yt { aspect-ratio: 16 / 9; }
 .thumb-box img.cover { aspect-ratio: 9 / 16; max-height: 420px; width: auto; justify-self: center; }
+
+/* 아이폰 입력 보강: 키보드가 올라오면 아래 탭바를 숨겨 입력칸을 가리지 않게, 알림 말풍선은 누름을 막지 않게 */
+body.kb .tabbar { display: none; }
+body.kb .main { padding-bottom: 40vh; }
+.toast { pointer-events: none; }
+.input, .textarea, .select { touch-action: manipulation; -webkit-user-select: text; user-select: text; }
+input.input { -webkit-appearance: none; appearance: none; }
+

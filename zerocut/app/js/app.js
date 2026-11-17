@@ -61,7 +61,7 @@ function toast(msg) {
   let el = document.querySelector('.toast');
   if (!el) { el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
   el.textContent = msg; el.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 1800);
 }
 
 function downloadBlob(blob, name) {
@@ -1925,11 +1925,12 @@ root.addEventListener('input', (e) => {
   if (el.dataset.nv) { clearTimeout(el._n); el._n = setTimeout(() => { const pn = document.getElementById('nv-panel'); if (pn) pn.innerHTML = naverPanel(job); }, 250); }
   if (el.dataset.seo) { clearTimeout(el._s); el._s = setTimeout(() => { const pn = document.getElementById('seo-panel'); if (pn) pn.innerHTML = seoPanel(job); }, 200); }
   if (el.dataset.card != null) { clearTimeout(el._t); el._t = setTimeout(() => paintCards(job, +el.dataset.card), 250); }
-  if (el.dataset.studio) { clearTimeout(studioTimer); studioTimer = setTimeout(() => { if (!studio.playing && !studio.busy) studioPoster(job, current.tab); }, 600); }
+  // 영상 문구 칸은 입력하는 동안은 건드리지 않고, 칸을 벗어날 때(change) 미리보기를 새로 만든다
 });
 
 root.addEventListener('change', async (e) => {
   const el = e.target;
+  if (el.dataset.studio) { const job = curJob(); if (job && !studio.playing && !studio.busy) studioPoster(job, current.tab); return; }
   if (el.dataset.jobWhen) { const job = curJob(); if (job) { job[el.dataset.jobWhen] = el.value; saveSoon(job); } return; }
   if (el.dataset.actChange === 'clone-file' && el.files.length) {
     for (const f of el.files) cloneSamples.push({ file: f, sec: await audioDuration(f).catch(() => 0) });
@@ -1968,6 +1969,17 @@ root.addEventListener('change', async (e) => {
 });
 
 window.addEventListener('hashchange', render);
+// 키보드가 올라온 동안에는 아래 탭바를 숨긴다 (아이폰에서 탭바가 키보드 위에 떠서 입력칸을 덮는 문제)
+const isField = (e) => e && e.tagName && (e.tagName === 'TEXTAREA' || (e.tagName === 'INPUT' && !['checkbox', 'radio', 'file', 'button', 'submit'].includes(e.type)));
+document.addEventListener('focusin', (e) => {
+  if (!isField(e.target)) return;
+  document.body.classList.add('kb');
+  const t = e.target;
+  setTimeout(() => { try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (er) { /* 무시 */ } }, 320);
+});
+document.addEventListener('focusout', () => {
+  setTimeout(() => { if (!isField(document.activeElement)) document.body.classList.remove('kb'); }, 150);
+});
 root.addEventListener('toggle', (e) => { const k = e.target.dataset && e.target.dataset.keep; if (k) uiOpen[k] = e.target.open; }, true);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && studio.busy) toast('녹화 중에는 화면을 켜 두세요');
