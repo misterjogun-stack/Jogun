@@ -339,3 +339,14 @@ h1, h2, h3, h4, p { margin: 0; }
 
 /* 아이폰은 16px보다 작은 입력칸을 누르면 화면을 확대해 버린다 */
 @media (max-width: 719px) { .input, .textarea, .select, .cn .input { font-size: 16px; } }
+
+/* 성과 적기 · 썸네일 */
+.stat-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.stat-row label { display: grid; gap: 3px; font-size: 11.5px; color: var(--sub); font-weight: 700; min-width: 0; }
+.stat-row .input { padding: 7px 8px; font-size: 14px; }
+@media (max-width: 719px) { .stat-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } .stat-row .input { font-size: 16px; } }
+.thumb-box { display: grid; gap: 10px; padding-top: 6px; border-top: 1px solid var(--line); }
+.thumb-box h4 { display: flex; align-items: center; gap: 6px; font-size: 14px; margin: 6px 0 0; }
+.thumb-box img { width: 100%; border-radius: 12px; background: var(--surface-2); display: block; }
+.thumb-box img.yt { aspect-ratio: 16 / 9; }
+.thumb-box img.cover { aspect-ratio: 9 / 16; max-height: 420px; width: auto; justify-self: center; }

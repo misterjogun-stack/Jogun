@@ -5,7 +5,7 @@ import { exportBackup, importBackup } from './backup.js';
 import { heuristicEdit, geminiEdit, editLength } from './smartedit.js';
 import { TOPICS, TONES, STYLES, perspectiveLabels, BLOG_LENGTHS, naverCheck, refineBlog, naverRequest, parsePastedBlog, GEMINI_MODELS, GEMINI_VOICES, geminiTTS, geminiTranscribe, draftWithoutAI, draftWithAI, ensureArticle, seoCheck, articleHtml } from './writer.js';
 import { prepareGoogle, googleToken, listBlogs, createBlogPost, scheduleBlogPost, bloggerEditUrl } from './blogger.js';
-import { CARD_THEMES, CARD_LAYOUTS, drawCard, ensureFonts, canvasBlob } from './cards.js';
+import { CARD_THEMES, CARD_LAYOUTS, drawCard, ensureFonts, canvasBlob, drawThumb, THUMB_SIZES, THUMB_STYLES } from './cards.js';
 import { ASPECTS, MOTION_STYLES, TEMPLATES, scriptChunks, Composer, buildPlan, recordMic, listElevenVoices, elevenTTS, elevenCloneVoice, audioDuration, pickMime } from './motion.js';
 
 const root = document.getElementById('app');
@@ -175,6 +175,19 @@ async function voiceTimings(blob) {
   } catch (e) { return null; }
 }
 
+// 채널끼리 서로 알리기 + AI 도움 표기
+function applyExtras(copy) {
+  const handle = settings.handle && settings.handle !== '@my_account' ? settings.handle : '';
+  const blog = settings.blogUrl && /^https?:\/\//.test(settings.blogUrl) ? settings.blogUrl : '';
+  if (handle && !copy.blog.body.includes(`※ 인스타그램 ${handle}`)) copy.blog.body = copy.blog.body.replace(/\s*$/, '') + `\n\n※ 인스타그램 ${handle} 에서 다른 스타일도 볼 수 있어요.`;
+  if (settings.aiNote && !copy.blog.body.includes('※ 이 글은 AI')) copy.blog.body = copy.blog.body.replace(/\s*$/, '') + '\n\n※ 이 글은 AI 도구의 도움을 받아 초안을 만들고, 직접 확인해 다듬었어요.';
+  if (copy.youtube) {
+    const add = [blog && !copy.youtube.description.includes(blog) ? `📝 자세한 글: ${blog}` : '', handle && !copy.youtube.description.includes(`📷 인스타그램 ${handle}`) ? `📷 인스타그램 ${handle}` : ''].filter(Boolean);
+    if (add.length) copy.youtube.description = copy.youtube.description.replace(/\s*$/, '') + '\n\n' + add.join('\n');
+  }
+  if (blog && !copy.instagram.caption.includes('블로그에 정리')) copy.instagram.caption = copy.instagram.caption.replace(/\s*$/, '') + '\n자세한 과정은 블로그에 정리했어요 (프로필 링크)';
+}
+
 // 매장 정보를 블로그 · 인스타 글 끝에 붙이기
 function applyBiz(copy) {
   if (!hasBiz()) return;
@@ -296,6 +309,64 @@ function setupCard() {
   </section>`;
 }
 
+// ---------- 성과 분석: 올린 뒤 적은 숫자로 무엇이 잘 되는지 찾는다 ----------
+const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const slotOf = (h) => (h < 11 ? '오전(~11시)' : h < 14 ? '점심(11~14시)' : h < 18 ? '오후(14~18시)' : '저녁(18시~)');
+const VIDEO_KEYS = ['reels', 'shorts', 'tiktok', 'youtube'];
+function statPoints() {
+  const pts = [];
+  jobs.forEach((j) => Object.entries(j.stats || {}).forEach(([key, st]) => {
+    if (!st || !(+st.views || +st.likes || +st.leads)) return;
+    const at = (j.publish && j.publish[key]) || (key === 'blogger' && j.blogger && new Date(j.blogger.scheduledAt || j.createdAt).getTime()) || j.createdAt;
+    const d = new Date(at);
+    pts.push({ job: j, key, views: +st.views || 0, react: (+st.likes || 0) + (+st.comments || 0) * 2 + (+st.saves || 0) * 3, leads: +st.leads || 0, day: DAYS[d.getDay()], slot: slotOf(d.getHours()), style: j.style || 'story', tpl: VIDEO_KEYS.includes(key) ? (j[key === 'youtube' ? 'youtube' : 'short'] || {}).style : null, hook: VIDEO_KEYS.includes(key) ? j.copy.short.hook : null });
+  }));
+  // 채널마다 숫자 크기가 달라서, 채널 평균 대비 몇 배인지(rel)로 비교한다
+  const avg = {};
+  pts.forEach((p) => { (avg[p.key] = avg[p.key] || []).push(p.views + p.react * 5); });
+  Object.keys(avg).forEach((k) => { const a = avg[k]; avg[k] = a.reduce((x, y) => x + y, 0) / a.length || 1; });
+  pts.forEach((p) => { p.rel = (p.views + p.react * 5) / avg[p.key]; });
+  return pts;
+}
+function bestBy(pts, field, min = 2) {
+  const g = {};
+  pts.forEach((p) => { if (p[field] == null) return; (g[p[field]] = g[p[field]] || []).push(p.rel); });
+  const rows = Object.entries(g).filter(([, a]) => a.length >= min).map(([k, a]) => ({ k, n: a.length, v: a.reduce((x, y) => x + y, 0) / a.length })).sort((a, b) => b.v - a.v);
+  return rows.length >= 2 ? rows[0] : null;
+}
+function insightsCard() {
+  const pts = statPoints();
+  const now = Date.now();
+  const todo = [];
+  jobs.forEach((j) => Object.entries(j.publish || {}).forEach(([k, at]) => { if (at && now - at > 2 * 86400e3 && !((j.stats || {})[k] && (j.stats[k].views || j.stats[k].likes))) todo.push({ j, k }); }));
+  if (!pts.length && !todo.length) return '';
+  const chName = (k) => (CHANNELS.find((c) => c.key === k) || { label: k }).label;
+  const lines = [];
+  if (pts.length >= 3) {
+    const byCh = {};
+    pts.forEach((p) => { const c = byCh[p.key] = byCh[p.key] || { views: 0, react: 0, leads: 0, n: 0 }; c.views += p.views; c.react += p.react; c.leads += p.leads; c.n++; });
+    const chRows = Object.entries(byCh).map(([k, c]) => ({ k, views: Math.round(c.views / c.n), react: Math.round(c.react / c.n), leads: c.leads, n: c.n })).sort((a, b) => b.views - a.views);
+    const leadTop = [...chRows].sort((a, b) => b.leads - a.leads)[0];
+    lines.push(['조회가 가장 많은 채널', `${chName(chRows[0].k)} · 평균 ${chRows[0].views.toLocaleString()}회`]);
+    if (leadTop && leadTop.leads) lines.push(['문의·예약이 가장 많이 온 채널', `${chName(leadTop.k)} · ${leadTop.leads}건`]);
+    const st = bestBy(pts, 'style'); if (st) lines.push(['반응 좋은 글 스타일', `${(STYLES[st.k] || { label: st.k }).label} · 평균의 ${st.v.toFixed(1)}배 (${st.n}개)`]);
+    const tp = bestBy(pts, 'tpl'); if (tp) lines.push(['반응 좋은 영상 템플릿', `${(TEMPLATES[tp.k] || { label: tp.k }).label} · 평균의 ${tp.v.toFixed(1)}배 (${tp.n}개)`]);
+    const dy = bestBy(pts, 'day'); const sl = bestBy(pts, 'slot');
+    if (dy || sl) lines.push(['올리기 좋은 때', [dy ? `${dy.k}요일` : '', sl ? sl.k : ''].filter(Boolean).join(' · ')]);
+    const hooks = [...new Map(pts.filter((p) => p.hook).sort((a, b) => b.rel - a.rel).map((p) => [p.hook, p])).values()].slice(0, 3);
+    if (hooks.length >= 2) lines.push(['잘 된 첫 문구', hooks.map((h) => `"${h.hook}"`).join(' · ')]);
+    const top = [...pts].sort((a, b) => b.rel - a.rel)[0];
+    lines.push(['가장 잘 된 게시물', `${top.job.title} (${chName(top.key)})`]);
+  }
+  return `<section class="card">
+    <div class="card-head"><h3>성과 분석</h3><div class="right"><span class="sub" style="font-size:13px">적은 성과 ${pts.length}개</span></div></div>
+    ${lines.length ? `<div style="display:grid;gap:10px">${lines.map(([k, v]) => `<div style="display:grid;gap:2px"><small class="sub" style="font-size:12.5px;font-weight:700">${k}</small><b style="font-size:14.5px">${esc(v)}</b></div>`).join('')}</div>
+      <p class="hint" style="margin-top:12px">숫자가 쌓일수록 정확해져요. 잘 된 스타일·시간대로 다음 글을 올려 보세요.</p>`
+      : `<p class="sub" style="font-size:13.5px">성과를 3개 이상 적으면 어떤 채널·스타일·시간대가 잘 되는지 알려 드려요.</p>`}
+    ${todo.length ? `<div style="margin-top:14px;display:grid;gap:6px"><small class="sub" style="font-weight:700">성과를 적어 주세요 (올린 지 2일 넘음)</small>${todo.slice(0, 4).map(({ j, k }) => `<a class="ch" href="#/job/${j.id}/today" style="padding:10px 12px"><span class="txt"><b style="font-size:13.5px">${esc(j.title)}</b><small>${esc(chName(k))}</small></span>${icon('arrow')}</a>`).join('')}</div>` : ''}
+  </section>`;
+}
+
 function upcomingCard() {
   const now = Date.now();
   const items = [];
@@ -330,6 +401,7 @@ function viewHome() {
       </div>
     </section>
     ${setupCard()}
+    ${insightsCard()}
     <div class="grid g-main">
       <section class="card">
         <div class="card-head"><h3>최근 작업</h3><div class="right"><a class="btn btn-line btn-sm" href="#/jobs">전체 보기</a></div></div>
@@ -605,6 +677,7 @@ async function writeCopy(job, onStatus) {
     job.copy = draftWithoutAI(args);
   }
   if (job.useBiz) applyBiz(job.copy);
+  applyExtras(job.copy);
 }
 
 function defaultCardImages(job) {
@@ -669,6 +742,12 @@ function viewSettings() {
         <label class="field"><span>기본 글 스타일</span><select class="select" data-set="writeStyle">${Object.entries(STYLES).map(([k, v]) => `<option value="${k}" ${(s.writeStyle || 'story') === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
         <label class="field"><span>카드뉴스 기본 레이아웃</span><select class="select" data-set="cardLayout">${Object.entries(CARD_LAYOUTS).map(([k, v]) => `<option value="${k}" ${(s.cardLayout || 'classic') === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
         <label class="field"><span>영상 모션 기본 스타일</span><select class="select" data-set="motionStyle">${Object.entries(MOTION_STYLES).map(([k, v]) => `<option value="${k}" ${s.motionStyle === k ? 'selected' : ''}>${v.label} · ${v.desc}</option>`).join('')}</select></label>
+        <h3 style="margin-top:6px">고객 · 브랜드 말투</h3>
+        <p class="sub" style="font-size:14px">누구에게 말하는지, 어떤 말을 쓰고 피하는지 적어 두면 모든 글이 같은 목소리로 나와요.</p>
+        ${fld('target', '주요 고객', '30~40대 직장인 · 손상모·볼륨 고민', 'text', '이 사람의 고민에서 시작해 "그래서 뭐가 좋은지" 중심으로 써요.')}
+        ${fld('voiceDo', '자주 쓰는 표현', '결 정리, 손질 쉬운 머리, 모질 맞춤')}
+        ${fld('voiceDont', '피하는 표현', '강추, 대박, 무조건')}
+        <label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" data-set-check="aiNote" ${s.aiNote ? 'checked' : ''} style="width:20px;height:20px;margin-top:2px" /><span>글 끝에 "AI 도움을 받아 쓰고 직접 확인했어요" 표기<br /><span class="hint">숨기지 않고 밝히는 것이 오히려 신뢰를 높여요. 블로그·구글 블로그 글 끝에 한 줄로 들어가요.</span></span></label>
         <h3 style="margin-top:6px">매장 · 블로그 정보</h3>
         <p class="sub" style="font-size:14px">한 번 적어 두면 블로그 글 끝 '매장 정보', 인스타 캡션의 주소·예약 줄, 검색엔진용 매장 정보(구조화 데이터)에 자동으로 들어가요. 비워 둔 칸은 빠져요.</p>
         ${fld('bizName', '상호 (매장 이름)', '00헤어 수완점')}
@@ -1030,6 +1109,7 @@ function tabStudio(job, kind) {
       ${out ? `<div class="result" id="result"><b>${icon('check')} 만든 영상 · ${fmtTime(out.sec || 0)} · ${(out.mime || '').includes('mp4') ? 'MP4' : 'WebM'}</b><video id="result-video" controls playsinline></video>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-blue btn-sm" data-act="video-dl" data-kind="${kind}">${icon('download')}저장</button><button class="btn btn-line btn-sm" data-act="video-share" data-kind="${kind}">${icon('share')}공유 (인스타·틱톡 앱)</button></div>
         ${(out.mime || '').includes('webm') ? '<span class="hint">이 브라우저는 WebM으로 저장해요. 인스타·틱톡에 그대로 안 올라가면 크롬 최신 버전이나 아이폰 사파리에서 다시 만들어 주세요(MP4로 저장).</span>' : ''}</div>` : ''}
+      ${thumbBox(job, kind)}
     </section>
     <section class="card opt">
       ${isShort ? '' : `<div><h4>유튜브 제목 · 설명</h4><div style="display:grid;gap:8px"><input class="input" data-bind="copy.youtube.title" value="${esc(job.copy.youtube.title)}" />
@@ -1037,7 +1117,8 @@ function tabStudio(job, kind) {
         <div style="display:flex;gap:8px"><button class="btn btn-line btn-sm" data-act="copy-path" data-path="copy.youtube.title">${icon('copy')}제목 복사</button><button class="btn btn-line btn-sm" data-act="copy-path" data-path="copy.youtube.description">${icon('copy')}설명 복사</button></div></div></div>`}
       ${smartEditBox(job, kind)}
       <div><h4>템플릿</h4><div class="tpl-grid">${Object.entries(TEMPLATES).map(([k, v]) => `<button class="${o.style === k ? 'on' : ''}" data-act="st-set" data-k="style" data-v="${k}" style="--tc:${v.accent}"><i></i><b>${v.label}</b><small>${v.desc}</small></button>`).join('')}</div></div>
-      <div><h4>첫 화면 문구 (훅)</h4><input class="input" data-bind="copy.short.hook" data-studio="1" value="${esc(job.copy.short.hook)}" maxlength="40" /></div>
+      <div><h4>첫 화면 문구 (훅)</h4><input class="input" data-bind="copy.short.hook" data-studio="1" value="${esc(job.copy.short.hook)}" maxlength="40" />
+        ${(job.copy.short.hooks || []).length > 1 ? `<div class="chips" style="margin-top:8px">${job.copy.short.hooks.map((h, i) => `<button type="button" class="${h === job.copy.short.hook ? 'on' : ''}" data-act="hook-pick" data-i="${i}">${esc(h)}</button>`).join('')}</div><p class="hint" style="margin-top:6px">후보를 번갈아 써 보고 성과를 적어 두면, 어떤 첫 문구가 잘 되는지 대시보드에서 비교해 드려요.</p>` : ''}</div>
       <div><h4>강조 단어</h4><input class="input" data-bind="copy.short.keyword" data-studio="1" value="${esc(job.copy.short.keyword)}" maxlength="12" /></div>
       <div><h4>자막 내용</h4><div class="seg"><button class="${(o.captionMode || 'summary') === 'summary' ? 'on' : ''}" data-act="st-set" data-k="captionMode" data-v="summary">요약 자막</button><button class="${o.captionMode === 'speech' ? 'on' : ''}" data-act="st-set" data-k="captionMode" data-v="speech" ${hasSpeech(job) ? '' : 'disabled'}>말한 그대로</button><button class="${o.captionMode === 'script' ? 'on' : ''}" data-act="st-set" data-k="captionMode" data-v="script">내 대본</button></div>
         <p class="hint" style="margin-top:6px">${o.captionMode === 'script' ? '대본을 붙여 넣으면 한 줄씩 자막으로 들어가요. 긴 줄은 알아서 나눠요. 대본으로 목소리를 만들면 말하는 속도에 맞춰 떠요.' : hasSpeech(job) ? '말한 그대로: 영상 속에서 실제로 한 말이 그 장면에 맞춰 자막으로 떠요. 말소리는 원본 소리로 두면 잘 맞아요.' : '영상 말소리를 받아쓰면 \'말한 그대로\' 자막을 쓸 수 있어요 (블로그 탭에서 받아쓰기). 대본이 있으면 \'내 대본\'을 눌러 붙여 넣으세요.'}</p></div>
@@ -1074,6 +1155,36 @@ async function studioSources(job) {
   for (const s of pool) sources.push({ kind: 'image', url: await blobUrl(s.id) });
   if (!sources.length) for (const s of job.stills) sources.push({ kind: 'image', url: await blobUrl(s.id) });
   return sources;
+}
+
+// ---------- 썸네일 · 커버 ----------
+function thumbOpt(job) {
+  if (!job.thumbOpt) job.thumbOpt = { style: 'bold', still: job.coverId || (job.stills[0] && job.stills[0].id), text: job.copy.short.hook };
+  return job.thumbOpt;
+}
+function thumbBox(job, kind) {
+  const t = thumbOpt(job);
+  const size = kind === 'short' ? 'cover' : 'yt';
+  return `<div class="thumb-box"><h4>${icon('image')}${THUMB_SIZES[size].label} <small class="sub num">${THUMB_SIZES[size].w}×${THUMB_SIZES[size].h}</small></h4>
+    <img id="thumb-img" alt="${THUMB_SIZES[size].label} 미리보기" class="${size}" />
+    <div class="seg">${Object.entries(THUMB_STYLES).map(([k, v]) => `<button class="${t.style === k ? 'on' : ''}" data-act="thumb-style" data-v="${k}" title="${v.desc}">${v.label}</button>`).join('')}</div>
+    <input class="input" data-thumb="text" value="${esc(t.text)}" maxlength="30" placeholder="큰 글자 (14자 안팎)" />
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-line btn-sm" data-act="thumb-photo">${icon('refresh')}사진 바꾸기</button><button class="btn btn-blue btn-sm" data-act="thumb-dl" data-size="${size}">${icon('download')}저장</button></div>
+    <p class="hint">완성된 결과 사진 + 한눈에 읽히는 큰 글자가 클릭을 부르는 썸네일이에요. 브랜드 이름은 늘 같은 자리에 들어가 채널이 한눈에 알아보여요.</p></div>`;
+}
+async function renderThumb(job, size) {
+  const t = thumbOpt(job);
+  const img = await stillImage(t.still || job.coverId);
+  await ensureFonts(t.text + brandOf(settings));
+  return drawThumb(document.createElement('canvas'), { img, text: t.text, keyword: job.copy.short.keyword, size, style: t.style, theme: job.cardTheme, settings });
+}
+let thumbUrl = '';
+async function paintThumb(job, kind) {
+  const el = document.getElementById('thumb-img'); if (!el) return;
+  const c = await renderThumb(job, kind === 'short' ? 'cover' : 'yt');
+  const b = await canvasBlob(c, 'image/jpeg', 0.9);
+  if (thumbUrl) URL.revokeObjectURL(thumbUrl);
+  thumbUrl = URL.createObjectURL(b); el.src = thumbUrl;
 }
 
 async function smartInputs(job) {
@@ -1165,11 +1276,19 @@ async function studioPoster(job, kind) {
 // ---------- 오늘 올리기 (한 화면에서 채널별 복사 · 공유 · 완료) ----------
 function todayCard(job, key, title, ic, preview, actionsHtml) {
   const done = !!(job.publish && job.publish[key]) || (key === 'blogger' && job.blogger && ['LIVE', 'SCHEDULED'].includes(job.blogger.status));
-  return `<div class="card" style="display:grid;gap:10px;padding:16px;${done ? 'opacity:.6' : ''}">
+  return `<div class="card" style="display:grid;gap:10px;padding:16px;${done ? 'background:var(--surface-2)' : ''}">
     <div style="display:flex;align-items:center;gap:10px"><span class="ico ${done ? 'green' : 'blue'}" style="width:34px;height:34px">${icon(done ? 'check' : ic)}</span><b style="flex:1">${title}</b>
       ${key === 'blogger' ? '' : `<button class="btn ${done ? 'btn-soft' : 'btn-line'} btn-sm" data-act="mark-posted" data-k="${key}">${done ? icon('check') + '올렸어요' : '올렸으면 체크'}</button>`}</div>
     ${preview ? `<div style="font-size:13.5px;color:var(--sub);white-space:pre-line;max-height:66px;overflow:hidden">${esc(preview)}</div>` : ''}
-    <div style="display:flex;gap:8px;flex-wrap:wrap">${actionsHtml}</div></div>`;
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${actionsHtml}</div>${done ? statBox(job, key) : ''}</div>`;
+}
+const STAT_FIELDS = [['views', '조회'], ['likes', '좋아요'], ['comments', '댓글'], ['saves', '저장·공유'], ['leads', '문의·예약']];
+function statBox(job, key) {
+  const st = (job.stats || {})[key] || {};
+  const filled = STAT_FIELDS.some(([f]) => st[f]);
+  const k = `st_${job.id}_${key}`;
+  return `<details data-keep="${k}" ${uiOpen[k] ? 'open' : ''}><summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--accent)">${filled ? `📊 성과: 조회 ${(+st.views || 0).toLocaleString()} · 반응 ${((+st.likes || 0) + (+st.comments || 0) + (+st.saves || 0)).toLocaleString()}${st.leads ? ` · 문의 ${st.leads}` : ''}` : '📊 성과 적기 (올리고 2~3일 뒤)'}</summary>
+    <div class="stat-row">${STAT_FIELDS.map(([f, l]) => `<label><span>${l}</span><input class="input" type="number" inputmode="numeric" min="0" data-stat="${key}.${f}" value="${st[f] ?? ''}" /></label>`).join('')}</div></details>`;
 }
 function tabToday(job) {
   const c = job.copy;
@@ -1181,6 +1300,7 @@ function tabToday(job) {
   const left = CHANNELS.filter((ch) => channelState(job, ch) !== 'posted').length;
   const bl = job.blogger;
   return `<div class="notice blue">${icon('info')}<span>위에서부터 하나씩: <b>복사</b> → 앱 열어서 붙여넣기 → <b>올렸으면 체크</b>. 휴대폰에서는 '공유'를 누르면 인스타·틱톡 앱으로 바로 넘어가요. 남은 채널 ${left}개.</span></div>
+  <div class="notice">${icon('info')}<span><b>올리기 전 1분 확인</b> · 가격·시간·이름이 맞나요? · 얼굴이 나온 고객 사진은 동의를 받았나요? · AI가 쓴 문장 중 사실과 다른 곳은 없나요?</span></div>
   <div class="grid g2">
     ${todayCard(job, 'reels', '인스타 릴스', 'insta', c.instagram.caption, `${vbtn('short', '영상 공유')}<button class="btn btn-line btn-sm" data-act="copy-insta">${icon('copy')}캡션 복사</button><a class="btn btn-line btn-sm" href="https://www.instagram.com/" target="_blank" rel="noopener">${icon('external')}인스타</a>`)}
     ${todayCard(job, 'feed', '인스타 카드뉴스', 'layers', `카드 ${c.cards.length}장 · ${c.cards[0] ? c.cards[0].title : ''}`, `<button class="btn btn-blue btn-sm" data-act="cards-share">${icon('share')}카드 공유</button><button class="btn btn-line btn-sm" data-act="cards-zip">${icon('download')}저장</button><button class="btn btn-line btn-sm" data-act="copy-insta">${icon('copy')}캡션 복사</button>`)}
@@ -1274,6 +1394,7 @@ async function afterRender(r, job) {
       if (out) { const v = document.getElementById('result-video'); if (v) v.src = await blobUrl(out.id); }
       if (o.voiceId) { const a = document.getElementById('voice-audio'); if (a) a.src = await blobUrl(o.voiceId); }
       studioPoster(job, r.tab);
+      paintThumb(job, r.tab);
     }
   }
 }
@@ -1517,7 +1638,7 @@ const actions = {
       await tp;
       el.innerHTML = '<span class="spin"></span>글 올리는 중';
       const imgs = await postImages(job);
-      const content = articleHtml(a, imgs.slice(1).map((im, i) => ({ placeholder: i + 2, alt: im.alt })), { author: brandOf(settings), biz: job.useBiz ? settings : null, topic: job.topic });
+      const content = articleHtml(a, imgs.slice(1).map((im, i) => ({ placeholder: i + 2, alt: im.alt })), { author: brandOf(settings), biz: job.useBiz ? settings : null, topic: job.topic, aiNote: !!settings.aiNote });
       const lead = `<p style="padding:14px;border:2px dashed #93C5FD;border-radius:10px;color:#1D4ED8">📷 대표 사진(사진 1) 넣는 자리 — 대체 텍스트: "${esc(imgs[0] ? imgs[0].alt : a.focusKeyword)}"</p>\n`;
       const post = await createBlogPost({ blogId: settings.bloggerBlogId, title: a.seoTitle || job.title, content: lead + content, labels: a.tags, draft });
       let done = post;
@@ -1535,7 +1656,7 @@ const actions = {
   },
   'wp-copy-html': async () => {
     const job = curJob();
-    copyText(articleHtml(job.copy.article, [], { author: brandOf(settings), biz: job.useBiz ? settings : null, topic: job.topic }));
+    copyText(articleHtml(job.copy.article, [], { author: brandOf(settings), biz: job.useBiz ? settings : null, topic: job.topic, aiNote: !!settings.aiNote }));
   },
   'draft-style': (el) => { draft.style = el.dataset.v; render(); },
   'draft-persp': (el) => { draft.perspective = el.dataset.v; render(); },
@@ -1593,6 +1714,18 @@ const actions = {
     } catch (e) { toast(e.message || '장면을 뽑지 못했어요'); }
     render();
   },
+  'thumb-style': (el) => { const job = curJob(); thumbOpt(job).style = el.dataset.v; saveSoon(job); render(); },
+  'thumb-photo': () => {
+    const job = curJob(); const t = thumbOpt(job);
+    const ids = job.stills.map((x) => x.id); if (!ids.length) return;
+    t.still = ids[(ids.indexOf(t.still) + 1) % ids.length]; saveSoon(job); paintThumb(job, current.tab);
+  },
+  'thumb-dl': async (el) => {
+    const job = curJob(); const size = el.dataset.size;
+    const c = await renderThumb(job, size);
+    downloadBlob(await canvasBlob(c, 'image/jpeg', 0.92), `${size === 'yt' ? 'thumbnail' : 'cover'}-${job.id.slice(-6)}.jpg`);
+  },
+  'hook-pick': (el) => { const job = curJob(); const h = (job.copy.short.hooks || [])[+el.dataset.i]; if (!h) return; job.copy.short.hook = h; saveSoon(job); render(); },
   'nv-undo': () => { const job = curJob(); if (!job.blogPrev) return; const b = job.copy.blog; const cur = { title: b.title, body: b.body }; Object.assign(b, job.blogPrev); job.blogPrev = cur; saveSoon(job); toast('이전 글로 되돌렸어요'); render(); },
   'nv-title': (el) => { const job = curJob(); const b = job.copy.blog; const t = (b.titles || [])[+el.dataset.i]; if (!t) return; b.title = t; saveSoon(job); render(); },
   'nv-tags': () => { const b = curJob().copy.blog; copyText((b.tags || []).map((t) => '#' + t).join(' ')); },
@@ -1743,6 +1876,19 @@ let studioTimer;
 root.addEventListener('input', (e) => {
   const el = e.target;
   if (el.dataset.draft) { draft[el.dataset.draft] = el.value; return; }
+  if (el.dataset.stat) {
+    const job = curJob(); if (!job) return;
+    const [k, f] = el.dataset.stat.split('.');
+    job.stats = job.stats || {}; job.stats[k] = job.stats[k] || {};
+    job.stats[k][f] = el.value === '' ? null : Math.max(0, Math.round(+el.value || 0));
+    job.stats[k].at = Date.now();
+    saveSoon(job); return;
+  }
+  if (el.dataset.thumb) {
+    const job = curJob(); if (!job) return;
+    thumbOpt(job)[el.dataset.thumb] = el.value; saveSoon(job);
+    clearTimeout(el._t); el._t = setTimeout(() => paintThumb(job, current.tab), 250); return;
+  }
   if (el.dataset.draftCheck) { draft[el.dataset.draftCheck] = el.checked; return; }
   if (el.dataset.set) {
     settings[el.dataset.set] = el.value;
@@ -1787,6 +1933,7 @@ root.addEventListener('change', async (e) => {
     } catch (er) { toast(er.message || '백업을 불러오지 못했어요'); if (st) st.textContent = ''; }
     return;
   }
+  if (el.dataset.setCheck) { settings[el.dataset.setCheck] = el.checked; saveSettings(settings); toast('저장했어요'); return; }
   if (el.dataset.jobCheck) { const job = curJob(); if (job) { job[el.dataset.jobCheck] = el.checked; saveSoon(job); } return; }
   // 입력칸: 자동완성·붙여넣기처럼 input 이벤트가 안 오는 경우까지 저장하고, 저장됐다고 알려 준다
   if (el.dataset.set && el.tagName === 'INPUT') {

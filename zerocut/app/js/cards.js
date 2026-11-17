@@ -227,3 +227,95 @@ export function drawCard(canvas, { card, img, index, total, theme = 'navy', sett
 export function canvasBlob(canvas, type = 'image/png', q) {
   return new Promise((resolve) => canvas.toBlob(resolve, type, q));
 }
+
+// ---------- 썸네일 · 커버 ----------
+// 썸네일은 첫인상: 완성 결과 사진 + 한눈에 읽히는 큰 글자 + 늘 같은 자리의 브랜드 표시(채널 일관성)
+export const THUMB_SIZES = {
+  yt: { label: '유튜브 썸네일', w: 1280, h: 720 },
+  cover: { label: '릴스·쇼츠 커버', w: 1080, h: 1920 },
+};
+export const THUMB_STYLES = {
+  bold: { label: '볼드', desc: '큰 노란 글자 · 검은 테두리' },
+  panel: { label: '패널', desc: '색 패널 위 글자 · 사진 강조' },
+  clean: { label: '클린', desc: '아래 흰 띠 · 차분하게' },
+};
+
+export function drawThumb(canvas, { img, text, keyword = '', size = 'yt', style = 'bold', theme = 'navy', settings = {} }) {
+  const S = THUMB_SIZES[size] || THUMB_SIZES.yt;
+  const th = CARD_THEMES[theme] || CARD_THEMES.navy;
+  const W = S.w, H = S.h, portrait = H > W;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = th.bg; ctx.fillRect(0, 0, W, H);
+  const brand = brandOf(settings) || settings.handle || '';
+  const words = String(text || '').trim();
+  const fitFont = (weight, maxSize, maxW, maxLines) => {
+    for (let fs = maxSize; fs >= 40; fs -= 4) {
+      ctx.font = `${weight} ${fs}px ${FONT}`;
+      const rows = wrapText(ctx, words, maxW);
+      if (rows.length <= maxLines) return { fs, rows };
+    }
+    ctx.font = `${weight} 40px ${FONT}`;
+    return { fs: 40, rows: wrapText(ctx, words, maxW).slice(0, maxLines) };
+  };
+  const paintRow = (row, x, y, ink, accent) => {
+    if (!keyword || !row.includes(keyword)) { ctx.fillStyle = ink; ctx.fillText(row, x, y); return; }
+    const [a, ...rest] = row.split(keyword); const b = rest.join(keyword);
+    ctx.fillStyle = ink; ctx.fillText(a, x, y); let cx = x + ctx.measureText(a).width;
+    ctx.fillStyle = accent; ctx.fillText(keyword, cx, y); cx += ctx.measureText(keyword).width;
+    ctx.fillStyle = ink; ctx.fillText(b, cx, y);
+  };
+  const brandTag = (x, y, onDark) => {
+    if (!brand) return;
+    ctx.font = `800 ${portrait ? 40 : 32}px ${FONT}`;
+    const w = ctx.measureText(brand).width + 44, h = portrait ? 72 : 58;
+    ctx.fillStyle = onDark ? 'rgba(0,0,0,0.55)' : th.accent; roundRect(ctx, x, y, w, h, h / 2); ctx.fill();
+    ctx.fillStyle = '#FFFFFF'; ctx.textBaseline = 'middle'; ctx.fillText(brand, x + 22, y + h / 2 + 2); ctx.textBaseline = 'alphabetic';
+  };
+  if (style === 'panel' && portrait) {
+    const ph = Math.round(H * 0.36);
+    cover(ctx, img, 0, ph, W, H - ph, 0.4);
+    ctx.fillStyle = th.bg; ctx.fillRect(0, 0, W, ph);
+    ctx.fillStyle = th.accent; ctx.fillRect(0, ph - 12, W, 12);
+    const { fs, rows } = fitFont(900, 132, W - 140, 3);
+    const lh = fs * 1.16, top = 200 + (ph - 200 - rows.length * lh) / 2 + fs * 0.85;
+    rows.forEach((r, i) => paintRow(r, 70, top + i * lh, th.ink, '#FACC15'));
+    brandTag(60, 90, false);
+  } else if (style === 'panel') {
+    const pw = Math.round(W * 0.46);
+    cover(ctx, img, pw, 0, W - pw, H, 0.4);
+    ctx.fillStyle = th.bg; ctx.fillRect(0, 0, pw, H);
+    ctx.fillStyle = th.accent; ctx.fillRect(pw - 10, 0, 10, H);
+    const { fs, rows } = fitFont(900, 104, pw - 120, 4);
+    const lh = fs * 1.18, top = (H - rows.length * lh) / 2 + fs * 0.85;
+    rows.forEach((r, i) => paintRow(r, 60, top + i * lh, th.ink, '#FACC15'));
+    brandTag(60, 48, false);
+  } else if (style === 'clean') {
+    cover(ctx, img, 0, 0, W, H, 0.4);
+    const { fs, rows } = fitFont(800, portrait ? 92 : 76, W - (portrait ? 140 : 160), portrait ? 3 : 2);
+    const lh = fs * 1.25, band = rows.length * lh + (portrait ? 110 : 80);
+    const y0 = portrait ? H * 0.62 : H - band;
+    ctx.fillStyle = 'rgba(255,255,255,0.94)'; ctx.fillRect(0, y0, W, band);
+    ctx.fillStyle = th.accent === '#FACC15' ? '#0A0A0A' : '#2563EB'; ctx.fillRect(0, y0, W, 8);
+    rows.forEach((r, i) => paintRow(r, portrait ? 70 : 80, y0 + (portrait ? 70 : 50) + fs * 0.9 + i * lh, '#0F172A', '#2563EB'));
+    brandTag(portrait ? 60 : 48, portrait ? 120 : 40, true);
+  } else {
+    // bold: 사진 전체 + 아래쪽 어둡게 + 큰 노란·흰 글자에 검은 테두리
+    cover(ctx, img, 0, 0, W, H, 0.4);
+    const g = ctx.createLinearGradient(0, H * 0.35, 0, H);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.75)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const { fs, rows } = fitFont(900, portrait ? 156 : 120, W - (portrait ? 120 : 140), 3);
+    const lh = fs * 1.12;
+    const bottom = portrait ? H * 0.78 : H - 70;
+    const top = bottom - (rows.length - 1) * lh;
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.round(fs * 0.16); ctx.strokeStyle = '#000';
+    rows.forEach((r, i) => {
+      const x = portrait ? (W - ctx.measureText(r).width) / 2 : 64, y = top + i * lh;
+      ctx.strokeText(r, x, y);
+      paintRow(r, x, y, i === rows.length - 1 && !keyword ? '#FACC15' : '#FFFFFF', '#FACC15');
+    });
+    brandTag(portrait ? 60 : 48, portrait ? 120 : 40, true);
+  }
+  return canvas;
+}

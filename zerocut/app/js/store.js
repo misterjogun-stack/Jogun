@@ -99,6 +99,10 @@ export const DEFAULT_SETTINGS = {
   areaKeywords: '', // 동·역 단위 지역 키워드 (쉼표로) — 글마다 돌아가며 쓴다
   areaIdx: 0,
   blogLength: 'long', // normal | long
+  target: '', // 주요 고객 (예: 30~40대 직장인, 손상모 고민)
+  voiceDo: '', // 브랜드가 자주 쓰는 표현
+  voiceDont: '', // 피하는 표현
+  aiNote: false, // 글 끝에 AI 도움 표기
   elevenKey: '',
   elevenVoice: '',
   voiceEngine: 'gemini', // gemini | eleven(내 목소리)

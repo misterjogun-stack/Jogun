@@ -111,7 +111,7 @@ export function draftWithoutAI({ memo, topic, title, settings, stillCount, style
     instagram: { caption, hashtags },
     threads,
     cards,
-    short: { hook: head, lines, narration: [head, ...lines].join('. ') + '.', keyword: (f[0] || T.label).split(' ')[0] },
+    short: { hook: head, hooks: uniq([head, T.hook, `${f[0] || T.label}, 이렇게 바뀌었어요`]), lines, narration: [head, ...lines].join('. ') + '.', keyword: (f[0] || T.label).split(' ')[0] },
     youtube: {
       title: `${head} | ${T.label}`,
       description: [`${head}`, '', ...points.map((p, i) => (style === 'list' ? p : `${i + 1}. ${p}`)), '', T.cta, '', hashtags.slice(0, 8).join(' ')].join('\n'),
@@ -161,7 +161,7 @@ const SCHEMA = obj({
   instagram: obj({ caption: str, hashtags: strArr }),
   threads: strArr,
   cards: { type: 'array', items: obj({ title: str, body: str }) },
-  short: obj({ hook: str, lines: strArr, narration: str, keyword: str }),
+  short: obj({ hook: str, hooks: strArr, lines: strArr, narration: str, keyword: str }),
   youtube: obj({ title: str, description: str }),
   tiktok: obj({ caption: str, hashtags: strArr }),
   article: obj({
@@ -209,7 +209,7 @@ export function naverCheck(blog, { keyword = '', imageCount = 0, lengthMode = 'l
   // 매장 정보 · 해시태그 줄은 빼고 본문만 본다
   let main = String(blog.body || '').split(/\n##\s*매장 정보/)[0];
   const lines = main.split('\n');
-  const textLines = lines.filter((l) => l.trim() && !/^\s*\[사진/.test(l) && !/^\s*(#\S+\s*)+$/.test(l));
+  const textLines = lines.filter((l) => l.trim() && !/^\s*\[사진/.test(l) && !/^\s*※/.test(l) && !/^\s*(#\S+\s*)+$/.test(l));
   const bodyText = textLines.join('\n');
   const chars = bodyText.replace(/^##\s*/gm, '').replace(/\s/g, '').length;
   const paras = bodyText.split(/\n/).filter((l) => l.trim() && !/^##\s/.test(l));
@@ -276,6 +276,12 @@ function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz,
     '사진에서 실제로 보이는 것, 사용자의 메모, 아래 매장 정보에 있는 사실만 쓴다. 가격, 상호, 위치, 효능처럼 보이지 않는 사실은 지어내지 않는다. 필요한 곳은 [가격 입력] 같은 빈칸으로 남긴다.',
     `말투: ${TONES[settings.tone] || TONES.friendly}. 매장·계정 이름: ${brandOf(settings)} ${settings.handle || ''}. 글쓴이의 개인 이름은 쓰지 않는다.`,
     `글 스타일: ${st.label} — ${st.rule}`,
+    settings.target ? `주요 고객: ${clean(settings.target)}. 이 사람이 가진 고민에서 시작해, 특징보다 "그래서 손님에게 뭐가 좋은지(이점)" 중심으로 쓴다.` : '특징만 늘어놓지 말고 "그래서 손님에게 뭐가 좋은지(이점)" 중심으로 쓴다.',
+    settings.voiceDo ? `브랜드가 자주 쓰는 표현(살려서 쓴다): ${clean(settings.voiceDo)}` : '',
+    settings.voiceDont ? `브랜드가 피하는 표현(쓰지 않는다): ${clean(settings.voiceDont)}` : '',
+    '경험이 드러나게: 직접 해 본 사람만 아는 이유·요령을 메모나 받아쓰기에서 찾아 1개 이상 넣는다. 없으면 [디자이너 팁 입력]처럼 빈칸으로 둔다.',
+    '설득 장치는 사실일 때만 쓴다: 마감·한정(메모에 있을 때만). 고객 수, 수상, 전문가 추천, 후기 같은 사회적 증거·권위는 지어내지 않는다.',
+    '채널마다 마지막에 행동 유도(예약·저장·팔로우·댓글 중 하나)를 한 번 넣는다.',
     perspective === 'guest'
       ? `시점: ${pl.guest}. 방문한 사람의 경험 흐름(찾아가기→상담·주문→과정→결과)과 처음 오는 사람이 궁금해할 점 중심으로 쓴다. 실제 고객의 말, 별점, 이름을 지어내지 않는다.`
       : `시점: ${pl.pro}. 만든 사람이 직접 과정, 이유, 노하우를 설명하는 전문가 시점으로 쓴다.`,
@@ -285,7 +291,7 @@ function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz,
     '- instagram.caption: 첫 줄은 멈추게 하는 한 문장, 3~6줄, 마지막에 행동 유도. 해시태그는 caption에 넣지 말고 hashtags 배열(10~15개, # 포함)로.',
     '- threads: 3~5개 이어지는 글, 각 280자 이내, 첫 글이 훅.',
     '- cards: 카드뉴스 6~8장. 첫 장은 표지(title 18자 이내, body는 부제), 중간은 장면별 핵심(title 16자 이내, body 40자 이내), 마지막 장은 저장·팔로우 유도.',
-    '- short: 9:16 숏폼. hook은 첫 1.5초에 띄울 14자 이내 문장. lines는 화면 자막 4~6개(각 16자 이내). narration은 25~35초 분량 내레이션 원고. keyword는 강조할 단어 하나.',
+    '- short: 9:16 숏폼. hooks는 첫 화면 문구 후보 3개(각 14자 이내, 결과를 보여 주는 말 · 질문 · 숫자 방식으로 서로 다르게, A/B 테스트용), hook은 그중 가장 좋은 것. hook은 첫 1.5초에 띄울 14자 이내 문장. lines는 화면 자막 4~6개(각 16자 이내). narration은 25~35초 분량 내레이션 원고. keyword는 강조할 단어 하나.',
     '- youtube: 가로 영상 제목(40자 이내)과 설명(문단 + 해시태그 3~5개).',
     '- tiktok: 짧은 캡션과 해시태그 5~6개.',
     '- article: 구글 블로그(블로거)용 글. 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티·구글 AI 요약 같은 AI 검색(GEO)에 인용되기 좋게 쓴다.',
@@ -312,6 +318,7 @@ function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz,
 function finishCopy(out) {
   out.blog.titles = uniq((out.blog.titles || []).map(clean).filter(Boolean)).slice(0, 7);
   out.blog.tags = uniq((out.blog.tags || []).map((t) => clean(t).replace(/^#/, '')).filter(Boolean)).slice(0, 6);
+  out.short.hooks = uniq([out.short.hook, ...(out.short.hooks || [])].map(clean).filter(Boolean)).slice(0, 4);
   out.instagram.hashtags = uniq(out.instagram.hashtags.map((t) => (t.startsWith('#') ? t : '#' + t)));
   out.article.tags = uniq(out.article.tags.map((t) => t.replace(/^#/, '')));
   out.tiktok.hashtags = uniq(out.tiktok.hashtags.map((t) => (t.startsWith('#') ? t : '#' + t)));
@@ -606,7 +613,7 @@ function bodyHtml(text) {
  * 구글 블로그 본문 HTML. images: [{url, alt}] (섹션 사이에 하나씩)
  * 요약 → 소제목별 본문(+이미지) → 자주 묻는 질문 → FAQ 구조화 데이터
  */
-export function articleHtml(a, images = [], { author = '', updated = new Date(), biz = null, topic = '' } = {}) {
+export function articleHtml(a, images = [], { author = '', updated = new Date(), biz = null, topic = '', aiNote = false } = {}) {
   const parts = [];
   parts.push(`<p><strong>핵심 요약</strong> ${escH(a.summary)}</p>`);
   a.sections.forEach((sec, i) => {
@@ -628,7 +635,7 @@ export function articleHtml(a, images = [], { author = '', updated = new Date(),
     if (links.length) parts.push(`<p>${links.map(([k, v]) => `<a href="${escH(v)}" target="_blank" rel="noopener">${k}</a>`).join(' · ')}</p>`);
   }
   const d = updated.toISOString().slice(0, 10);
-  parts.push(`<p><em>${author ? escH(author) + ' 작성 · ' : ''}${d} 업데이트 · 직접 촬영한 사진과 경험을 바탕으로 썼습니다.</em></p>`);
+  parts.push(`<p><em>${author ? escH(author) + ' 작성 · ' : ''}${d} 업데이트 · 직접 촬영한 사진과 경험을 바탕으로 썼습니다.${aiNote ? ' AI 도구의 도움을 받아 초안을 만들고, 사실을 직접 확인해 다듬었습니다.' : ''}</em></p>`);
   if (a.faq.length) {
     const ld = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: a.faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) };
     parts.push(`<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
