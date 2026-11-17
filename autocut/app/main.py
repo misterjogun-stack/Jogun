@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config, pipeline
 from .models import Options
+from .looks import LOOKS
 from .planner import INDUSTRY_GUIDE
 
 WEB_DIR = config.ROOT / "web"
@@ -62,6 +63,7 @@ async def create_job(
     fit: str = Form("cover"),
     target_seconds: int = Form(0),
     captions: bool = Form(True),
+    look: str = Form("none"),
     language: str = Form(""),
 ):
     if aspect not in ("vertical", "original") or fit not in ("cover", "blur"):
@@ -84,7 +86,7 @@ async def create_job(
         industry=industry if industry in INDUSTRY_GUIDE else "general",
         aspect=aspect, fit=fit,
         target_seconds=max(0, min(target_seconds, 600)),
-        captions=captions, language=language or None,
+        captions=captions, look=look if look in LOOKS else "none", language=language or None,
     )
     with jobs_lock:
         jobs[job_id] = {"id": job_id, "status": "queued", "step": "대기 중", "progress": 0.0}

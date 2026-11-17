@@ -8,6 +8,7 @@ from typing import Callable
 
 from . import config
 from .captions import build_ass, remap_captions
+from .looks import grade_filter, caption_style
 from .models import MediaInfo, Plan
 
 FADE = 0.02  # 컷 경계에서 '틱' 소리를 막는 짧은 페이드(초)
@@ -42,7 +43,7 @@ def target_size(info: MediaInfo, aspect: str) -> tuple[int, int]:
     return int(info.width * scale) // 2 * 2, int(info.height * scale) // 2 * 2
 
 
-def build_filter(plan: Plan, w: int, h: int, fit: str, has_audio: bool, burn_captions: bool) -> str:
+def build_filter(plan: Plan, w: int, h: int, fit: str, has_audio: bool, burn_captions: bool, look: str = "none") -> str:
     n = len(plan.segments)
     parts: list[str] = []
     for i, s in enumerate(plan.segments):
@@ -67,10 +68,16 @@ def build_filter(plan: Plan, w: int, h: int, fit: str, has_audio: bool, burn_cap
     else:
         parts.append(f"[vc]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[vs]")
 
-    if burn_captions:
-        parts.append(f"[vs]subtitles=captions.ass:fontsdir='{config.FONTS_DIR}'[v]")
+    grade = grade_filter(look)
+    if grade:
+        parts.append(f"[vs]{grade}[vg]")
+        last = "vg"
     else:
-        parts.append("[vs]null[v]")
+        last = "vs"
+    if burn_captions:
+        parts.append(f"[{last}]subtitles=captions.ass:fontsdir='{config.FONTS_DIR}'[v]")
+    else:
+        parts.append(f"[{last}]null[v]")
     if has_audio:
         parts.append("[ac]loudnorm=I=-16:TP=-1.5:LRA=11[a]")
     return ";\n".join(parts)
@@ -86,13 +93,14 @@ def render(
     fit: str,
     burn_captions: bool,
     on_progress: Callable[[float], None] | None = None,
+    look: str = "none",
 ) -> None:
     w, h = target_size(info, aspect)
     total = sum(s.end - s.start for s in plan.segments)
     caps = remap_captions(plan.captions, plan.segments) if burn_captions else []
     burn = burn_captions and bool(caps)
-    (workdir / "captions.ass").write_text(build_ass(caps, w, h), encoding="utf-8")
-    (workdir / "filter.txt").write_text(build_filter(plan, w, h, fit, info.has_audio, burn), encoding="utf-8")
+    (workdir / "captions.ass").write_text(build_ass(caps, w, h, caption_style(look)), encoding="utf-8")
+    (workdir / "filter.txt").write_text(build_filter(plan, w, h, fit, info.has_audio, burn, look), encoding="utf-8")
 
     cmd = [
         "ffmpeg", "-y", "-v", "error", "-nostats", "-progress", "pipe:1",

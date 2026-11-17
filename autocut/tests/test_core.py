@@ -112,3 +112,25 @@ def test_normalize_plan_clamps_and_merges():
 def test_normalize_plan_empty_uses_full():
     out = normalize_plan(rule_based_plan([], 7.0), 7.0)
     assert out.segments[0].end == 7.0
+
+
+def test_cinematic_look_filter_and_caption_style():
+    from app.looks import caption_style, grade_filter
+    from app.render import build_filter
+    assert grade_filter("none") == "" and "colorbalance" in grade_filter("cinematic")
+    assert grade_filter("unknown") == ""
+    plan = Plan(segments=[Seg(start=0, end=2)], captions=[])
+    f = build_filter(plan, 1080, 1920, "cover", True, False, "cinematic")
+    assert "[vs]curves=" in f and "[vg]null[v]" in f
+    assert "[vs]null[v]" in build_filter(plan, 1080, 1920, "cover", True, False, "none")
+    assert caption_style("cinematic") == "cinematic" and caption_style("none") == "pop"
+
+
+def test_cinematic_ass_is_small_white_with_amber_emphasis():
+    cap = Cap(start=0, end=1, text="펌이 자연스럽게", emphasis=["자연스럽게"])
+    pop = build_ass([cap], 1080, 1920, "pop")
+    cine = build_ass([cap], 1080, 1920, "cinematic")
+    size = lambda a: int(a.split("Style: Default,")[1].split(",")[1])
+    assert size(cine) < size(pop)
+    assert "&H00FFFFFF&,&H00FFFFFF&" in cine      # 기본 글자색 흰색
+    assert "&H001EBEFA&" in cine                  # 강조는 호박색

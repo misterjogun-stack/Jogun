@@ -69,6 +69,7 @@ def run(
     render.render(
         src, plan, workdir / "out.mp4", workdir, info, opts.aspect, opts.fit, opts.captions,
         on_progress=lambda f: set_step("영상 만드는 중", 0.55 + 0.45 * f),
+        look=opts.look,
     )
     set_step("완료", 1.0)
     return plan

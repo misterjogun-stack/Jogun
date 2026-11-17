@@ -52,6 +52,7 @@ class Options:
     fit: str = "cover"             # cover(꽉 채움) / blur(블러 배경)
     target_seconds: int = 0        # 0이면 길이 제한 없음
     captions: bool = True
+    look: str = "none"             # none / cinematic(차분한 시네마틱 색감 + 작은 자막)
     language: str | None = None    # None이면 자동 감지
 
 
