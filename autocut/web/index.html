@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AutoCut - 영상 자동 편집</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1b1b1b;--sub:#6b6b66;--line:#e2e2dc;--accent:#ffcf00;--accent-ink:#1b1b1b;--err:#c0392b}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--card:#1b1b1b;--ink:#f2f2ee;--sub:#9a9a93;--line:#2c2c2a;--err:#ff7b6b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+main{max-width:720px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:26px;margin:8px 0 4px}
+.sub{color:var(--sub);margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:32px 16px;text-align:center;cursor:pointer;color:var(--sub)}
+.drop.on{border-color:var(--accent);color:var(--ink)}
+.drop b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+@media (max-width:520px){.grid{grid-template-columns:1fr}}
+label{display:block;font-size:14px;color:var(--sub);margin-bottom:4px}
+select,input[type=number]{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+.check{display:flex;gap:8px;align-items:center;margin-top:16px;color:var(--ink)}
+button{width:100%;margin-top:18px;padding:14px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font:600 17px inherit;cursor:pointer}
+button:disabled{opacity:.45;cursor:default}
+.bar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin:12px 0 6px}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.err{color:var(--err)}
+.warn{color:var(--sub);font-size:14px;margin:4px 0}
+video{width:100%;max-height:70vh;border-radius:10px;background:#000}
+.row{display:flex;gap:10px}.row a,.row button{flex:1;margin-top:12px}
+a.btn{display:block;text-align:center;padding:12px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:600;text-decoration:none}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);font-size:15px;padding:12px}
+textarea{width:100%;min-height:110px;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>AutoCut</h1>
+  <p class="sub">영상을 올리면 군더더기를 자르고 자막을 입혀 완성본을 만들어 줍니다.</p>
+
+  <section class="card" id="form">
+    <div class="drop" id="drop"><b id="dropTitle">영상 파일 선택 또는 끌어놓기</b><span id="dropSub">mp4, mov 등 · 말이 들어간 영상일수록 결과가 좋아요</span></div>
+    <input type="file" id="file" accept="video/*" class="hidden">
+    <div class="grid">
+      <div><label for="industry">업종</label>
+        <select id="industry">
+          <option value="general">일반</option><option value="hair">미용·헤어</option><option value="food">식당·카페</option>
+          <option value="edu">교육·강의</option><option value="shop">쇼핑·제품</option>
+        </select></div>
+      <div><label for="target">목표 길이(초, 0이면 제한 없음)</label><input type="number" id="target" min="0" max="600" value="0"></div>
+      <div><label for="aspect">화면 비율</label>
+        <select id="aspect"><option value="vertical">세로 9:16 (릴스·쇼츠)</option><option value="original">원본 비율</option></select></div>
+      <div><label for="fit">화면 채우기</label>
+        <select id="fit"><option value="cover">꽉 채우기(가장자리 잘림)</option><option value="blur">전체 보이기(블러 배경)</option></select></div>
+    </div>
+    <label class="check"><input type="checkbox" id="captions" checked> 자막 넣기</label>
+    <button id="go" disabled>자동 편집 시작</button>
+  </section>
+
+  <section class="card hidden" id="progress">
+    <b id="step">대기 중</b>
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="warn" id="pct"></div>
+    <div class="err" id="error"></div>
+  </section>
+
+  <section class="card hidden" id="result">
+    <video id="video" controls playsinline></video>
+    <div class="row"><a class="btn" id="dl" href="#">다운로드</a><button class="ghost" id="again">다른 영상 편집</button></div>
+    <div id="warns"></div>
+    <div id="postbox" class="hidden" style="margin-top:16px">
+      <label>게시물 글 (제안)</label>
+      <textarea id="post" readonly></textarea>
+      <button class="ghost" id="copy" style="margin-top:8px">글 복사</button>
+    </div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let file = null, timer = null;
+
+const drop = $('drop'), input = $('file');
+drop.onclick = () => input.click();
+input.onchange = () => pick(input.files[0]);
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('on'); };
+drop.ondragleave = () => drop.classList.remove('on');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('on'); pick(e.dataTransfer.files[0]); };
+
+function pick(f) {
+  if (!f) return;
+  file = f;
+  $('dropTitle').textContent = f.name;
+  $('dropSub').textContent = (f.size / 1048576).toFixed(1) + ' MB';
+  $('go').disabled = false;
+}
+
+$('go').onclick = async () => {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('industry', $('industry').value);
+  fd.append('aspect', $('aspect').value);
+  fd.append('fit', $('fit').value);
+  fd.append('target_seconds', $('target').value || 0);
+  fd.append('captions', $('captions').checked);
+  $('form').classList.add('hidden');
+  $('progress').classList.remove('hidden');
+  $('error').textContent = '';
+  setProgress('업로드 중', 0.02);
+  try {
+    const r = await fetch('/api/jobs', { method: 'POST', body: fd });
+    if (!r.ok) throw new Error((await r.json()).detail || '업로드 실패');
+    const { id } = await r.json();
+    poll(id);
+  } catch (e) { fail(e.message); }
+};
+
+function setProgress(step, p) {
+  $('step').textContent = step;
+  $('barfill').style.width = Math.round(p * 100) + '%';
+  $('pct').textContent = Math.round(p * 100) + '%';
+}
+function fail(msg) {
+  clearInterval(timer);
+  $('error').textContent = msg;
+  $('step').textContent = '문제가 생겼어요';
+  $('again').onclick();
+}
+function poll(id) {
+  timer = setInterval(async () => {
+    try {
+      const j = await (await fetch('/api/jobs/' + id)).json();
+      if (j.detail) return fail(j.detail);
+      setProgress(j.step, j.progress);
+      if (j.status === 'error') return fail(j.error);
+      if (j.status === 'done') { clearInterval(timer); show(id, j.plan); }
+    } catch (e) { /* 일시적인 네트워크 오류는 다음 주기에 재시도 */ }
+  }, 1500);
+}
+function show(id, plan) {
+  $('progress').classList.add('hidden');
+  $('result').classList.remove('hidden');
+  $('video').src = '/api/jobs/' + id + '/video';
+  $('dl').href = '/api/jobs/' + id + '/video?download=true';
+  $('warns').innerHTML = '';
+  (plan.warnings || []).forEach(w => { const d = document.createElement('div'); d.className = 'warn'; d.textContent = '※ ' + w; $('warns').appendChild(d); });
+  if (plan.post_text) {
+    $('postbox').classList.remove('hidden');
+    $('post').value = [plan.title, plan.post_text, (plan.hashtags || []).map(h => '#' + h).join(' ')].filter(Boolean).join('\n\n');
+  }
+}
+$('copy').onclick = () => navigator.clipboard.writeText($('post').value);
+$('again').onclick = () => {
+  $('result').classList.add('hidden');
+  $('form').classList.remove('hidden');
+  if (!$('error').textContent) $('progress').classList.add('hidden');
+};
+</script>
+</body>
+</html>
