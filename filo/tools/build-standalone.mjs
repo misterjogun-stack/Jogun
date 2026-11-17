@@ -29,13 +29,20 @@ html = html.replace(/<script src="vendor\/react-dom\.production\.min\.js"><\/scr
 must(/<link rel="stylesheet" href="app\.css\?v=[0-9a-z]+" \/>/, 'app.css');
 html = html.replace(/<link rel="stylesheet" href="app\.css\?v=[0-9a-z]+" \/>/, () => `<style>${read('app.css')}</style>`);
 
+// 주소 이전(옛 Vercel 주소 → 새 주소) 스크립트는 단일 파일에선 쓸 일이 없고, 다른 사이트 주소가 남지 않도록 뺀다
+const MOVE_RE = /<script>\s*\/\/ ===== 주소 이전[\s\S]*?<\/script>/;
+must(MOVE_RE, 'address move');
+html = html.replace(MOVE_RE, '<script>window.ZC_OLD_ORIGINS = [];</script>');
+
 must(/\s*<script>\s*\/\/ 한 번 연 뒤에는[\s\S]*?<\/script>/, 'service worker');
 html = html.replace(/\s*<script>\s*\/\/ 한 번 연 뒤에는[\s\S]*?<\/script>/, '');
 
 let js = read('app.js')
   .replace("'vendor/xlsx.full.min.js'", "'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'")
   .replace("'vendor/html5-qrcode.min.js'", "'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'")
-  .split('"empty-boxes.webp"').join(JSON.stringify(dataUri('empty-boxes.webp', 'image/webp')));
+  .split('"empty-boxes.webp"').join(JSON.stringify(dataUri('empty-boxes.webp', 'image/webp')))
+  .split('https://zerocount.vercel.app').join('')
+  .split('zerocount.vercel.app').join('새 주소');
 if (js.includes('vendor/') || js.includes('empty-boxes.webp"')) throw new Error('외부 파일 참조가 남아 있음');
 
 must(/<script defer src="app\.js\?v=[0-9a-z]+"><\/script>/, 'app.js');
@@ -49,7 +56,7 @@ const out = path.join(outDir, 'zerocount.html');
 writeFileSync(out, testHtml);
 console.log('standalone:', out, Math.round(Buffer.byteLength(testHtml) / 1024), 'KB');
 
-// 2) 체험판: 처음 열면 샘플로 시작 + 맨 위 체험판 안내 줄 (Netlify 등에 index.html 로 올려 쓰는 용도)
+// 2) 체험판: 처음 열면 샘플로 시작 + 맨 위 체험판 안내 줄 (다른 사이트로 가는 링크 없음) (Netlify 등에 index.html 로 올려 쓰는 용도)
 const TRIAL_HEAD = `  <script>
     // 체험판: 기록이 없으면 샘플 약제가 들어 있는 상태로 시작한다 (앱은 ?demo 를 보고 샘플을 넣는다)
     (function () {
@@ -78,13 +85,13 @@ const TRIAL_BAR = `<body>
     <span class="tag">체험판</span>
     <span>샘플 약제가 들어 있어요. 마음껏 눌러 보세요. 기록은 <b>이 기기에만</b> 저장되고, 체험 사이트는 곧 종료됩니다.</span>
     <button type="button" onclick="zcTrialReset()">처음부터 다시 체험</button>
-    <a href="https://zerocount.vercel.app/" target="_blank" rel="noopener">정식 버전 소개</a>
   </div>`;
 if (!base.includes('</head>') || !base.includes('<body>')) throw new Error('찾지 못함: head/body');
 const trialHtml = base
   .replace('<title>ZEROCOUNT</title>', '<title>ZEROCOUNT 체험판</title>')
   .replace('</head>', TRIAL_HEAD)
   .replace('<body>', TRIAL_BAR);
+if (/vercel\.app/.test(base) || /vercel\.app/.test(trialHtml)) throw new Error('vercel.app 주소가 남아 있음');
 const trialDir = path.join(outDir, 'trial');
 mkdirSync(trialDir, { recursive: true });
 const trialOut = path.join(trialDir, 'index.html');

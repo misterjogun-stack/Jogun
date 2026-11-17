@@ -40,7 +40,7 @@ filo/                     ← Vercel 배포 폴더 (Root Directory)
   tools/                  빌드 도구 (배포에서 제외)
   .vercelignore           tools/, app/app.jsx 를 배포에서 제외
 standalone/zerocount.html 테스트용 단일 파일 (다른 곳에 잠깐 올려 쓰는 용도)
-standalone/trial/index.html 체험판 단일 파일 (샘플로 시작, 맨 위 체험판 안내 줄 · Netlify Drop 등에 폴더째 올려 쓰는 용도)
+standalone/trial/index.html 체험판 단일 파일 (샘플로 시작, 맨 위 체험판 안내 줄, 정식 사이트 링크 없음 · Netlify Drop 용)
 docs/                     이미지 프롬프트, 폰 점검 체크리스트
 money-sprint/             판매 실행 키트 (FILO 시절 작성, 판매 시작 전에 갱신 필요)
 ```
