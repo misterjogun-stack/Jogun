@@ -96,6 +96,9 @@ export const DEFAULT_SETTINGS = {
   bizParking: '',
   bizPrice: '',
   blogUrl: '',
+  areaKeywords: '', // 동·역 단위 지역 키워드 (쉼표로) — 글마다 돌아가며 쓴다
+  areaIdx: 0,
+  blogLength: 'long', // normal | long
   elevenKey: '',
   elevenVoice: '',
   voiceEngine: 'gemini', // gemini | eleven(내 목소리)

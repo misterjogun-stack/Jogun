@@ -3,7 +3,7 @@ import { db, blobUrl, forgetUrl, loadSettings, saveSettings, uid, brandOf } from
 import { analyzeVideo, analyzePhoto, grabFrame, smallJpegBase64, thumbDataUrl, extractSpeechAudio } from './media.js';
 import { exportBackup, importBackup } from './backup.js';
 import { heuristicEdit, geminiEdit, editLength } from './smartedit.js';
-import { TOPICS, TONES, STYLES, perspectiveLabels, GEMINI_MODELS, GEMINI_VOICES, geminiTTS, geminiTranscribe, draftWithoutAI, draftWithAI, ensureArticle, seoCheck, articleHtml } from './writer.js';
+import { TOPICS, TONES, STYLES, perspectiveLabels, BLOG_LENGTHS, naverCheck, refineBlog, naverRequest, parsePastedBlog, GEMINI_MODELS, GEMINI_VOICES, geminiTTS, geminiTranscribe, draftWithoutAI, draftWithAI, ensureArticle, seoCheck, articleHtml } from './writer.js';
 import { prepareGoogle, googleToken, listBlogs, createBlogPost, scheduleBlogPost, bloggerEditUrl } from './blogger.js';
 import { CARD_THEMES, CARD_LAYOUTS, drawCard, ensureFonts, canvasBlob } from './cards.js';
 import { ASPECTS, MOTION_STYLES, TEMPLATES, scriptChunks, Composer, buildPlan, recordMic, listElevenVoices, elevenTTS, elevenCloneVoice, audioDuration, pickMime } from './motion.js';
@@ -131,6 +131,15 @@ const hasBiz = () => !!(settings.bizName && settings.bizName.trim());
 const elevenReady = () => !!(settings.elevenKey && settings.elevenVoice);
 const voiceEngine = () => (settings.voiceEngine === 'eleven' && elevenReady() ? 'eleven' : settings.geminiKey ? 'gemini' : elevenReady() ? 'eleven' : null);
 const voiceReady = () => !!voiceEngine();
+const areaList = () => String(settings.areaKeywords || '').split(/[,，\n]+/).map((x) => x.trim()).filter(Boolean);
+/** 글마다 지역 키워드를 하나씩 돌아가며 쓴다 (같은 동네 글끼리 겹치지 않게) */
+function nextArea() {
+  const list = areaList();
+  if (!list.length) return '';
+  const i = (+settings.areaIdx || 0) % list.length;
+  settings.areaIdx = i + 1; saveSettings(settings);
+  return list[i];
+}
 const hasSpeech = (job) => (job.media || []).some((m) => m.transcript && m.transcript.length);
 const speechText = (job) => (job.media || []).filter((m) => m.transcript && m.transcript.length).map((m) => m.transcript.map((t) => t.text).join(' ')).join('\n');
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -466,7 +475,7 @@ async function startJob() {
   const job = {
     id: uid('job'), createdAt: Date.now(), updatedAt: Date.now(),
     title: draft.title.trim(), memo: draft.memo.trim(), topic: draft.topic === 'auto' && !hasAI() ? 'hair' : draft.topic,
-    style: draft.style || 'story', perspective: draft.perspective, useBiz: hasBiz() && draft.useBiz, cardLayout: settings.cardLayout || 'classic',
+    style: draft.style || 'story', perspective: draft.perspective, useBiz: hasBiz() && draft.useBiz, cardLayout: settings.cardLayout || 'classic', area: nextArea(),
     media: [], stills: [], copy: null, coverId: null, cardTheme: settings.cardTheme, cardImages: [], outputs: {}, publish: {},
     short: { length: 15, style: settings.motionStyle, voice: 'none', voiceId: null, voiceSec: 0, bgmId: null, script: '' },
     youtube: { length: 45, style: settings.motionStyle, voice: 'none', voiceId: null, voiceSec: 0, bgmId: null, script: '' },
@@ -485,7 +494,7 @@ async function startJob() {
     // 2) 분석
     setStep('analyze', 'run', 0);
     const videos = job.media.filter((m) => m.kind === 'video');
-    const perVideo = Math.max(2, Math.min(6, Math.ceil(10 / Math.max(1, videos.length))));
+    const perVideo = Math.max(3, Math.min(12, Math.ceil(16 / Math.max(1, videos.length))));
     for (let i = 0; i < job.media.length; i++) {
       const m = job.media[i];
       const url = await blobUrl(m.id);
@@ -580,7 +589,7 @@ async function startJob() {
 
 // 글 쓰기 (새 작업 · 다시 쓰기 공통)
 async function writeCopy(job, onStatus) {
-  const args = { memo: job.memo, topic: job.topic, title: job.title, settings, stillCount: job.stills.length, style: job.style, perspective: job.perspective, useBiz: job.useBiz, speech: speechText(job) };
+  const args = { memo: job.memo, topic: job.topic, title: job.title, settings, stillCount: job.stills.length, style: job.style, perspective: job.perspective, useBiz: job.useBiz, speech: speechText(job), area: job.area || '', blogLength: settings.blogLength || 'long' };
   job.copyNotice = '';
   if (hasAI()) {
     try {
@@ -671,6 +680,8 @@ function viewSettings() {
         ${fld('bizParking', '주차 안내', '건물 뒤 2대 · 1시간 무료')}
         ${fld('bizPrice', '가격 안내', '커트 3만원~ / 가격표 링크')}
         ${fld('blogUrl', '내 블로그 주소 (네이버·구글 블로그)', 'https://blog.naver.com/...')}
+        ${fld('areaKeywords', '지역 키워드 (동·역 단위, 쉼표로 구분)', '수완지구, 수완동, 장덕동, 신가동, 광산구', 'text', '글마다 하나씩 돌아가며 제목·본문에 넣어요. 같은 동네 키워드로 글끼리 겹치지 않게 해서 네이버 노출에 유리해요.')}
+        <label class="field"><span>네이버 블로그 글 길이</span><select class="select" data-set="blogLength">${Object.entries(BLOG_LENGTHS).map(([k, v]) => `<option value="${k}" ${(s.blogLength || 'long') === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></label>
       </section>
       <section class="card" style="display:grid;gap:14px;align-content:start">
         <h3>AI 연결</h3>
@@ -766,7 +777,8 @@ function viewJob(job, tab) {
 
 function tabImages(job) {
   return `<section class="card">
-    <div class="card-head"><h3>자동 변환된 이미지 ${job.stills.length}장</h3><div class="right"><button class="btn btn-blue btn-sm" data-act="stills-zip">${icon('download')}전체 저장</button></div></div>
+    <div class="card-head"><h3>자동 변환된 이미지 ${job.stills.length}장</h3><div class="right">${job.media.some((m) => m.kind === 'video' && m.analysis && !m.missing) && job.stills.length < 30 ? `<button class="btn btn-line btn-sm" data-act="stills-more">${icon('plus')}영상에서 장면 더 뽑기</button>` : ''}<button class="btn btn-blue btn-sm" data-act="stills-zip">${icon('download')}전체 저장</button></div></div>
+    ${job.stills.length < 15 ? '<div class="notice blue" style="margin-bottom:12px">' + icon('info') + '<span>네이버 블로그는 직접 찍은 선명한 사진 15~20장이 좋아요. 각도를 바꾸거나 손이 나오게 찍은 사진을 더해 보세요.</span></div>' : ''}
     <p class="sub" style="font-size:13.5px;margin:-6px 0 14px">영상에서는 선명하고 잘 나온 장면만 골랐어요. ★ 표시한 사진이 카드뉴스 표지와 대표 이미지가 됩니다.</p>
     <div class="stills">${job.stills.map((s, i) => `
       <div class="still"><div class="img"><img src="${s.thumb}" alt="장면 ${i + 1}" loading="lazy" />
@@ -793,14 +805,57 @@ function speechCard(job) {
   </section>`;
 }
 
+function blogKeyword(job) {
+  const b = job.copy.blog;
+  if (b.keyword == null) b.keyword = job.area ? `${job.area} ${(TOPICS[job.topic] || {}).kw || ''}`.trim() : ((job.copy.article && job.copy.article.focusKeyword) || '');
+  return b.keyword;
+}
+function naverPanel(job) {
+  const b = job.copy.blog;
+  const { score, items } = naverCheck(b, { keyword: blogKeyword(job), imageCount: job.stills.length, lengthMode: settings.blogLength || 'long', areas: areaList() });
+  const tone = score >= 85 ? 'var(--ok)' : score >= 60 ? 'var(--accent)' : 'var(--warn)';
+  return `<div class="donut-wrap" style="margin-bottom:12px"><div style="position:relative;display:grid;place-items:center">${donut([{ v: score, c: tone }, { v: 100 - score, c: 'var(--surface-2)' }], 104, 12)}<b class="num" style="position:absolute;font-size:24px">${score}</b></div>
+    <div><b style="font-size:15px">${score >= 85 ? '네이버 올릴 준비 완료' : score >= 60 ? '조금만 더 다듬으면 좋아요' : '고칠 곳이 남아 있어요'}</b><p class="sub" style="font-size:13px;margin-top:4px">네이버 블로그 상위노출 ${items.length}가지 점검</p></div></div>
+    <ul style="list-style:none;padding:0;margin:0;display:grid;gap:8px">${items.map((it) => `<li style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px"><span class="ico ${it.ok ? 'green' : 'orange'}" style="width:22px;height:22px;border-radius:7px">${icon(it.ok ? 'check' : 'info')}</span><span><b style="font-weight:${it.ok ? 600 : 700}">${esc(it.label)}</b>${it.ok ? '' : `<br /><span class="sub">${esc(it.tip)}</span>`}</span></li>`).join('')}</ul>`;
+}
 function tabBlog(job) {
   const b = job.copy.blog;
-  return `${speechCard(job)}<section class="card" style="display:grid;gap:14px">
-    <div class="card-head" style="margin:0"><h3>블로그 글</h3><div class="right"><button class="btn btn-line btn-sm" data-act="copy-path" data-path="copy.blog.title">${icon('copy')}제목 복사</button><button class="btn btn-blue btn-sm" data-act="copy-path" data-path="copy.blog.body">${icon('copy')}본문 복사</button><button class="btn btn-line btn-sm" data-act="stills-zip">${icon('download')}이미지 저장</button></div></div>
-    <label class="field"><span>제목</span><input class="input" data-bind="copy.blog.title" value="${esc(b.title)}" /></label>
-    <label class="field"><span>본문 <small class="num" data-count="copy.blog.body">${b.body.length}자</small></span><textarea class="textarea" data-bind="copy.blog.body" style="min-height:420px">${esc(b.body)}</textarea>
-      <span class="hint">"## "로 시작하는 줄은 소제목이에요. 네이버 블로그에 붙여넣은 뒤 소제목으로 바꾸고, 사이사이에 이미지를 넣어 주세요.</span></label>
-  </section>`;
+  const kw = blogKeyword(job);
+  const titles = b.titles || [];
+  const tags = b.tags || [];
+  return `${speechCard(job)}<div class="studio wide post-wide">
+    <section class="card" style="display:grid;gap:14px;align-content:start">
+      <div class="card-head" style="margin:0"><h3>네이버 블로그 글</h3><div class="right"><button class="btn btn-line btn-sm" data-act="copy-path" data-path="copy.blog.title">${icon('copy')}제목 복사</button><button class="btn btn-blue btn-sm" data-act="copy-path" data-path="copy.blog.body">${icon('copy')}본문 복사</button></div></div>
+      <label class="field"><span>핵심 키워드 ${job.area ? `<small class="sub">· 이번 글 지역: ${esc(job.area)}</small>` : ''}</span><input class="input" data-bind="copy.blog.keyword" data-nv="1" value="${esc(kw)}" placeholder="예) 장덕동 레이어드컷" /></label>
+      <label class="field"><span>제목</span><input class="input" data-bind="copy.blog.title" data-nv="1" value="${esc(b.title)}" /></label>
+      ${titles.length ? `<div class="field"><span>제목 후보 (누르면 바뀌어요)</span><div class="chips">${titles.map((t, i) => `<button type="button" data-act="nv-title" data-i="${i}">${esc(t)}</button>`).join('')}</div></div>` : ''}
+      <label class="field"><span>본문 <small class="num" data-count="copy.blog.body">${b.body.length}자</small></span><textarea class="textarea" data-bind="copy.blog.body" data-nv="1" style="min-height:460px">${esc(b.body)}</textarea>
+        <span class="hint">"## "로 시작하는 줄은 소제목이에요. "[사진 1]" 자리에는 네이버 글쓰기의 사진 버튼으로 실제 사진을 넣고 글자는 지워 주세요.</span></label>
+      <label class="field"><span>태그 (쉼표로 구분)</span><input class="input" data-bind-csv="copy.blog.tags" value="${esc(tags.join(', '))}" placeholder="장덕동미용실, 레이어드컷" /></label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-line btn-sm" data-act="nv-tags">${icon('copy')}태그 복사</button>
+        <button class="btn btn-line btn-sm" data-act="nv-txt">${icon('download')}글 파일(.txt) 저장</button>
+        <button class="btn btn-line btn-sm" data-act="stills-zip">${icon('download')}사진 ${job.stills.length}장 저장</button>
+        <a class="btn btn-line btn-sm" href="http://speller.cs.pusan.ac.kr/" target="_blank" rel="noopener">${icon('check')}맞춤법 검사</a>
+      </div>
+    </section>
+    <div style="display:grid;gap:16px;align-content:start">
+      <section class="card"><h3 style="margin-bottom:12px">네이버 상위노출 점검</h3><div id="nv-panel">${naverPanel(job)}</div></section>
+      <section class="card" style="display:grid;gap:10px">
+        <h3>한 번에 고치기</h3>
+        <p class="sub" style="font-size:13px">키워드 횟수·과장 표현·글자수·소제목을 네이버 규칙에 맞게 다시 써요. 사실은 그대로 두고 표현만 바꿔요.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-blue btn-sm" data-act="nv-refine" data-mode="fix" ${hasAI() ? '' : 'disabled'}>${icon('sparkle')}네이버 규칙으로 다시 쓰기</button><button class="btn btn-line btn-sm" data-act="nv-refine" data-mode="longer" ${hasAI() ? '' : 'disabled'}>${icon('plus')}2배 길게</button>${job.blogPrev ? `<button class="btn btn-line btn-sm" data-act="nv-undo">${icon('refresh')}되돌리기</button>` : ''}</div>
+        ${hasAI() ? '' : '<a href="#/settings" class="sub" style="font-size:13px;color:var(--accent);font-weight:700">설정에서 제미나이 키를 넣으면 버튼 한 번으로 고쳐요</a>'}
+        <details class="voice-box" data-keep="nvFree" ${uiOpen.nvFree ? 'open' : ''}><summary style="cursor:pointer;font-weight:700">키 없이: 제미나이·챗GPT 웹에서 쓰기</summary>
+          <div style="display:grid;gap:10px;margin-top:10px">
+            <p class="hint">① 부탁문을 복사해 gemini.google.com이나 chatgpt.com에 붙여 넣고 → ② 받은 답을 통째로 아래에 붙여 넣은 뒤 → ③ "가져오기"를 누르세요.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-line btn-sm" data-act="nv-request">${icon('copy')}부탁문 복사</button><a class="btn btn-line btn-sm" href="https://gemini.google.com/app" target="_blank" rel="noopener">제미나이 열기</a></div>
+            <textarea class="textarea" id="nv-paste" style="min-height:120px" placeholder="받은 답을 여기에 붙여 넣기"></textarea>
+            <button class="btn btn-blue btn-sm" data-act="nv-paste" style="justify-self:start">${icon('check')}가져오기</button>
+          </div></details>
+      </section>
+    </div>
+  </div>`;
 }
 
 function tabInsta(job) {
@@ -1506,6 +1561,76 @@ const actions = {
     } catch (e) { toast(e.message || '다시 쓰지 못했어요'); el.disabled = false; el.innerHTML = `${icon('sparkle')}이 설정으로 글 다시 쓰기`; }
   },
   'copy-speech': () => copyText(speechText(curJob())),
+  'stills-more': async (el) => {
+    const job = curJob();
+    el.disabled = true; el.innerHTML = '<span class="spin"></span>뽑는 중';
+    let added = 0;
+    try {
+      const vids = job.media.filter((m) => m.kind === 'video' && m.analysis && !m.missing);
+      const want = Math.max(2, Math.min(8, 20 - job.stills.length));
+      const per = Math.ceil(want / vids.length);
+      for (const m of vids) {
+        const url = await blobUrl(m.id); if (!url) continue;
+        const taken = job.stills.filter((x) => x.from === m.id && x.t != null).map((x) => x.t);
+        const gap = Math.max(0.8, m.analysis.duration / 40);
+        const picks = [];
+        for (const sm of [...(m.analysis.samples || [])].sort((a, b) => b.score - a.score)) {
+          if (picks.length >= per) break;
+          if ([...taken, ...picks.map((p) => p.t)].every((t) => Math.abs(t - sm.t) >= gap)) picks.push(sm);
+        }
+        for (const pk of picks) {
+          const fr = await grabFrame(url, pk.t);
+          const sid = uid('s');
+          await db.putBlob(sid, fr.blob);
+          job.stills.push({ id: sid, from: m.id, t: pk.t, w: fr.w, h: fr.h, score: pk.score, thumb: await thumbDataUrl(await blobUrl(sid)) });
+          added++;
+        }
+      }
+      const mi = (x) => job.media.findIndex((m) => m.id === x.from);
+      job.stills.sort((a, b) => mi(a) - mi(b) || (a.t ?? 1e9) - (b.t ?? 1e9));
+      await db.putJob(job);
+      toast(added ? `장면 ${added}장을 더 뽑았어요` : '더 뽑을 만한 장면이 없어요');
+    } catch (e) { toast(e.message || '장면을 뽑지 못했어요'); }
+    render();
+  },
+  'nv-undo': () => { const job = curJob(); if (!job.blogPrev) return; const b = job.copy.blog; const cur = { title: b.title, body: b.body }; Object.assign(b, job.blogPrev); job.blogPrev = cur; saveSoon(job); toast('이전 글로 되돌렸어요'); render(); },
+  'nv-title': (el) => { const job = curJob(); const b = job.copy.blog; const t = (b.titles || [])[+el.dataset.i]; if (!t) return; b.title = t; saveSoon(job); render(); },
+  'nv-tags': () => { const b = curJob().copy.blog; copyText((b.tags || []).map((t) => '#' + t).join(' ')); },
+  'nv-txt': () => {
+    const job = curJob(); const b = job.copy.blog;
+    const text = `${b.title}\n\n${b.body}\n\n${(b.tags || []).map((t) => '#' + t).join(' ')}\n`;
+    const d = new Date();
+    downloadBlob(new Blob(['\ufeff' + text], { type: 'text/plain;charset=utf-8' }), `blog-${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}.txt`);
+  },
+  'nv-request': () => {
+    const job = curJob();
+    copyText(naverRequest({ settings, blog: job.copy.blog, keyword: blogKeyword(job), lengthMode: settings.blogLength || 'long', imageCount: job.stills.length, area: job.area || '', memo: job.memo, speech: speechText(job), useBiz: job.useBiz }));
+  },
+  'nv-paste': () => {
+    const job = curJob(); const ta = document.getElementById('nv-paste');
+    const r = parsePastedBlog(ta && ta.value);
+    if (!r || !r.body) { toast('받은 답을 먼저 붙여 넣어 주세요'); return; }
+    const b = job.copy.blog;
+    const biz = (b.body.match(/\n##\s*매장 정보[\s\S]*$/) || [''])[0];
+    Object.assign(b, { title: r.title || b.title, body: r.body + (biz && !r.body.includes('## 매장 정보') ? biz : '') });
+    if (r.titles.length) b.titles = r.titles;
+    if (r.tags.length) b.tags = r.tags;
+    saveSoon(job); toast('가져왔어요. 점검 점수를 확인해 보세요'); render();
+  },
+  'nv-refine': async (el) => {
+    const job = curJob(); const b = job.copy.blog;
+    const label = el.innerHTML;
+    el.disabled = true; el.innerHTML = '<span class="spin"></span>다시 쓰는 중';
+    try {
+      const biz = (b.body.match(/\n##\s*매장 정보[\s\S]*$/) || [''])[0];
+      const r = await refineBlog({ settings, blog: b, keyword: blogKeyword(job), mode: el.dataset.mode, lengthMode: settings.blogLength || 'long', imageCount: job.stills.length, area: job.area || '', memo: job.memo, speech: speechText(job), useBiz: job.useBiz });
+      job.blogPrev = { title: b.title, body: b.body };
+      Object.assign(b, { title: r.title, body: r.body + (biz && !r.body.includes('## 매장 정보') ? biz : ''), keyword: r.keyword || b.keyword });
+      if (r.titles.length) b.titles = r.titles;
+      if (r.tags.length) b.tags = r.tags;
+      await db.putJob(job); toast('다시 썼어요. 사실이 맞는지 한 번 읽어 봐 주세요'); render();
+    } catch (e) { toast(e.message || '다시 쓰지 못했어요'); el.disabled = false; el.innerHTML = label; }
+  },
   transcribe: async (el) => {
     const job = curJob();
     el.disabled = true; el.innerHTML = '<span class="spin"></span>받아쓰는 중';
@@ -1637,6 +1762,7 @@ root.addEventListener('input', (e) => {
     setPath(job, el.dataset.bindLines, el.value.split('\n').map((s) => s.trim()).filter(Boolean));
   } else return;
   saveSoon(job);
+  if (el.dataset.nv) { clearTimeout(el._n); el._n = setTimeout(() => { const pn = document.getElementById('nv-panel'); if (pn) pn.innerHTML = naverPanel(job); }, 250); }
   if (el.dataset.seo) { clearTimeout(el._s); el._s = setTimeout(() => { const pn = document.getElementById('seo-panel'); if (pn) pn.innerHTML = seoPanel(job); }, 200); }
   if (el.dataset.card != null) { clearTimeout(el._t); el._t = setTimeout(() => paintCards(job, +el.dataset.card), 250); }
   if (el.dataset.studio) { clearTimeout(studioTimer); studioTimer = setTimeout(() => { if (!studio.playing && !studio.busy) studioPoster(job, current.tab); }, 600); }

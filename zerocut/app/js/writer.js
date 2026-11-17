@@ -6,10 +6,10 @@ import { brandOf } from './store.js';
 
 export const TOPICS = {
   auto:    { label: '자동 판별', tags: [] },
-  hair:    { label: '헤어·뷰티', tags: ['헤어스타일', '미용실', '헤어디자이너', '머리스타그램'], hook: '이 머리, 이렇게 완성됐어요', cta: '예약·문의는 프로필 링크에서 받아요', points: ['상담에서 고민부터 체크', '모질에 맞춘 시술 설계', '디테일 커트로 라인 정리', '집에서도 쉬운 스타일링 팁'] },
-  food:    { label: '맛집·요리', tags: ['맛집', '맛스타그램', '먹스타그램', '맛집추천'], hook: '여긴 저장 필수예요', cta: '같이 갈 사람 태그해 주세요', points: ['첫 입부터 확실한 메인 메뉴', '재방문 각인 사이드', '분위기와 좌석', '가기 전에 알아둘 꿀팁'] },
+  hair:    { label: '헤어·뷰티', tags: ['헤어스타일', '미용실', '헤어디자이너', '머리스타그램'], hook: '이 머리, 이렇게 완성됐어요', cta: '예약·문의는 프로필 링크에서 받아요', kw: '미용실', points: ['시작 전 고민부터 체크', '모질에 맞춘 시술 설계', '디테일 커트로 라인 정리', '집에서도 쉬운 스타일링 팁'] },
+  food:    { label: '맛집·요리', tags: ['맛집', '맛스타그램', '먹스타그램', '맛집추천'], kw: '맛집', hook: '여긴 저장 필수예요', cta: '같이 갈 사람 태그해 주세요', points: ['첫 입부터 확실한 메인 메뉴', '재방문 각인 사이드', '분위기와 좌석', '가기 전에 알아둘 꿀팁'] },
   travel:  { label: '여행', tags: ['여행', '여행스타그램', '국내여행', '여행코스'], hook: '이번 여행, 이 코스로 끝', cta: '여행 계획 중이라면 저장해 두세요', points: ['첫 번째 들른 곳', '가장 좋았던 순간', '동선과 이동 팁', '다음에 또 간다면'] },
-  product: { label: '제품 리뷰', tags: ['내돈내산', '리뷰', '추천템', '언박싱'], hook: '직접 써보고 정리했어요', cta: '궁금한 점은 댓글로 물어봐 주세요', points: ['첫인상과 구성', '실제로 써보니 좋은 점', '아쉬운 점도 솔직하게', '이런 분께 추천해요'] },
+  product: { label: '제품 리뷰', tags: ['내돈내산', '리뷰', '추천템', '언박싱'], hook: '직접 써보고 정리했어요', cta: '궁금한 점은 댓글로 물어봐 주세요', points: ['첫인상과 구성', '실제로 써보니 좋은 점', '아쉬운 점도 솔직하게', '이런 분께 잘 맞아요'] },
   daily:   { label: '일상', tags: ['일상', '데일리', '일상기록', '소소한행복'], hook: '오늘 하루를 기록해요', cta: '여러분의 오늘은 어땠나요?', points: ['오늘의 시작', '기억에 남는 장면', '소소하게 좋았던 것', '하루의 마무리'] },
   space:   { label: '인테리어·공간', tags: ['인테리어', '공간', '홈스타그램', '공간기록'], hook: '공간이 이렇게 바뀌었어요', cta: '공간 고민 있으면 댓글 남겨주세요', points: ['전체 분위기', '포인트가 된 디테일', '동선과 수납', '비용·시간 팁'] },
   fitness: { label: '운동', tags: ['운동', '오운완', '헬스', '운동기록'], hook: '오늘 운동, 이렇게 했어요', cta: '같이 할 사람 저장하고 따라 해요', points: ['오늘의 루틴', '자세 포인트', '세트·횟수 구성', '마무리 스트레칭'] },
@@ -33,7 +33,7 @@ function facts(memo) {
 }
 
 // ---------- 키 없이 만드는 기본 문구 ----------
-export function draftWithoutAI({ memo, topic, title, settings, stillCount, style = 'story', perspective = 'pro', speech = '' }) {
+export function draftWithoutAI({ memo, topic, title, settings, stillCount, style = 'story', perspective = 'pro', speech = '', area = '' }) {
   const tp = TOPICS[topic] && topic !== 'auto' ? topic : 'daily';
   const T = TOPICS[tp];
   const f = facts(memo);
@@ -49,22 +49,28 @@ export function draftWithoutAI({ memo, topic, title, settings, stillCount, style
   const memoTags = f.slice(0, 3).map((x) => x.split(' ')[0]).filter((x) => x.length <= 10).map(tagify);
   const hashtags = uniq([...T.tags.map(tagify), ...memoTags, ...baseTags]).slice(0, 15);
 
+  const nkw = area ? `${area} ${f[0] && f[0].length <= 10 ? f[0] : T.kw || T.label.split('·')[0]}` : clean(head).split(' ').slice(0, 3).join(' ');
+  const photoAt = (i) => (stillCount > i ? [`[사진 ${i + 1}]`] : []);
   const blogBody = [
     (brandOf(settings) ? `안녕하세요, ${brandOf(settings)}입니다. ` : '안녕하세요. ')
+      + (area ? `${nkw} 찾고 계셨다면 끝까지 읽어 주세요. ` : '')
       + (guest
         ? end(`오늘은 "${head}"을(를) 방문한 사람 입장에서 처음부터 끝까지 정리해 볼게요.`, `오늘은 "${head}"을(를) 방문한 사람 입장에서 정리합니다.`)
         : end(`오늘은 "${head}" 이야기를 사진과 함께 정리해 볼게요.`, `오늘은 "${head}"에 대해 사진과 함께 정리합니다.`)),
     '',
     ...points.flatMap((p, i) => [
       `## ${style === 'list' ? p : `${i + 1}. ${p}`}`,
+      ...photoAt(i),
       i === 0 && f.length
         ? end(`${f.join(', ')}. 이번 기록의 핵심이에요.`, `${f.join(', ')}. 이번 기록의 핵심입니다.`)
         : end(`사진 ${Math.min(i + 1, Math.max(1, stillCount))}번째 장면을 보면 바로 느낌이 와요. 이 부분은 직접 한두 줄 덧붙여 주세요.`, `사진 ${Math.min(i + 1, Math.max(1, stillCount))}번째 장면이 이 부분입니다. 구체적인 내용을 한두 줄 덧붙여 주세요.`),
       '',
     ]),
     ...(speech ? ['## 영상 속 설명', String(speech).slice(0, 1500), ''] : []),
+    ...Array.from({ length: Math.max(0, Math.min(stillCount, 20) - points.length) }, (_, k) => `[사진 ${points.length + k + 1}]`),
+    '',
     '## 마무리',
-    end(`오늘 기록은 여기까지예요. ${T.cta}.`, `이상으로 정리를 마칩니다. ${T.cta}.`),
+    end(`${area ? nkw + ' 이야기, ' : ''}오늘 기록은 여기까지예요. ${T.cta}.`, `${area ? nkw + ' 이야기, ' : ''}이상으로 정리를 마칩니다. ${T.cta}.`),
     '',
     hashtags.join(' '),
   ].join('\n');
@@ -97,7 +103,11 @@ export function draftWithoutAI({ memo, topic, title, settings, stillCount, style
     source: 'basic',
     topic: tp,
     title: head,
-    blog: { title: `${head} | ${T.label} 기록`, body: blogBody },
+    blog: {
+      title: area ? `${nkw}, ${head === f[0] ? T.hook : head}` : `${head} | ${T.label} 기록`, body: blogBody, keyword: nkw,
+      titles: area ? [`${nkw}, ${head}`, `${head} | ${nkw} 기록`, `${area}에서 ${head}`, `${nkw} 고민이라면 이렇게`, `${head}, ${area} 이야기`] : [],
+      tags: hashtags.slice(0, 6).map((t) => t.replace(/^#/, '')),
+    },
     instagram: { caption, hashtags },
     threads,
     cards,
@@ -132,7 +142,7 @@ function basicArticle({ head, f, T, points, hashtags, end }) {
     })),
     faq: [
       { q: `${kw} 핵심만 알려주세요`, a: facts ? `${facts}입니다.` : '핵심 내용을 한두 문장으로 적어 주세요.' },
-      { q: '어떤 분께 추천하나요?', a: '추천 대상을 한 문장으로 적어 주세요.' },
+      { q: '어떤 분께 잘 맞나요?', a: '잘 맞는 분을 한 문장으로 적어 주세요.' },
     ],
     tags: hashtags.slice(0, 8).map((t) => t.replace(/^#/, '')),
   };
@@ -147,7 +157,7 @@ const obj = (props) => ({ type: 'object', properties: props, required: Object.ke
 const SCHEMA = obj({
   topic: { type: 'string', enum: Object.keys(TOPICS).filter((k) => k !== 'auto') },
   title: str,
-  blog: obj({ title: str, body: str }),
+  blog: obj({ title: str, body: str, keyword: str, titles: strArr, tags: strArr }),
   instagram: obj({ caption: str, hashtags: strArr }),
   threads: strArr,
   cards: { type: 'array', items: obj({ title: str, body: str }) },
@@ -162,11 +172,83 @@ const SCHEMA = obj({
   }),
 });
 
+// ---------- 네이버 블로그 상위노출 규칙 ----------
+// 광고·과장으로 보이기 쉬운 표현 (네이버 저품질·의료광고 시비를 피하려고 본문에서 뺀다)
+export const NAVER_BANNED = ['무료', '상담', '신용', '전문', '추천', '100%', '1위', '최고', '최상', '보증', '영구', '확정', '최저가', '완치', '부작용 없'];
+// 한국 사람이 잘 안 쓰는, AI가 쓴 티가 나는 표현
+export const AI_WORDS = ['여정', '사용자 경험', '특별한 경험', '매우 유용한', '완벽한', '혁신적', '다채로운', '선사', '여러분의 일상', '한층 더', '극대화'];
+export const BLOG_LENGTHS = {
+  normal: { label: '보통 (1,200~1,500자)', min: 1200, max: 1600, target: '공백 빼고 1,200~1,500자' },
+  long: { label: '길게 (약 2,000자 · 네이버 권장)', min: 1700, max: 2500, target: '공백 빼고 1,800~2,200자' },
+};
+
+/** 네이버 블로그 글쓰기 규칙 (제미나이 · 직접 부탁문 공통) */
+export function naverRules({ keyword, lengthMode = 'long', imageCount = 0, area = '' }) {
+  const L = BLOG_LENGTHS[lengthMode] || BLOG_LENGTHS.long;
+  return [
+    `· 핵심 키워드: "${keyword || '(제목에 들어갈 지역+주제 2~3단어)'}". 첫 문단과 맨 마지막 문단에 자연스럽게 넣는다.`,
+    '· 핵심 키워드는 소제목 포함 글 전체에서 4~10번만 쓴다(절대 11번 이상 쓰지 않는다). 앞·중간·뒤에 골고루 나눠 쓰고, 나머지는 비슷한 말로 바꿔 어휘를 다양하게 쓴다.',
+    area ? `· 지역은 "${area}" 단위로 쓴다(동·역 이름). 같은 동네의 다른 글과 겹치지 않게 이 이름을 중심으로.` : '',
+    '· 함께 많이 찾는 연관 검색어(시술명·고민·스타일 이름 등)를 제목과 본문에 2~3개 섞는다.',
+    `· 분량: ${L.target}. 존댓말. 강의 잘하는 사람이 마주 보고 쉽게 설명하듯 쓴다. 사람이 쓴 것처럼 자연스럽게.`,
+    '· 어려운 용어는 괄호로 풀어 쓴다. 예) 클리닉(손상된 머리카락에 영양을 채우는 관리). 고등학생도 이해할 만큼 쉽게.',
+    '· 숫자(시간·길이·횟수·가격)와 구체적인 장면으로 이야기하듯 쓴다. 단, 메모·사진·매장 정보에 없는 사실은 지어내지 않는다.',
+    '· 소제목은 본론에만 짧게("## "로 시작). 서론과 마무리에는 소제목을 달지 않는다.',
+    imageCount ? `· 사진을 넣을 자리에 "[사진 1]"처럼 번호를 단 줄을 넣는다(최대 ${Math.min(imageCount, 20)}장, 내용 흐름에 맞게).` : '· 사진을 넣을 자리에 "[사진 1]"처럼 번호를 단 줄을 넣는다.',
+    `· 다음 표현은 쓰지 않는다: ${NAVER_BANNED.join(', ')}. 대신 사실 그대로 담백하게 쓴다.`,
+    `· 다음 같은 AI 티 나는 표현은 피하고 흔히 쓰는 우리말로 바꾼다: ${AI_WORDS.slice(0, 6).join(', ')}.`,
+    '· 고객이 쓴 후기인 척하지 않는다. 고객의 말·별점·이름을 지어내지 않는다.',
+    '· titles: 사람들이 누르고 싶은 제목 후보 7개(핵심 키워드 포함, 25~35자). tags: 글 내용에 맞는 태그 6개(# 없이).',
+  ].filter(Boolean).join('\n');
+}
+
+/** 네이버 블로그 상위노출 점검 */
+export function naverCheck(blog, { keyword = '', imageCount = 0, lengthMode = 'long', areas = [] } = {}) {
+  const kw = String(keyword || blog.keyword || '').trim();
+  const L = BLOG_LENGTHS[lengthMode] || BLOG_LENGTHS.long;
+  // 매장 정보 · 해시태그 줄은 빼고 본문만 본다
+  let main = String(blog.body || '').split(/\n##\s*매장 정보/)[0];
+  const lines = main.split('\n');
+  const textLines = lines.filter((l) => l.trim() && !/^\s*\[사진/.test(l) && !/^\s*(#\S+\s*)+$/.test(l));
+  const bodyText = textLines.join('\n');
+  const chars = bodyText.replace(/^##\s*/gm, '').replace(/\s/g, '').length;
+  const paras = bodyText.split(/\n/).filter((l) => l.trim() && !/^##\s/.test(l));
+  const norm = (t) => String(t).replace(/\s/g, '').toLowerCase();
+  const nk = norm(kw);
+  const count = (t) => (nk ? norm(t).split(nk).length - 1 : 0);
+  const total = count(bodyText) + count(blog.title || '');
+  const third = Math.ceil(paras.length / 3) || 1;
+  const parts = [paras.slice(0, third), paras.slice(third, third * 2), paras.slice(third * 2)].map((x) => count(x.join(' ')));
+  const banned = NAVER_BANNED.map((w) => ({ w, n: bodyText.split(w).length - 1 + String(blog.title || '').split(w).length - 1 })).filter((x) => x.n > 0);
+  const ai = AI_WORDS.map((w) => ({ w, n: bodyText.split(w).length - 1 })).filter((x) => x.n > 0);
+  const heads = (bodyText.match(/^##\s/gm) || []).length;
+  const photoSlots = (main.match(/^\s*\[사진/gm) || []).length;
+  const areaHit = areas.filter((a) => a && norm(bodyText + blog.title).includes(norm(a)));
+  const titleIdx = nk ? norm(blog.title || '').indexOf(nk) : -1;
+  const items = [
+    { ok: !!kw, label: kw ? `핵심 키워드: ${kw}` : '핵심 키워드를 정해 주세요', tip: '지역(동·역) + 주제 2~3단어. 예) 장덕동 레이어드컷. 경쟁이 센 큰 키워드보다 함께 많이 찾는 키워드가 노출이 잘 돼요.' },
+    { ok: titleIdx >= 0 && titleIdx <= 12, label: '제목 앞쪽에 키워드가 있어요', tip: '제목 앞부분에 핵심 키워드를 넣어 주세요.' },
+    { ok: chars >= L.min && chars <= L.max, label: `글자수 ${chars.toLocaleString()}자 (공백 제외)`, tip: `${L.target}가 좋아요.${chars < L.min ? ' "2배 길게"를 눌러 보세요.' : ''}` },
+    { ok: total >= 4 && total <= 10, label: `키워드 ${total}번`, tip: total > 10 ? '10번 이하로 줄여 주세요. 많으면 오히려 노출이 떨어져요.' : '4~10번이 좋아요. 앞·중간·뒤에 한 번씩 더 넣어 주세요.' },
+    { ok: paras.length > 0 && count(paras[0]) > 0, label: '첫 문단에 키워드', tip: '첫 문단에 핵심 키워드를 자연스럽게 넣어 주세요.' },
+    { ok: paras.length > 0 && count(paras[paras.length - 1]) > 0, label: '마지막 문단에 키워드', tip: '마지막 문단에도 핵심 키워드를 한 번 넣어 주세요.' },
+    { ok: parts.every((n) => n > 0), label: '키워드가 고르게 퍼져 있어요', tip: `앞 ${parts[0]} · 중간 ${parts[1]} · 뒤 ${parts[2]}번. 한쪽에 몰리지 않게 나눠 주세요.` },
+    { ok: !banned.length, label: banned.length ? `과장·광고 표현 ${banned.map((b) => `${b.w}(${b.n})`).join(', ')}` : '과장·광고 표현 없음', tip: '무료·추천·최고·전문·상담 같은 말은 빼고 사실대로 써 주세요.' },
+    { ok: !ai.length, label: ai.length ? `AI 티 나는 표현 ${ai.map((b) => b.w).join(', ')}` : 'AI 티 나는 표현 없음', tip: '평소 말하듯 쉬운 우리말로 바꿔 주세요.' },
+    { ok: heads >= 3, label: `소제목 ${heads}개`, tip: '본론에 짧은 소제목을 3개 이상 넣어 주세요.' },
+    { ok: imageCount >= 15, label: `직접 찍은 사진 ${imageCount}장`, tip: '네이버는 직접 찍은 선명한 사진을 좋아해요. 15~20장이 좋아요. 각도를 바꾸거나 손이 나오게 찍어 보세요. 이미지 탭에서 영상 장면을 더 뽑을 수 있어요.' },
+    { ok: photoSlots >= Math.min(imageCount, 5) && photoSlots > 0, label: `본문 속 사진 자리 ${photoSlots}곳`, tip: '"[사진 1]"처럼 사진 넣을 자리를 표시해 두면 옮길 때 편해요.' },
+  ];
+  if (areas.length) items.push({ ok: areaHit.length > 0, label: areaHit.length ? `지역 키워드: ${areaHit.join(', ')}` : '지역 키워드가 없어요', tip: `${areas.slice(0, 4).join(', ')} 중 하나를 제목·본문에 넣어 주세요.` });
+  const score = Math.round((items.filter((i) => i.ok).length / items.length) * 100);
+  return { score, items, chars, total };
+}
+
 // ---------- 취향 템플릿 · 시점 ----------
 export const STYLES = {
   story: { label: '스토리형', desc: '경험을 이야기처럼', rule: '처음-과정-결과 순서의 이야기 흐름으로, 현장감 있게 쓴다.' },
   info: { label: '정보형', desc: '핵심 정보·팁 정리', rule: '정보와 팁을 먼저, 군더더기 없이 정리한다. 목록과 숫자를 적극 쓴다.' },
-  review: { label: '후기형', desc: '좋은 점·아쉬운 점', rule: '좋았던 점과 아쉬운 점을 나눠 솔직하게 쓰고, 추천 대상을 분명히 한다.' },
+  review: { label: '후기형', desc: '좋은 점·아쉬운 점', rule: '좋았던 점과 아쉬운 점을 나눠 솔직하게 쓰고, 어떤 사람에게 잘 맞는지 분명히 한다.' },
   list: { label: '리스트형', desc: 'TOP N · 체크리스트', rule: '번호를 붙인 목록(예: 꼭 알아둘 5가지) 구조로 쓴다.' },
   qa: { label: 'Q&A형', desc: '질문과 답', rule: '소제목을 사람들이 실제로 묻는 질문으로 하고, 바로 답한다.' },
 };
@@ -185,7 +267,7 @@ function bizFacts(s) {
   return rows.map(([k, v]) => `${k}: ${String(v).trim()}`).join('\n');
 }
 
-function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz, speech }) {
+function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz, speech, area = '', blogLength = 'long', imageCount = 0 }) {
   const st = STYLES[style] || STYLES.story;
   const pl = perspectiveLabels(topic);
   const facts = useBiz ? bizFacts(settings) : '';
@@ -198,7 +280,8 @@ function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz,
       ? `시점: ${pl.guest}. 방문한 사람의 경험 흐름(찾아가기→상담·주문→과정→결과)과 처음 오는 사람이 궁금해할 점 중심으로 쓴다. 실제 고객의 말, 별점, 이름을 지어내지 않는다.`
       : `시점: ${pl.pro}. 만든 사람이 직접 과정, 이유, 노하우를 설명하는 전문가 시점으로 쓴다.`,
     '채널별 규칙:',
-    '- blog: 네이버 블로그용. 제목은 검색에 걸릴 핵심어 포함. 본문 900~1500자, 소제목 줄은 "## "로 시작, 사진 순서대로 흐름을 만든다.',
+    '- blog: 네이버 블로그용 글. keyword에 핵심 키워드(지역+주제 2~3단어)를 정해 넣고, title은 키워드를 앞쪽에 둔 25~35자. 사진 순서대로 흐름을 만든다. 아래 네이버 규칙을 반드시 지킨다.',
+    naverRules({ keyword: area ? `${area} + 주제(예: ${area} ${(TOPICS[topic] || {}).kw || '미용실'})` : '', lengthMode: blogLength, imageCount, area }),
     '- instagram.caption: 첫 줄은 멈추게 하는 한 문장, 3~6줄, 마지막에 행동 유도. 해시태그는 caption에 넣지 말고 hashtags 배열(10~15개, # 포함)로.',
     '- threads: 3~5개 이어지는 글, 각 280자 이내, 첫 글이 훅.',
     '- cards: 카드뉴스 6~8장. 첫 장은 표지(title 18자 이내, body는 부제), 중간은 장면별 핵심(title 16자 이내, body 40자 이내), 마지막 장은 저장·팔로우 유도.',
@@ -206,7 +289,7 @@ function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz,
     '- youtube: 가로 영상 제목(40자 이내)과 설명(문단 + 해시태그 3~5개).',
     '- tiktok: 짧은 캡션과 해시태그 5~6개.',
     '- article: 구글 블로그(블로거)용 글. 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티·구글 AI 요약 같은 AI 검색(GEO)에 인용되기 좋게 쓴다.',
-    '  · focusKeyword: 사람들이 실제로 검색할 2~4단어 핵심 검색어 하나(예: "광주 수완지구 미용실 추천"). 매장 주소가 있으면 동네 이름을 넣는다.',
+    '  · focusKeyword: 사람들이 실제로 검색할 2~4단어 핵심 검색어 하나(예: "광주 수완지구 레이어드컷"). 매장 주소가 있으면 동네 이름을 넣는다.',
     '  · seoTitle: 60자 이내, 핵심 검색어를 앞쪽에. slug: 영어 소문자와 하이픈 3~6단어.',
     '  · metaDescription: 80~150자, 핵심 검색어 포함, 클릭하고 싶게.',
     '  · summary: 글 맨 앞에 둘 2~3문장 요약 답변. 질문에 바로 답하는 문장으로 시작하고 핵심 검색어와 구체적 사실(숫자·장소·이름)을 담는다.',
@@ -227,6 +310,8 @@ function buildPrompt({ memo, topic, title, settings, style, perspective, useBiz,
 }
 
 function finishCopy(out) {
+  out.blog.titles = uniq((out.blog.titles || []).map(clean).filter(Boolean)).slice(0, 7);
+  out.blog.tags = uniq((out.blog.tags || []).map((t) => clean(t).replace(/^#/, '')).filter(Boolean)).slice(0, 6);
   out.instagram.hashtags = uniq(out.instagram.hashtags.map((t) => (t.startsWith('#') ? t : '#' + t)));
   out.article.tags = uniq(out.article.tags.map((t) => t.replace(/^#/, '')));
   out.tiktok.hashtags = uniq(out.tiktok.hashtags.map((t) => (t.startsWith('#') ? t : '#' + t)));
@@ -268,8 +353,8 @@ async function geminiError(r) {
   return new Error(`제미나이 오류 (${r.status}) ${msg}`.trim());
 }
 
-async function draftWithGemini({ memo, topic, title, settings, images, onStatus, style, perspective, useBiz, speech }) {
-  const { system, userText } = buildPrompt({ memo, topic, title, settings, style, perspective, useBiz, speech });
+async function draftWithGemini({ memo, topic, title, settings, images, onStatus, style, perspective, useBiz, speech, area, blogLength, stillCount }) {
+  const { system, userText } = buildPrompt({ memo, topic, title, settings, style, perspective, useBiz, speech, area, blogLength, imageCount: stillCount || 0 });
   const parts = [];
   images.slice(0, 6).forEach((b64, i) => {
     parts.push({ text: `장면 ${i + 1}` });
@@ -299,6 +384,102 @@ async function draftWithGemini({ memo, topic, title, settings, images, onStatus,
   if (c.finishReason && !['STOP', 'FINISH_REASON_UNSPECIFIED'].includes(c.finishReason)) throw new Error('제미나이가 이 소재로는 글을 쓰지 않았어요. 기본 문구로 만들어 드릴게요.');
   const text = ((c.content && c.content.parts) || []).filter((p) => p.text && !p.thought).map((p) => p.text).join('');
   return JSON.parse(text);
+}
+
+// ---------- 네이버 블로그 글 다듬기 ----------
+function blogFacts({ memo, speech, settings, useBiz }) {
+  return [
+    memo ? `메모(사실): ${clean(memo)}` : '',
+    useBiz && bizFacts(settings) ? `매장 정보(사실):\n${bizFacts(settings)}` : '',
+    speech ? `영상 속에서 한 말(사실):\n${String(speech).slice(0, 3000)}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+/** 제미나이로 네이버 규칙에 맞게 다시 쓰기. mode: fix(규칙대로 고치기) | longer(2배 길게) */
+export async function refineBlog({ settings, blog, keyword, mode = 'fix', lengthMode = 'long', imageCount = 0, area = '', memo = '', speech = '', useBiz = false }) {
+  if (!settings.geminiKey) throw new Error('설정에서 제미나이 키를 넣으면 버튼 한 번으로 다시 써 드려요. 키가 없으면 "부탁문 복사"를 써 주세요.');
+  const schema = obj({ title: str, body: str, keyword: str, titles: strArr, tags: strArr });
+  const ask = mode === 'longer'
+    ? '아래 글의 말투와 형식은 좋아. 뼈대는 유지하고 글 전체를 두 배 정도로 길고 자세하게 다시 써 줘. 늘릴 때는 사실을 지어내지 말고, 과정 설명·이유·관리 팁·용어 풀이로 채워 줘.'
+    : '아래 글을 네이버 블로그 규칙에 맞게 다듬어 줘. 뼈대와 사실은 유지하되 표현과 순서는 새 글처럼 바꿔 줘.';
+  const prompt = [
+    ask,
+    '규칙:',
+    naverRules({ keyword, lengthMode: mode === 'longer' ? 'long' : lengthMode, imageCount, area }),
+    blogFacts({ memo, speech, settings, useBiz }),
+    `매장·계정 이름: ${brandOf(settings) || '(없음)'}. 글쓴이의 개인 이름은 쓰지 않는다. 말투: ${TONES[settings.tone] || TONES.friendly}.`,
+    '',
+    `제목: ${blog.title}`,
+    '본문:',
+    String(blog.body || '').split(/\n##\s*매장 정보/)[0],
+  ].filter(Boolean).join('\n');
+  let r;
+  try {
+    r = await fetch(`${GEMINI_API}/${encodeURIComponent(settings.geminiModel || 'gemini-flash-latest')}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.geminiKey.trim() },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseJsonSchema: geminiSchema(schema), maxOutputTokens: 12000 } }),
+    });
+  } catch (e) { throw new Error('인터넷 연결을 확인해 주세요.'); }
+  if (!r.ok) throw await geminiError(r);
+  const j = await r.json();
+  const c = (j.candidates || [])[0];
+  if (!c || (c.finishReason && !['STOP', 'FINISH_REASON_UNSPECIFIED'].includes(c.finishReason))) throw new Error('제미나이가 글을 다 쓰지 못했어요. 다시 눌러 주세요.');
+  const out = JSON.parse(((c.content && c.content.parts) || []).filter((x) => x.text && !x.thought).map((x) => x.text).join(''));
+  return {
+    title: clean(out.title) || blog.title,
+    body: String(out.body || '').trim() || blog.body,
+    keyword: clean(out.keyword) || keyword,
+    titles: uniq((out.titles || []).map(clean).filter(Boolean)).slice(0, 7),
+    tags: uniq((out.tags || []).map((t) => clean(t).replace(/^#/, '')).filter(Boolean)).slice(0, 6),
+  };
+}
+
+/** 키 없이 쓰는 부탁문: 제미나이·챗GPT 웹에 붙여 넣는다 */
+export function naverRequest({ settings, blog, keyword, lengthMode = 'long', imageCount = 0, area = '', memo = '', speech = '', useBiz = false }) {
+  return [
+    '아래 사실과 초안을 바탕으로 네이버 블로그 글을 써 줘.',
+    '',
+    '[규칙]',
+    naverRules({ keyword, lengthMode, imageCount, area }),
+    `· 말투: ${TONES[settings.tone] || TONES.friendly}. 매장·계정 이름: ${brandOf(settings) || '(없음)'}. 개인 이름은 쓰지 않는다.`,
+    '',
+    '[사실]',
+    blogFacts({ memo, speech, settings, useBiz }) || '(초안에 있는 내용만)',
+    '',
+    '[초안]',
+    `제목: ${blog.title}`,
+    String(blog.body || '').split(/\n##\s*매장 정보/)[0],
+    '',
+    '[답변 형식] 아래 형식 그대로 답해 줘.',
+    '제목: (제목 한 줄)',
+    '본문:',
+    '(본문)',
+    '제목 후보:',
+    '1. ...',
+    '태그: 태그1, 태그2, 태그3, 태그4, 태그5, 태그6',
+  ].join('\n');
+}
+
+/** 제미나이·챗GPT 웹에서 받은 답을 제목 · 본문 · 제목 후보 · 태그로 나눈다 */
+export function parsePastedBlog(text) {
+  const t = String(text || '').replace(/\r/g, '').replace(/\*\*/g, '').trim();
+  if (!t) return null;
+  const grab = (re) => { const m = t.match(re); return m ? m[1].trim() : ''; };
+  let title = grab(/^\s*#*\s*제목\s*[:：]\s*(.+)$/m);
+  let body = grab(/본문\s*[:：]?\s*\n([\s\S]*?)(?=\n\s*(?:#+\s*)?(?:제목 후보|태그)\s*[:：]|$)/);
+  const titles = (grab(/제목 후보\s*[:：]?\s*\n([\s\S]*?)(?=\n\s*(?:#+\s*)?태그\s*[:：]|$)/) || '').split('\n').map((l) => clean(l.replace(/^\s*(\d+[.)]|[-•·])\s*/, ''))).filter(Boolean).slice(0, 7);
+  const tags = (grab(/^\s*(?:#+\s*)?태그\s*[:：]\s*(.+)$/m) || '').split(/[,\s]+/).map((x) => x.replace(/^#/, '').trim()).filter(Boolean).slice(0, 6);
+  if (!body) {
+    // 형식을 안 지킨 답: 첫 줄을 제목, 나머지를 본문으로
+    const lines = t.split('\n');
+    if (!title) title = clean(lines.shift().replace(/^#+\s*/, '').replace(/^제목\s*[:：]\s*/, ''));
+    else lines.splice(lines.findIndex((l) => /제목\s*[:：]/.test(l)), 1);
+    body = lines.join('\n').trim();
+  }
+  // 마크다운 소제목(### 등)을 "## "로 맞춘다
+  body = body.replace(/^#{1,6}\s*/gm, '## ');
+  return { title, body, titles, tags };
 }
 
 const blobToBase64 = (blob) => new Promise((resolve, reject) => {
