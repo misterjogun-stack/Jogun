@@ -146,4 +146,4 @@ def test_airy_look_and_caption_style():
     assert "\\fad(450,450)" in ass                              # 천천히 나타남
     assert "&H001EBEFA&" not in ass and "\\fscx" not in ass     # 강조 색·크기 없음
     style = ass.split("Style: Default,")[1].split("\n")[0].split(",")
-    assert style[17 - 0 + 0] is not None and int(style[1]) < 60   # 작은 글씨
+    assert int(style[1]) < 60                                   # 작은 글씨
