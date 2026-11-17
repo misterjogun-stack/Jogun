@@ -896,7 +896,7 @@ function seoPanel(job) {
 function tabPost(job) {
   ensureArticle(job.copy, job.memo, job.topic, settings);
   const a = job.copy.article;
-  return `<div class="studio wide" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)">
+  return `<div class="studio wide post-wide">
     <section class="card" style="display:grid;gap:14px;align-content:start">
       <div class="card-head" style="margin:0"><h3>구글 블로그 글</h3><div class="right"><button class="btn btn-line btn-sm" data-act="wp-copy-html">${icon('copy')}HTML 복사</button></div></div>
       <div class="notice blue">${icon('info')}<span>맨 앞 요약 → 질문형 소제목 → 자주 묻는 질문 순서는 구글·네이버 검색(SEO)과 ChatGPT·퍼플렉시티 같은 AI 검색(GEO)에 인용되기 좋은 구조예요.</span></div>
@@ -1662,6 +1662,13 @@ root.addEventListener('change', async (e) => {
     return;
   }
   if (el.dataset.jobCheck) { const job = curJob(); if (job) { job[el.dataset.jobCheck] = el.checked; saveSoon(job); } return; }
+  // 입력칸: 자동완성·붙여넣기처럼 input 이벤트가 안 오는 경우까지 저장하고, 저장됐다고 알려 준다
+  if (el.dataset.set && el.tagName === 'INPUT') {
+    const v = el.value;
+    settings[el.dataset.set] = v; saveSettings(settings);
+    let saved = null; try { saved = JSON.parse(localStorage.getItem('zerocut_settings') || '{}')[el.dataset.set]; } catch (er) { /* 저장소 막힘 */ }
+    toast(saved === v ? '저장했어요' : '이 브라우저에서는 설정이 저장되지 않아요. 사파리·크롬에서 열어 주세요');
+  }
   if (el.dataset.set && el.tagName === 'SELECT') { settings[el.dataset.set] = el.value; if (el.dataset.set === 'elevenVoice') settings.elevenVoiceName = el.options[el.selectedIndex].text; if (el.dataset.set === 'bloggerBlogId') settings.bloggerBlogName = el.options[el.selectedIndex].text; saveSettings(settings); }
   if (el.dataset.set === 'googleClientId' && el.value.trim()) prepareGoogle(el.value.trim()).catch((er) => toast(er.message));
   if (el.dataset.actChange === 'bgm' && el.files[0]) {

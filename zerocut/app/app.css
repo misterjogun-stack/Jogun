@@ -282,7 +282,7 @@ h1, h2, h3, h4, p { margin: 0; }
 .post textarea { min-height: 96px; background: var(--surface); }
 
 .studio { display: grid; gap: 18px; }
-@media (min-width: 1000px) { .studio { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); align-items: start; } .studio.wide { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); } }
+@media (min-width: 1000px) { .studio { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); align-items: start; } .studio.wide { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); } .studio.post-wide { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } }
 .stage { position: relative; background: #05070D; border-radius: 20px; overflow: hidden; display: grid; place-items: center; }
 .stage canvas, .stage video { width: 100%; height: auto; display: block; }
 .stage.v canvas, .stage.v video { max-height: 72vh; width: auto; max-width: 100%; aspect-ratio: 9 / 16; }
@@ -336,3 +336,6 @@ h1, h2, h3, h4, p { margin: 0; }
 .tpl-grid button b { font-size: 13.5px; }
 .tpl-grid button small { font-size: 11.5px; color: var(--sub); line-height: 1.35; }
 .tpl-grid button.on { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+
+/* 아이폰은 16px보다 작은 입력칸을 누르면 화면을 확대해 버린다 */
+@media (max-width: 719px) { .input, .textarea, .select, .cn .input { font-size: 16px; } }
