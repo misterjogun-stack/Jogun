@@ -25,7 +25,25 @@ def normalize_plan(plan: Plan, duration: float) -> Plan:
         segs = [Seg(start=0, end=duration)]
         plan.warnings.append("유효한 구간이 없어 원본 전체를 사용했습니다.")
     plan.segments = segs
+    # 보고용: 잘려 나간 원본 구간(0.05초 이하 틈은 무시)
+    removed, t = [], 0.0
+    for sg in segs:
+        if sg.start - t > 0.05:
+            removed.append(Seg(start=round(t, 2), end=round(sg.start, 2)))
+        t = sg.end
+    if duration - t > 0.05:
+        removed.append(Seg(start=round(t, 2), end=round(duration, 2)))
+    plan.removed = removed
     return plan
+
+
+def cut_report(plan: Plan) -> list[str]:
+    """'어디를 얼마나 잘랐는지' 목록."""
+    if not plan.removed:
+        return ["잘린 부분이 없어요."]
+    lines = [f"{r.start:.1f}초 ~ {r.end:.1f}초 ({r.end - r.start:.1f}초)" for r in plan.removed]
+    total = sum(r.end - r.start for r in plan.removed)
+    return lines + [f"합계 {total:.1f}초 잘림, 완성본 {sum(s.end - s.start for s in plan.segments):.1f}초"]
 
 
 def run(
@@ -42,6 +60,9 @@ def run(
     info = render.probe(src)
     if info.duration <= 0:
         raise ValueError("영상 길이를 읽지 못했습니다.")
+    previewed = bool(opts.preview_seconds and opts.preview_seconds < info.duration)
+    if previewed:
+        info.duration = float(opts.preview_seconds)
 
     w, h = render.target_size(info, opts.aspect)
     max_chars = 22 if h > w else 40
@@ -58,13 +79,18 @@ def run(
                 ) from e
         else:
             words = []
+    if previewed:
+        words = [w for w in words if w.end <= info.duration]
     phrases: list[Phrase] = transcribe.words_to_phrases(words, max_chars=max_chars)
     (workdir / "transcript.json").write_text(
         json.dumps([p.__dict__ for p in phrases], ensure_ascii=False, indent=1), encoding="utf-8")
 
     set_step("편집 계획 짜는 중", 0.45)
     plan = planner.make_plan(phrases, info.duration, opts, client=client)
+    plan.title_text = opts.title_text.strip()[:40]
     plan = normalize_plan(plan, info.duration)
+    if previewed:
+        plan.warnings.append(f"시험용으로 앞 {opts.preview_seconds}초만 편집했어요.")
     (workdir / "plan.json").write_text(plan.model_dump_json(indent=1), encoding="utf-8")
 
     (workdir / "opts.json").write_text(

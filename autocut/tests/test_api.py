@@ -75,8 +75,8 @@ def test_full_flow_revise_undo_redo(client, media):
     assert duration(client, jid, 4) < duration(client, jid, 3) - 0.5
 
     # 3) 반영할 게 없는 요청은 기록·버전에 넣지 않고 이유만 알려 줌
-    r = client.post(f"/api/jobs/{jid}/revise", data={"instruction": "제목 글자색을 노란색으로"}).json()
-    assert not r["applied"] and "제목" in r["messages"][0]
+    r = client.post(f"/api/jobs/{jid}/revise", data={"instruction": "영상에 불꽃 효과를 넣어 줘"}).json()
+    assert not r["applied"] and "지원하지 않아요" in r["messages"][0]
     assert client.get(f"/api/jobs/{jid}").json()["version"] == 4
 
     # 4) 되돌리기 / 다시 적용 / 되돌린 뒤 새 수정은 뒤 기록을 버림
@@ -87,6 +87,36 @@ def test_full_flow_revise_undo_redo(client, media):
     j = wait_done(client, jid)
     assert j["version"] == 3 and len(j["history"]) == 3
     assert client.post(f"/api/jobs/{jid}/redo").status_code == 409
+
+
+def test_caption_edit_srt_and_title(client, media):
+    vid, _ = media
+    r = client.post("/api/jobs", files={"file": ("in.mp4", vid.read_bytes())},
+                    data={"aspect": "original", "title_text": "봄 펌 추천", "preview_seconds": "7"})
+    jid = r.json()["id"]
+    j = wait_done(client, jid)
+    assert j["status"] == "done", j.get("error")
+    assert j["plan"]["title_text"] == "봄 펌 추천" and j["plan"]["removed"]
+    assert any("앞 7초" in w for w in j["plan"]["warnings"])
+    assert duration(client, jid, 0) <= 7.1
+
+    caps = client.get(f"/api/jobs/{jid}/captions").json()["captions"]
+    assert [c["text"] for c in caps] == ["첫 문장", "두번째 문장"] and caps[0]["time"] is not None
+    srt = client.get(f"/api/jobs/{jid}/captions.srt").text
+    assert "첫 문장" in srt and "-->" in srt
+    # 고치기: 첫 자막 글자 수정, 둘째는 지우기
+    r = client.post(f"/api/jobs/{jid}/captions", json={"texts": ["첫 문장입니다", ""]}).json()
+    assert r["applied"] and "2곳" in r["messages"][0]
+    j = wait_done(client, jid)
+    assert j["version"] == 1 and [c["text"] for c in j["plan"]["captions"]] == ["첫 문장입니다"]
+    assert client.post(f"/api/jobs/{jid}/captions", json={"texts": ["a", "b", "c"]}).status_code == 400
+    assert client.get(f"/api/jobs/{jid}").json()["status"] == "done"          # 실패해도 잠기지 않음
+    # 제목 색·자막 크기 말로 고치기
+    for text in ("제목 글자색을 노란색으로 바꿔 줘", "자막 더 크게 해 줘"):
+        assert client.post(f"/api/jobs/{jid}/revise", data={"instruction": text}).json()["applied"]
+        wait_done(client, jid)
+    plan = client.get(f"/api/jobs/{jid}").json()["plan"]
+    assert plan["title_color"] == "FFE500" and plan["caption_scale"] == 1.2
 
 
 def test_errors(client, media):

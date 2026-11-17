@@ -114,8 +114,9 @@ def render(
     w, h = target_size(info, aspect)
     total = sum(s.end - s.start for s in plan.segments)
     caps = remap_captions(plan.captions, plan.segments) if burn_captions else []
-    burn = burn_captions and bool(caps)
-    (workdir / "captions.ass").write_text(build_ass(caps, w, h, caption_style(look), plan.caption_color), encoding="utf-8")
+    burn = (burn_captions and bool(caps)) or bool(plan.title_text.strip())
+    (workdir / "captions.ass").write_text(build_ass(caps, w, h, caption_style(look), plan.caption_color, plan.caption_scale,
+                  plan.title_text, plan.title_color, total), encoding="utf-8")
     (workdir / "filter.txt").write_text(build_filter(plan, w, h, fit, info.has_audio, burn, look, bgm_path is not None), encoding="utf-8")
 
     cmd = [

@@ -27,10 +27,30 @@ def test_guide_example_music_lower_compounds():
 
 def test_guide_example_color_and_trim_in_one_sentence():
     r = parse_rules("제목 글자색을 노란색으로 바꾸고, 마지막 2초는 잘라 줘.")
-    assert [o.type for o in r.ops] == ["trim_end"]
-    assert len(r.unsupported) == 1 and "제목" in r.unsupported[0]   # 제목 글자는 아직 없음 → 솔직히 안내
-    plan, _ = apply_ops(base_plan(), r.ops, PHRASES, 30)
+    assert [o.type for o in r.ops] == ["title_color", "trim_end"] and not r.unsupported
+    # 제목이 없으면 색은 못 바꾸고 이유를 알려 줌, 자르기는 그대로 적용
+    plan, msgs = apply_ops(base_plan(), r.ops, PHRASES, 30)
+    assert "제목이 없어요" in msgs[0] and plan.title_color is None
     assert abs(sum(s.end - s.start for s in plan.segments) - (2.3 + 2.3 - 2.0)) < 1e-6
+    # 제목이 있으면 색이 바뀜
+    titled = base_plan(); titled.title_text = "봄 펌"
+    plan, _ = apply_ops(titled, r.ops, PHRASES, 30)
+    assert plan.title_color == "FFE500"
+
+
+def test_guide_example_caption_bigger_and_title_text():
+    r = parse_rules("자막 더 크게 해 줘.")
+    plan, _ = apply_ops(base_plan(), r.ops, PHRASES, 30)
+    assert plan.caption_scale == 1.2
+    plan, _ = apply_ops(plan, parse_rules("자막 많이 크게").ops, PHRASES, 30)
+    assert plan.caption_scale == 1.68
+    plan, _ = apply_ops(plan, parse_rules("자막 많이 크게").ops, PHRASES, 30)
+    assert plan.caption_scale == 1.8                     # 상한
+    plan, _ = apply_ops(base_plan(), parse_rules('제목을 "봄 펌 추천"으로 바꿔 줘').ops, PHRASES, 30)
+    assert plan.title_text == "봄 펌 추천"
+    plan, _ = apply_ops(plan, parse_rules("제목 빼 줘").ops, PHRASES, 30)
+    assert plan.title_text == ""
+    assert parse_rules("제목 바꿔 줘").unsupported            # 문구 없이 바꾸라면 되묻기
 
 
 def test_caption_color():

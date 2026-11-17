@@ -10,10 +10,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 
 from . import config, pipeline, render, revise
+from .captions import remap_captions, to_srt
 from .looks import LOOKS
 from .models import Options, Plan
 from .planner import INDUSTRY_GUIDE
@@ -96,6 +98,8 @@ async def create_job(
     captions: bool = Form(True),
     look: str = Form("none"),
     language: str = Form(""),
+    title_text: str = Form(""),
+    preview_seconds: int = Form(0),
 ):
     if aspect not in ("vertical", "original") or fit not in ("cover", "blur"):
         raise HTTPException(400, "옵션 값이 올바르지 않습니다.")
@@ -120,6 +124,7 @@ async def create_job(
         aspect=aspect, fit=fit,
         target_seconds=max(0, min(target_seconds, 600)),
         captions=captions, look=look if look in LOOKS else "none", language=language or None,
+        title_text=title_text.strip()[:40], preview_seconds=max(0, min(preview_seconds, 600)),
     )
     with jobs_lock:
         jobs[job_id] = {"id": job_id, "status": "queued", "step": "대기 중", "progress": 0.0,
@@ -143,17 +148,37 @@ def get_job(job_id: str):
         return JSONResponse(dict(jobs[job_id]))
 
 
-@app.post("/api/jobs/{job_id}/revise")
-async def revise_job(job_id: str, instruction: str = Form(...)):
-    """말로 고치기. 한 번에 한 가지씩 반영하고, 반영할 게 있으면 새 버전을 렌더링한다."""
+def _lock_for_edit(job_id: str) -> dict:
     job = _job_or_404(job_id)
-    instruction = instruction.strip()
-    if not instruction or len(instruction) > 300:
-        raise HTTPException(400, "수정 요청을 300자 이내로 적어 주세요.")
     with jobs_lock:
         if job["status"] != "done" or job_id not in plans:
             raise HTTPException(409, "영상이 완성된 뒤에 수정할 수 있어요.")
         job["status"] = "running"          # 동시에 두 번 수정되지 않게 먼저 잠근다
+    return job
+
+
+def _commit(job_id: str, job: dict, current: Plan, new_plan: Plan, label: str, messages: list[str]) -> dict:
+    """바뀐 게 있으면 새 버전 렌더링을 예약한다. history[i]는 버전 i+1을 만든 수정."""
+    changed = new_plan.model_dump() != current.model_dump()
+    with jobs_lock:
+        job.pop("error_note", None)
+        if changed:   # 되돌린 뒤 새로 고치면 그 뒤 기록은 버린다
+            job["history"] = job["history"][: job["version"]] + [{"instruction": label, "messages": messages}]
+        else:
+            job["status"] = "done"
+    if changed:
+        del plans[job_id][job["version"] + 1:]
+        executor.submit(_revise_work, job_id, config.DATA_DIR / job_id, new_plan)
+    return {"applied": changed, "messages": messages}
+
+
+@app.post("/api/jobs/{job_id}/revise")
+async def revise_job(job_id: str, instruction: str = Form(...)):
+    """말로 고치기. 한 번에 한 가지씩 반영하고, 반영할 게 있으면 새 버전을 렌더링한다."""
+    instruction = instruction.strip()
+    if not instruction or len(instruction) > 300:
+        raise HTTPException(400, "수정 요청을 300자 이내로 적어 주세요.")
+    job = _lock_for_edit(job_id)
     workdir = config.DATA_DIR / job_id
     try:
         current = plans[job_id][job["version"]]
@@ -164,19 +189,60 @@ async def revise_job(job_id: str, instruction: str = Form(...)):
     except Exception as e:
         _set(job_id, status="done")
         raise HTTPException(500, f"수정 요청을 처리하지 못했어요: {e}")
-    messages = msgs + rev.unsupported
-    changed = new_plan.model_dump() != current.model_dump()
-    entry = {"instruction": instruction, "messages": messages}
-    with jobs_lock:
-        job.pop("error_note", None)
-        if changed:   # history[i]는 버전 i+1을 만든 수정. 되돌린 뒤 새로 고치면 그 뒤 기록은 버린다
-            job["history"] = job["history"][: job["version"]] + [entry]
-        else:
-            job["status"] = "done"
-    if changed:
-        del plans[job_id][job["version"] + 1:]
-        executor.submit(_revise_work, job_id, workdir, new_plan)
-    return {"applied": changed, "messages": messages}
+    return _commit(job_id, job, current, new_plan, instruction, msgs + rev.unsupported)
+
+
+class CaptionEdit(BaseModel):
+    texts: list[str]
+
+
+@app.get("/api/jobs/{job_id}/captions")
+def get_captions(job_id: str):
+    """현재 버전 자막. time은 완성본 기준 시작 시각."""
+    job = _job_or_404(job_id)
+    if job_id not in plans:
+        raise HTTPException(409, "영상이 완성된 뒤에 볼 수 있어요.")
+    plan = plans[job_id][job["version"]]
+    items = []
+    for c in plan.captions:   # 자막마다 따로 계산: 같은 문장이 두 번 나와도 시각이 섞이지 않게
+        m = remap_captions([c], plan.segments)
+        items.append({"text": c.text, "time": round(m[0].start, 1) if m else None})  # None: 잘린 구간이라 안 보임
+    return {"captions": items}
+
+
+@app.get("/api/jobs/{job_id}/captions.srt")
+def get_srt(job_id: str):
+    job = _job_or_404(job_id)
+    if job_id not in plans:
+        raise HTTPException(409, "영상이 완성된 뒤에 받을 수 있어요.")
+    plan = plans[job_id][job["version"]]
+    body = to_srt(remap_captions(plan.captions, plan.segments))
+    return PlainTextResponse(body, media_type="application/x-subrip",
+                             headers={"Content-Disposition": 'attachment; filename="autocut.srt"'})
+
+
+@app.post("/api/jobs/{job_id}/captions")
+def edit_captions(job_id: str, body: CaptionEdit):
+    """자막 글자를 직접 고친다. 빈 줄은 그 자막을 지운다. 시간은 그대로."""
+    job = _lock_for_edit(job_id)
+    current = plans[job_id][job["version"]]
+    if len(body.texts) != len(current.captions):
+        _set(job_id, status="done")
+        raise HTTPException(400, "자막 개수가 맞지 않아요. 화면을 새로 고친 뒤 다시 해 주세요.")
+    new_plan = current.model_copy(deep=True)
+    changed = 0
+    kept = []
+    for cap, text in zip(new_plan.captions, body.texts):
+        text = text.strip()[:80]
+        if text != cap.text:
+            changed += 1
+            cap.text = text
+            cap.emphasis = [w for w in cap.emphasis if w in text]
+        if text:
+            kept.append(cap)
+    new_plan.captions = kept
+    return _commit(job_id, job, current, new_plan, f"자막 직접 수정 ({changed}곳)",
+                   [f"자막 {changed}곳을 고쳤어요."] if changed else ["바뀐 자막이 없어요."])
 
 
 @app.post("/api/jobs/{job_id}/undo")
