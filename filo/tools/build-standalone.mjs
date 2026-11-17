@@ -40,9 +40,53 @@ if (js.includes('vendor/') || js.includes('empty-boxes.webp"')) throw new Error(
 
 must(/<script defer src="app\.js\?v=[0-9a-z]+"><\/script>/, 'app.js');
 html = html.replace(/<script defer src="app\.js\?v=[0-9a-z]+"><\/script>/, () => inlineScript(js));
-html = html.replace('<title>ZEROCOUNT</title>', '<title>ZEROCOUNT (테스트)</title>');
-
+const base = html;
 mkdirSync(outDir, { recursive: true });
+
+// 1) 테스트용: 그대로 묶은 파일
+const testHtml = base.replace('<title>ZEROCOUNT</title>', '<title>ZEROCOUNT (테스트)</title>');
 const out = path.join(outDir, 'zerocount.html');
-writeFileSync(out, html);
-console.log('standalone:', out, Math.round(Buffer.byteLength(html) / 1024), 'KB');
+writeFileSync(out, testHtml);
+console.log('standalone:', out, Math.round(Buffer.byteLength(testHtml) / 1024), 'KB');
+
+// 2) 체험판: 처음 열면 샘플로 시작 + 맨 위 체험판 안내 줄 (Netlify 등에 index.html 로 올려 쓰는 용도)
+const TRIAL_HEAD = `  <script>
+    // 체험판: 기록이 없으면 샘플 약제가 들어 있는 상태로 시작한다 (앱은 ?demo 를 보고 샘플을 넣는다)
+    (function () {
+      try {
+        if (!localStorage.getItem('filo_products') && !/[?&]demo\\b/.test(location.search)) {
+          history.replaceState(null, '', location.pathname + (location.search ? location.search + '&demo' : '?demo') + location.hash);
+        }
+      } catch (e) {}
+    })();
+    function zcTrialReset() {
+      if (!confirm('처음 상태(샘플 약제)로 다시 시작할까요? 지금까지 넣은 체험 기록은 지워집니다.')) return;
+      try { for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (k && k.indexOf('filo_') === 0) localStorage.removeItem(k); } } catch (e) {}
+      location.replace(location.pathname + '?demo');
+    }
+  </script>
+  <style>
+    .zc-trial-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; padding: 8px max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px));
+      background: #0B1220; color: #E2E8F0; font: 500 12.5px/1.45 'Pretendard Variable', Pretendard, -apple-system, sans-serif; text-align: center; }
+    .zc-trial-bar b { color: #fff; }
+    .zc-trial-bar .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #2563EB; color: #fff; font-weight: 700; font-size: 11px; letter-spacing: .02em; }
+    .zc-trial-bar a, .zc-trial-bar button { color: #93C5FD; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; background: none; border: 0; padding: 0; cursor: pointer; }
+  </style>
+</head>`;
+const TRIAL_BAR = `<body>
+  <div class="zc-trial-bar" role="note">
+    <span class="tag">체험판</span>
+    <span>샘플 약제가 들어 있어요. 마음껏 눌러 보세요. 기록은 <b>이 기기에만</b> 저장되고, 체험 사이트는 곧 종료됩니다.</span>
+    <button type="button" onclick="zcTrialReset()">처음부터 다시 체험</button>
+    <a href="https://zerocount.vercel.app/" target="_blank" rel="noopener">정식 버전 소개</a>
+  </div>`;
+if (!base.includes('</head>') || !base.includes('<body>')) throw new Error('찾지 못함: head/body');
+const trialHtml = base
+  .replace('<title>ZEROCOUNT</title>', '<title>ZEROCOUNT 체험판</title>')
+  .replace('</head>', TRIAL_HEAD)
+  .replace('<body>', TRIAL_BAR);
+const trialDir = path.join(outDir, 'trial');
+mkdirSync(trialDir, { recursive: true });
+const trialOut = path.join(trialDir, 'index.html');
+writeFileSync(trialOut, trialHtml);
+console.log('trial:', trialOut, Math.round(Buffer.byteLength(trialHtml) / 1024), 'KB');

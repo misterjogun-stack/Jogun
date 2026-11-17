@@ -2099,7 +2099,11 @@
       const [counts, setCounts] = useState(() => safeStorage.get('filo_counts', []));
       useEffect(() => { safeStorage.set('filo_counts', counts); }, [counts]);
       const [openCountId, setOpenCountId] = useState(null);     // 보고 있는 조사 (없으면 목록 또는 진행 중 조사)
-      const [countFilter, setCountFilter] = useState('all');
+      const [countFilter, setCountFilterRaw] = useState('all');
+      // 지금 필터에서 손댄 줄은 필터를 바꿀 때까지 목록에 남겨 둔다 (미조사 필터에서 한 자리 치자마자 줄이 사라지던 문제)
+      const [countKeep, setCountKeep] = useState([]);
+      const setCountFilter = (k) => { setCountFilterRaw(k); setCountKeep([]); };
+      const keepCountRow = (id) => setCountKeep(prev => prev.includes(id) ? prev : [...prev, id]);
       const [countSearch, setCountSearch] = useState('');
       const [showFinishCount, setShowFinishCount] = useState(false);
       const activeCount = counts.find(c => c.status === 'active') || null;
@@ -3819,13 +3823,13 @@
             const isActive = session.status === 'active';
             const q = countSearch.trim().toLowerCase();
             const shown = rows
-              .filter(r => countFilter === 'all' ? true : countFilter === 'left' ? r.actual == null : countFilter === 'done' ? r.actual != null : (r.diff != null && r.diff !== 0))
+              .filter(r => countKeep.includes(r.id) || countFilter === 'all' ? true : countFilter === 'left' ? r.actual == null : countFilter === 'done' ? r.actual != null : (r.diff != null && r.diff !== 0))
               .filter(r => !q || r.name.toLowerCase().includes(q) || r.company.toLowerCase().includes(q) || (r.barcode && r.barcode.includes(q)));
             const R = 42, C = 2 * Math.PI * R;
 
             return (
               <div className="max-w-5xl mx-auto">
-                <button className="zc-back" onClick={() => { setOpenCountId(null); setCountSearch(''); }}>
+                <button className="zc-back" onClick={() => { setOpenCountId(null); setCountSearch(''); setCountKeep([]); }}>
                   <Icon name="back" size={18} /> 재고조사 목록
                 </button>
                 <header className="f-page-head" style={{ alignItems: 'flex-start' }}>
@@ -3915,6 +3919,11 @@
                         </div>
                         <div className="zc-count-nums">
                           <div className="zc-num-box"><span>전산</span><b className="f-num">{r.system}</b></div>
+                          {isActive && !r.removed && (
+                            <button type="button" className="zc-step-btn" aria-label={`${r.name} 실물 1 빼기`}
+                              disabled={(r.actual == null ? r.system : r.actual) <= 0}
+                              onClick={() => { keepCountRow(r.id); setCountActual(session.id, r.id, Math.max(0, (r.actual == null ? r.system : r.actual) - 1)); }}>−</button>
+                          )}
                           <div className="zc-num-box is-input">
                             <label htmlFor={`count-${r.id}`}>실물</label>
                             {isActive && !r.removed ? (
@@ -3922,17 +3931,23 @@
                                 id={`count-${r.id}`}
                                 type="number"
                                 inputMode="numeric"
+                                pattern="[0-9]*"
                                 min="0"
                                 placeholder="–"
                                 value={r.actual == null ? '' : r.actual}
-                                onChange={e => setCountActual(session.id, r.id, e.target.value === '' ? null : e.target.value)}
+                                onFocus={e => { keepCountRow(r.id); try { e.target.select(); } catch (_) {} }}
+                                onChange={e => { keepCountRow(r.id); setCountActual(session.id, r.id, e.target.value === '' ? null : e.target.value); }}
                               />
                             ) : <b className="f-num">{r.actual == null ? '–' : r.actual}</b>}
                           </div>
+                          {isActive && !r.removed && (
+                            <button type="button" className="zc-step-btn" aria-label={`${r.name} 실물 1 더하기`}
+                              onClick={() => { keepCountRow(r.id); setCountActual(session.id, r.id, (r.actual == null ? r.system : r.actual) + 1); }}>+</button>
+                          )}
                           <div className="zc-diff">
                             {st === 'left' ? (
                               isActive && !r.removed
-                                ? <button className="zc-same-btn" onClick={() => setCountActual(session.id, r.id, r.system)} title="전산 재고와 같음">일치</button>
+                                ? <button className="zc-same-btn" onClick={() => { keepCountRow(r.id); setCountActual(session.id, r.id, r.system); }} title="전산 재고와 같음">일치</button>
                                 : <span className="zc-diff-pill is-left">미조사</span>
                             ) : (
                               <span className={`zc-diff-pill is-${st}`}>{st === 'match' ? '일치' : st === 'over' ? `+${r.diff}` : `−${Math.abs(r.diff)}`}</span>

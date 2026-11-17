@@ -658,6 +658,11 @@
     .zc-num-box.is-input { background: var(--f-field); border: 1.5px solid var(--f-accent); }
     #root .zc-num-box input { width: 100%; text-align: center; border: 0; background: transparent; color: var(--f-ink); font: 700 18px/1.1 var(--f-font-display); padding: 0; outline: none; }
     .zc-count-row.is-left .zc-num-box.is-input { border-color: var(--f-line-strong); border-style: dashed; }
+    .zc-step-btn { width: 40px; height: 50px; flex: none; border-radius: 10px; border: 1px solid var(--f-line-strong); background: var(--f-surface); color: var(--f-ink); font: 600 22px/1 var(--f-font-display); display: flex; align-items: center; justify-content: center; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    .zc-step-btn:active { background: var(--f-surface-2); }
+    .zc-step-btn:disabled { opacity: .35; }
+    .zc-count-nums .zc-step-btn + .zc-num-box, .zc-count-nums .zc-num-box + .zc-step-btn { margin-left: -4px; }
+    @media (max-width: 380px) { .zc-count-nums { gap: 6px; } .zc-num-box { width: 56px; } .zc-step-btn { width: 36px; } .zc-diff { width: 54px; } }
     .zc-diff { width: 60px; display: flex; justify-content: center; }
     .zc-diff-pill { min-width: 52px; text-align: center; padding: 6px 8px; border-radius: 10px; font: 700 14px/1 var(--f-font-display); }
     .zc-diff-pill.is-match { background: var(--f-ok-soft); color: var(--f-ok); font-size: 12.5px; font-family: inherit; }
@@ -814,6 +819,6 @@
       window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
     }
   </script>
-  <script defer src="app.js?v=1d28d506f9"></script>
+  <script defer src="app.js?v=e65ae3d324"></script>
 </body>
 </html>
