@@ -43,6 +43,8 @@ class Plan(BaseModel):
     post_text: str = ""
     hashtags: list[str] = []
     warnings: list[str] = []
+    caption_color: str | None = None   # "RRGGBB". None이면 룩 기본색
+    music_volume: float = 0.25         # 말소리 대비 배경음악 크기(0~1.5). 배경음악이 없으면 무시
 
 
 @dataclass

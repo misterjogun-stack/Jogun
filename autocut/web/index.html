@@ -33,6 +33,14 @@ a.btn{display:block;text-align:center;padding:12px;border-radius:10px;background
 button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);font-size:15px;padding:12px}
 textarea{width:100%;min-height:110px;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
 .hidden{display:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chip{width:auto;margin:0;padding:6px 10px;border:1px solid var(--line);border-radius:999px;font-size:14px;color:var(--sub);cursor:pointer;background:transparent}
+.say{display:flex;gap:8px;margin-top:8px}.say input{flex:1;min-width:0;padding:12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+.say button{width:auto;margin:0;padding:12px 18px;font-size:16px;white-space:nowrap;flex-shrink:0}
+.hist{margin:12px 0 0;padding:0;list-style:none;font-size:14px}.hist li{padding:6px 0;border-top:1px solid var(--line)}
+.hist b{font-weight:600}.hist .no{color:var(--sub)}
+.note{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--sub);margin-top:14px}
+h2{font-size:16px;margin:20px 0 4px}
 </style>
 </head>
 <body>
@@ -58,6 +66,8 @@ textarea{width:100%;min-height:110px;padding:10px;border-radius:8px;border:1px s
         <select id="fit"><option value="cover">꽉 채우기(가장자리 잘림)</option><option value="blur">전체 보이기(블러 배경)</option></select></div>
     </div>
     <label class="check"><input type="checkbox" id="captions" checked> 자막 넣기</label>
+    <div style="margin-top:14px"><label for="bgm">배경음악 (선택, mp3·m4a·wav)</label><input type="file" id="bgm" accept="audio/*"></div>
+    <div class="note">배경음악과 영상은 <b>저작권 걱정 없는 것</b>만 쓰세요. 남의 영상은 스타일 참고용으로만 보고, 그 장면을 내 영상에 넣거나 다시 올리지 마세요.</div>
     <button id="go" disabled>자동 편집 시작</button>
   </section>
 
@@ -72,6 +82,13 @@ textarea{width:100%;min-height:110px;padding:10px;border-radius:8px;border:1px s
     <video id="video" controls playsinline></video>
     <div class="row"><a class="btn" id="dl" href="#">다운로드</a><button class="ghost" id="again">다른 영상 편집</button></div>
     <div id="warns"></div>
+    <h2>말로 고치기</h2>
+    <div class="warn">한 번에 <b>하나씩</b> 말해 주세요. 어느 수정 때문에 달라졌는지 알 수 있어요.</div>
+    <div class="chips" id="chips"></div>
+    <div class="warn" id="reply" style="color:var(--ink)"></div>
+    <div class="say"><input id="say" maxlength="300" placeholder="예: 배경음악 조금 더 줄여 줘"><button id="sayGo">고치기</button></div>
+    <ul class="hist" id="hist"></ul>
+    <div class="row"><button class="ghost" id="undo">← 되돌리기</button><button class="ghost" id="redo">다시 적용 →</button></div>
     <div id="postbox" class="hidden" style="margin-top:16px">
       <label>게시물 글 (제안)</label>
       <textarea id="post" readonly></textarea>
@@ -81,7 +98,8 @@ textarea{width:100%;min-height:110px;padding:10px;border-radius:8px;border:1px s
 </main>
 <script>
 const $ = id => document.getElementById(id);
-let file = null, timer = null;
+let file = null, timer = null, jobId = null;
+const EXAMPLES = ['12초에서 15초 사이 잘린 부분 다시 살려 줘', '배경음악 조금 더 줄여 줘', '자막 글자색을 노란색으로 바꿔 줘', '마지막 2초는 잘라 줘'];
 
 const drop = $('drop'), input = $('file');
 drop.onclick = () => input.click();
@@ -101,6 +119,7 @@ function pick(f) {
 $('go').onclick = async () => {
   const fd = new FormData();
   fd.append('file', file);
+  if ($('bgm').files[0]) fd.append('bgm', $('bgm').files[0]);
   fd.append('industry', $('industry').value);
   fd.append('aspect', $('aspect').value);
   fd.append('fit', $('fit').value);
@@ -114,8 +133,8 @@ $('go').onclick = async () => {
   try {
     const r = await fetch('/api/jobs', { method: 'POST', body: fd });
     if (!r.ok) throw new Error((await r.json()).detail || '업로드 실패');
-    const { id } = await r.json();
-    poll(id);
+    jobId = (await r.json()).id;
+    poll();
   } catch (e) { fail(e.message); }
 };
 
@@ -128,36 +147,84 @@ function fail(msg) {
   clearInterval(timer);
   $('error').textContent = msg;
   $('step').textContent = '문제가 생겼어요';
-  $('again').onclick();
+  $('progress').classList.remove('hidden');
+  $('result').classList.add('hidden');
+  $('form').classList.remove('hidden');
 }
-function poll(id) {
+function poll() {
+  clearInterval(timer);
   timer = setInterval(async () => {
     try {
-      const j = await (await fetch('/api/jobs/' + id)).json();
+      const j = await (await fetch('/api/jobs/' + jobId)).json();
       if (j.detail) return fail(j.detail);
-      setProgress(j.step, j.progress);
       if (j.status === 'error') return fail(j.error);
-      if (j.status === 'done') { clearInterval(timer); show(id, j.plan); }
+      if (j.status === 'done') { clearInterval(timer); show(j); }
+      else { $('progress').classList.remove('hidden'); setProgress(j.step, j.progress); }
     } catch (e) { /* 일시적인 네트워크 오류는 다음 주기에 재시도 */ }
   }, 1500);
 }
-function show(id, plan) {
+function show(j) {
   $('progress').classList.add('hidden');
   $('result').classList.remove('hidden');
-  $('video').src = '/api/jobs/' + id + '/video';
-  $('dl').href = '/api/jobs/' + id + '/video?download=true';
+  const v = $('video'), t = Date.now();
+  const keep = v.currentTime || 0;
+  v.src = '/api/jobs/' + jobId + '/video?v=' + j.version + '&t=' + t;
+  v.onloadedmetadata = () => { try { v.currentTime = Math.min(keep, v.duration); } catch (e) {} };
+  $('dl').href = '/api/jobs/' + jobId + '/video?download=true&v=' + j.version;
+  const plan = j.plan || {};
   $('warns').innerHTML = '';
-  (plan.warnings || []).forEach(w => { const d = document.createElement('div'); d.className = 'warn'; d.textContent = '※ ' + w; $('warns').appendChild(d); });
+  const add = (txt) => { const d = document.createElement('div'); d.className = 'warn'; d.textContent = '※ ' + txt; $('warns').appendChild(d); };
+  (plan.warnings || []).forEach(add);
+  if (j.error_note) add(j.error_note);
   if (plan.post_text) {
     $('postbox').classList.remove('hidden');
     $('post').value = [plan.title, plan.post_text, (plan.hashtags || []).map(h => '#' + h).join(' ')].filter(Boolean).join('\n\n');
   }
+  // 수정 기록: history[i]는 버전 i+1을 만든 요청. 현재 버전 이하만 '적용됨', 그 뒤는 '되돌림'
+  const ul = $('hist'); ul.innerHTML = '';
+  (j.history || []).forEach((h, i) => {
+    const li = document.createElement('li');
+    const undone = i + 1 > j.version;
+    li.className = undone ? 'no' : '';
+    const head = document.createElement('b'); head.textContent = '“' + h.instruction + '”' + (undone ? ' (되돌림)' : '');
+    li.appendChild(head);
+    (h.messages || []).forEach(m => { const d = document.createElement('div'); d.textContent = m; li.appendChild(d); });
+    ul.appendChild(li);
+  });
+  const total = (j.history || []).length;
+  $('undo').disabled = j.version <= 0;
+  $('redo').disabled = j.version >= total;
 }
+async function post(path, body) {
+  const r = await fetch('/api/jobs/' + jobId + path, { method: 'POST', body });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.detail || '요청 실패');
+  return data;
+}
+async function say(text) {
+  if (!text.trim()) return;
+  $('sayGo').disabled = true;
+  try {
+    const fd = new FormData(); fd.append('instruction', text);
+    const r = await post('/revise', fd);
+    $('say').value = '';
+    $('reply').textContent = (r.messages || []).join(' ');
+    if (r.applied) { $('result').classList.add('hidden'); $('progress').classList.remove('hidden'); setProgress('수정 반영 중', 0.05); }
+    poll();
+  } catch (e) { alert(e.message); }
+  $('sayGo').disabled = false;
+}
+$('sayGo').onclick = () => say($('say').value);
+$('say').onkeydown = e => { if (e.key === 'Enter') say($('say').value); };
+$('undo').onclick = async () => { try { $('reply').textContent = ''; await post('/undo'); poll(); } catch (e) { alert(e.message); } };
+$('redo').onclick = async () => { try { $('reply').textContent = ''; await post('/redo'); poll(); } catch (e) { alert(e.message); } };
+EXAMPLES.forEach(t => { const b = document.createElement('button'); b.className = 'chip'; b.textContent = t; b.onclick = () => { $('say').value = t; $('say').focus(); }; $('chips').appendChild(b); });
 $('copy').onclick = () => navigator.clipboard.writeText($('post').value);
 $('again').onclick = () => {
+  clearInterval(timer);
   $('result').classList.add('hidden');
+  $('progress').classList.add('hidden');
   $('form').classList.remove('hidden');
-  if (!$('error').textContent) $('progress').classList.add('hidden');
 };
 </script>
 </body>

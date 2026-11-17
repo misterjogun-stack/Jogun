@@ -29,6 +29,12 @@ def remap_captions(caps: list[Cap], segs: list[Seg]) -> list[Cap]:
     return out
 
 
+def ass_color(hex_rgb: str) -> str:
+    """RRGGBB → ASS 색(&H00BBGGRR&)."""
+    h = hex_rgb.lstrip("#")
+    return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}&".upper()
+
+
 def _ts(t: float) -> str:
     t = max(0.0, t)
     cs = int(round(t * 100))
@@ -66,7 +72,7 @@ def _styled(cap: Cap, per_line: int, style: str = "pop") -> str:
     return text
 
 
-def build_ass(caps: list[Cap], width: int, height: int, style: str = "pop") -> str:
+def build_ass(caps: list[Cap], width: int, height: int, style: str = "pop", color: str | None = None) -> str:
     vertical = height > width
     base = width if vertical else height
     if style == "airy":
@@ -85,6 +91,8 @@ def build_ass(caps: list[Cap], width: int, height: int, style: str = "pop") -> s
         ml = mr = int(width * 0.05)
         margin_v = int(height * (0.20 if cine else 0.22)) if vertical else int(height * 0.08)
         per_line = max(6, int((width * 0.9) / (fs * 0.98)))
+    if color:
+        primary = ass_color(color)
     head = (
         "[Script Info]\nScriptType: v4.00+\n"
         f"PlayResX: {width}\nPlayResY: {height}\nWrapStyle: 0\nScaledBorderAndShadow: yes\n\n"

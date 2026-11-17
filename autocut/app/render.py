@@ -43,7 +43,7 @@ def target_size(info: MediaInfo, aspect: str) -> tuple[int, int]:
     return int(info.width * scale) // 2 * 2, int(info.height * scale) // 2 * 2
 
 
-def build_filter(plan: Plan, w: int, h: int, fit: str, has_audio: bool, burn_captions: bool, look: str = "none") -> str:
+def build_filter(plan: Plan, w: int, h: int, fit: str, has_audio: bool, burn_captions: bool, look: str = "none", bgm: bool = False) -> str:
     n = len(plan.segments)
     parts: list[str] = []
     for i, s in enumerate(plan.segments):
@@ -78,7 +78,22 @@ def build_filter(plan: Plan, w: int, h: int, fit: str, has_audio: bool, burn_cap
         parts.append(f"[{last}]subtitles=captions.ass:fontsdir='{config.FONTS_DIR}'[v]")
     else:
         parts.append(f"[{last}]null[v]")
-    if has_audio:
+    total = sum(x.end - x.start for x in plan.segments)
+    vol = max(0.0, min(plan.music_volume, 1.5))
+    if bgm:
+        # 배경음악: 짧으면 반복, 영상 길이에 맞춰 자르고, 말소리 기준 음량으로 맞춘 뒤 volume 만큼 줄인다
+        parts.append(
+            "[1:a]aloop=loop=-1:size=2147483647,"
+            f"atrim=duration={total:.3f},asetpts=PTS-STARTPTS,"
+            f"loudnorm=I=-16:TP=-1.5:LRA=11,volume={vol:.3f},"
+            f"afade=t=out:st={max(0.0, total - 1.0):.3f}:d=1[bg]"
+        )
+        if has_audio:
+            parts.append("[ac]loudnorm=I=-16:TP=-1.5:LRA=11[vn]")
+            parts.append("[vn][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]")
+        else:
+            parts.append("[bg]anull[a]")
+    elif has_audio:
         parts.append("[ac]loudnorm=I=-16:TP=-1.5:LRA=11[a]")
     return ";\n".join(parts)
 
@@ -94,21 +109,23 @@ def render(
     burn_captions: bool,
     on_progress: Callable[[float], None] | None = None,
     look: str = "none",
+    bgm_path: Path | None = None,
 ) -> None:
     w, h = target_size(info, aspect)
     total = sum(s.end - s.start for s in plan.segments)
     caps = remap_captions(plan.captions, plan.segments) if burn_captions else []
     burn = burn_captions and bool(caps)
-    (workdir / "captions.ass").write_text(build_ass(caps, w, h, caption_style(look)), encoding="utf-8")
-    (workdir / "filter.txt").write_text(build_filter(plan, w, h, fit, info.has_audio, burn, look), encoding="utf-8")
+    (workdir / "captions.ass").write_text(build_ass(caps, w, h, caption_style(look), plan.caption_color), encoding="utf-8")
+    (workdir / "filter.txt").write_text(build_filter(plan, w, h, fit, info.has_audio, burn, look, bgm_path is not None), encoding="utf-8")
 
     cmd = [
         "ffmpeg", "-y", "-v", "error", "-nostats", "-progress", "pipe:1",
         "-i", str(src.resolve()),
-        "-filter_complex_script", "filter.txt",
-        "-map", "[v]",
     ]
-    if info.has_audio:
+    if bgm_path is not None:
+        cmd += ["-i", str(bgm_path.resolve())]
+    cmd += ["-filter_complex_script", "filter.txt", "-map", "[v]"]
+    if info.has_audio or bgm_path is not None:
         cmd += ["-map", "[a]", "-c:a", "aac", "-b:a", "160k"]
     cmd += [
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
