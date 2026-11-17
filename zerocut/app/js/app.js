@@ -109,7 +109,11 @@ let sharedAc = null;
 function getAC() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!sharedAc) sharedAc = new AC();
-  if (sharedAc.state === 'suspended') sharedAc.resume();
+  if (sharedAc.state !== 'running') {
+    sharedAc.resume().catch(() => {});
+    // 아이폰 사파리는 누르는 순간 아주 짧은 무음을 한 번 틀어야 소리 엔진이 풀린다
+    try { const b = sharedAc.createBuffer(1, 1, 22050); const src = sharedAc.createBufferSource(); src.buffer = b; src.connect(sharedAc.destination); src.start(0); } catch (e) { /* 무시 */ }
+  }
   return sharedAc;
 }
 
@@ -514,7 +518,7 @@ const STEPS = [
   ['analyze', '장면 분석 · 이미지 변환', '선명하고 잘 나온 장면을 고릅니다'],
   ['speech', '말소리 받아쓰기', '영상 속 설명을 글자로 옮깁니다'],
   ['write', '글 쓰기', '블로그 · 인스타 · 스레드 · 카드뉴스 · 자막'],
-  ['video', '세로 영상 만들기', '릴스·쇼츠·틱톡용 15초 영상'],
+  ['video', '세로 영상 만들기', '릴스·쇼츠·틱톡용 세로 영상'],
   ['done', '정리', '바로 쓸 수 있게 묶어 둡니다'],
 ];
 function viewProcessing() {
@@ -629,7 +633,9 @@ async function startJob() {
         if (hasSpeech(job)) o.captionMode = 'speech';
         const comp = new Composer({ canvas, plan, settings, style: o.style, audio: { ac: getAC(), originalGain: o.voice === 'original' ? 1 : 0 } });
         await comp.prepare();
-        const blob = await comp.run({ record: true, onTime: (t, tot) => setStep('video', 'run', t / tot) });
+        // 혹시 멈추면 영상 단계만 건너뛰고 나머지는 끝낸다
+        const limit = (plan.total * 2 + 30) * 1000;
+        const blob = await Promise.race([comp.run({ record: true, onTime: (t, tot) => setStep('video', 'run', t / tot) }), new Promise((_, rej) => setTimeout(() => { comp.stop(); rej(new Error('영상 만들기 시간 초과')); }, limit))]);
         await comp.dispose();
         const vid = uid('v');
         await db.putBlob(vid, blob);
@@ -1405,7 +1411,7 @@ const curJob = () => (current && current.name === 'job' ? jobs.find((j) => j.id 
 const actions = {
   'draft-remove': (el) => { const i = +el.dataset.i; URL.revokeObjectURL(draft.files[i].url); draft.files.splice(i, 1); render(); },
   'draft-topic': (el) => { draft.topic = el.dataset.v; render(); },
-  start: () => startJob(),
+  start: () => { getAC(); startJob(); }, // 아이폰: 누른 순간에 소리 엔진을 켜 둔다
   'job-filter': (el) => { jobFilter = el.dataset.v; render(); },
   'job-delete': async () => {
     const job = curJob(); if (!job || !confirm('이 작업과 만든 결과물을 모두 지울까요? 되돌릴 수 없어요.')) return;

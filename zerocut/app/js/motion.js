@@ -296,7 +296,7 @@ export class Composer {
         if (!v) {
           v = document.createElement('video');
           v.playsInline = true; v.preload = 'auto'; v.muted = true; v.src = s.url;
-          await new Promise((res) => { v.addEventListener('loadeddata', res, { once: true }); v.addEventListener('error', res, { once: true }); });
+          await new Promise((res) => { const t = setTimeout(res, 10000); const done = () => { clearTimeout(t); res(); }; v.addEventListener('loadeddata', done, { once: true }); v.addEventListener('error', done, { once: true }); v.load(); });
           pool.push(v); vpool.set(s.url, pool);
         }
         this.els.set(i, v);
@@ -348,7 +348,10 @@ export class Composer {
     const p = this.plan;
     this.stopped = false;
     await this.cueStart();
-    if (this.ac.state === 'suspended') await this.ac.resume();
+    // 아이폰은 손가락으로 누른 순간이 아니면 소리 엔진(AudioContext)이 안 켜지고, resume()이 끝나지 않는다 → 기다리다 멈추지 않게 1.5초만 기다린다
+    if (this.ac.state !== 'running') await Promise.race([this.ac.resume().catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
+    const useAC = this.ac.state === 'running';
+    const clock = () => (useAC ? this.ac.currentTime : performance.now() / 1000);
     let recorder = null, chunks = [], mime = '';
     if (record) {
       mime = pickMime();
@@ -359,17 +362,17 @@ export class Composer {
       recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
       recorder.start(500);
     }
-    const t0 = this.ac.currentTime + 0.15;
+    const t0 = clock() + 0.15;
     this.t0 = t0;
     // 목소리 · 배경음악 예약
     this.nodes = [];
-    if (this.voiceBuf) {
+    if (this.voiceBuf && useAC) {
       const src = this.ac.createBufferSource(); src.buffer = this.voiceBuf;
       const g = this.ac.createGain(); g.gain.value = 1.0;
       src.connect(g).connect(this.master); src.start(t0 + 0.3);
       this.nodes.push(src);
     }
-    if (this.bgmBuf) {
+    if (this.bgmBuf && useAC) {
       const src = this.ac.createBufferSource(); src.buffer = this.bgmBuf; src.loop = true;
       const g = this.ac.createGain();
       const base = this.voiceBuf ? 0.16 : (this.useOriginal ? 0.3 : 0.6); // 목소리가 있으면 배경음악을 낮춘다(더킹)
@@ -383,7 +386,7 @@ export class Composer {
     await new Promise((resolve) => {
       const tick = () => {
         if (this.stopped) return resolve();
-        const t = this.ac.currentTime - t0;
+        const t = clock() - t0;
         if (t >= p.total) { this.draw(p.total - 0.001); return resolve(); }
         const idx = p.segs.findIndex((s) => t >= s.start && t < s.start + s.dur);
         if (idx !== active) {
