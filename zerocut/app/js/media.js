@@ -15,11 +15,29 @@ function waitEvent(el, ev, ms = 15000) {
 
 export async function loadVideo(url) {
   const v = document.createElement('video');
-  v.muted = true; v.playsInline = true; v.preload = 'auto'; v.crossOrigin = 'anonymous';
+  v.muted = true; v.playsInline = true; v.preload = 'auto';
+  v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
   v.src = url;
-  await waitEvent(v, 'loadeddata');
+  v.load();
+  try { await waitEvent(v, 'loadeddata', 20000); }
+  catch (e) {
+    // 아이폰: 화면에 없는 영상은 데이터를 안 읽어 두는 경우가 있어 잠깐 재생했다 멈춘다
+    if (v.readyState < 1) throw new Error('영상을 열지 못했어요 (형식을 지원하지 않거나 파일이 손상됐어요)');
+    try { await v.play(); v.pause(); } catch (er) { /* 무시 */ }
+    if (v.readyState < 2) await waitEvent(v, 'loadeddata', 8000).catch(() => {});
+  }
+  // 길이가 아직 안 나온 영상(아이폰 .MOV 등)은 조금 기다리거나 끝으로 한 번 이동해 길이를 얻는다
+  if (!isFinite(v.duration) || !v.duration) {
+    await waitEvent(v, 'durationchange', 3000).catch(() => {});
+    if (!isFinite(v.duration) || !v.duration) {
+      try { v.currentTime = 1e7; await waitEvent(v, 'seeked', 5000); v.currentTime = 0; await waitEvent(v, 'seeked', 5000); } catch (e) { /* 무시 */ }
+    }
+  }
   return v;
 }
+
+/** 캔버스 메모리를 바로 돌려준다 (아이폰은 캔버스 메모리 한도가 작다) */
+const free = (c) => { if (c) { c.width = 0; c.height = 0; } };
 
 async function seek(v, t) {
   if (Math.abs(v.currentTime - t) < 0.01) return;
@@ -92,17 +110,22 @@ export async function analyzeVideo(url, { maxPicks = 6, onProgress } = {}) {
   const sh = Math.max(2, Math.round(SAMPLE_W * h / w));
   const c = document.createElement('canvas'); c.width = SAMPLE_W; c.height = sh;
   const ctx = c.getContext('2d', { willReadFrequently: true });
-  const step = Math.max(0.4, duration / 200);
+  if (!isFinite(duration) || duration <= 0) throw new Error('영상 길이를 읽지 못했어요');
+  if (!w || !h) throw new Error('영상 화면을 읽지 못했어요');
+  const step = Math.max(0.4, duration / 150);
   const samples = [];
-  let prev = null;
+  let prev = null, fails = 0;
   for (let t = Math.min(0.15, duration / 2); t < duration - 0.05; t += step) {
-    await seek(v, t);
+    try { await seek(v, t); }
+    catch (e) { if (++fails > 8 && !samples.length) throw new Error('영상 장면 이동이 너무 느려요'); continue; } // 한 장면이 느려도 나머지는 계속
     ctx.drawImage(v, 0, 0, SAMPLE_W, sh);
     const s = frameStats(ctx, SAMPLE_W, sh, prev);
     prev = s.gray;
     samples.push({ t: +t.toFixed(2), score: scoreOf(s), diff: s.diff, mean: s.mean });
     onProgress && onProgress(Math.min(1, t / duration));
   }
+  free(c);
+  if (!samples.length) throw new Error('영상 장면을 읽지 못했어요');
   // 점수 높은 순으로, 서로 너무 가깝지 않은 장면만
   const minGap = Math.max(1.2, duration / (maxPicks * 1.6));
   const sorted = [...samples].sort((a, b) => b.score - a.score);
@@ -118,14 +141,29 @@ export async function analyzeVideo(url, { maxPicks = 6, onProgress } = {}) {
 
 /** 영상의 t초 장면을 원본 해상도(긴 변 최대 2160) JPEG로 */
 export async function grabFrame(url, t, maxSide = 2160) {
+  const [one] = await grabFrames(url, [t], maxSide);
+  if (!one) throw new Error('장면을 저장하지 못했어요');
+  return one;
+}
+
+/** 여러 장면을 한 번에: 영상 하나 · 캔버스 하나만 써서 메모리를 아낀다. 실패한 장면은 건너뛴다 */
+export async function grabFrames(url, times, maxSide = 2160) {
   const v = await loadVideo(url);
-  await seek(v, t);
   const [w, h] = fitSize(v.videoWidth, v.videoHeight, maxSide);
   const c = document.createElement('canvas'); c.width = w; c.height = h;
-  c.getContext('2d').drawImage(v, 0, 0, w, h);
-  const blob = await canvasToBlob(c);
+  const ctx = c.getContext('2d');
+  const out = [];
+  for (const t of times) {
+    try {
+      await seek(v, t);
+      ctx.drawImage(v, 0, 0, w, h);
+      const blob = await canvasToBlob(c);
+      if (blob) out.push({ t, blob, w, h });
+    } catch (e) { /* 이 장면만 건너뜀 */ }
+  }
+  free(c);
   v.removeAttribute('src'); v.load();
-  return { blob, w, h };
+  return out;
 }
 
 /** 사진 정리: 방향 보정된 상태로 긴 변 최대 2160 JPEG + 점수 */
@@ -140,6 +178,8 @@ export async function analyzePhoto(url) {
   sctx.drawImage(img, 0, 0, sw, shh);
   const s = frameStats(sctx, sw, shh, null);
   const blob = await canvasToBlob(c);
+  free(c); free(sc);
+  if (!blob) throw new Error('사진을 저장하지 못했어요');
   return { blob, w, h, score: scoreOf(s) };
 }
 
@@ -149,7 +189,9 @@ export async function smallJpegBase64(url, maxSide = 768) {
   const [w, h] = fitSize(img.naturalWidth, img.naturalHeight, maxSide);
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   c.getContext('2d').drawImage(img, 0, 0, w, h);
-  return c.toDataURL('image/jpeg', 0.82).split(',')[1];
+  const out = c.toDataURL('image/jpeg', 0.82).split(',')[1];
+  free(c);
+  return out;
 }
 
 export async function thumbDataUrl(url, maxSide = 360) {
@@ -157,7 +199,9 @@ export async function thumbDataUrl(url, maxSide = 360) {
   const [w, h] = fitSize(img.naturalWidth, img.naturalHeight, maxSide);
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   c.getContext('2d').drawImage(img, 0, 0, w, h);
-  return c.toDataURL('image/jpeg', 0.78);
+  const out = c.toDataURL('image/jpeg', 0.78);
+  free(c);
+  return out;
 }
 
 /** 영상 분석 결과에서 숏폼용 구간(움직임 있고 선명한 곳) 고르기 */
@@ -223,6 +267,7 @@ export async function sampleFrames(url, times, maxSide = 224) {
     ctx.drawImage(v, 0, 0, w, h);
     out.push({ t, b64: c.toDataURL('image/jpeg', 0.6).split(',')[1] });
   }
+  free(c);
   v.removeAttribute('src'); v.load();
   return out;
 }

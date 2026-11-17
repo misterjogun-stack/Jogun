@@ -1,6 +1,6 @@
 // ZEROCUT 앱 본체: 화면 그리기 · 이동 · 작업 처리
 import { db, blobUrl, forgetUrl, loadSettings, saveSettings, uid, brandOf } from './store.js';
-import { analyzeVideo, analyzePhoto, grabFrame, smallJpegBase64, thumbDataUrl, extractSpeechAudio } from './media.js';
+import { analyzeVideo, analyzePhoto, grabFrame, grabFrames, smallJpegBase64, thumbDataUrl, extractSpeechAudio } from './media.js';
 import { exportBackup, importBackup } from './backup.js';
 import { heuristicEdit, geminiEdit, editLength } from './smartedit.js';
 import { TOPICS, TONES, STYLES, perspectiveLabels, BLOG_LENGTHS, naverCheck, refineBlog, naverRequest, parsePastedBlog, GEMINI_MODELS, GEMINI_VOICES, geminiTTS, geminiTranscribe, draftWithoutAI, draftWithAI, ensureArticle, seoCheck, articleHtml } from './writer.js';
@@ -579,13 +579,15 @@ async function startJob() {
         if (m.kind === 'video') {
           const an = await analyzeVideo(url, { maxPicks: perVideo, onProgress: (p) => setStep('analyze', 'run', base + span * 0.7 * p) });
           m.analysis = { duration: an.duration, w: an.w, h: an.h, samples: an.samples, picks: an.picks.map((p) => p.t) };
-          for (const pk of an.picks) {
-            const fr = await grabFrame(url, pk.t);
+          const frames = await grabFrames(url, an.picks.map((p) => p.t));
+          for (const fr of frames) {
+            const pk = an.picks.find((p) => p.t === fr.t) || { score: 0 };
             const sid = uid('s');
             await db.putBlob(sid, fr.blob);
             const su = await blobUrl(sid);
-            job.stills.push({ id: sid, from: m.id, t: pk.t, w: fr.w, h: fr.h, score: pk.score, thumb: await thumbDataUrl(su) });
+            job.stills.push({ id: sid, from: m.id, t: fr.t, w: fr.w, h: fr.h, score: pk.score, thumb: await thumbDataUrl(su) });
           }
+          if (!frames.length) m.error = '장면 이미지를 저장하지 못했어요';
         } else {
           const ph = await analyzePhoto(url);
           const sid = uid('s');
@@ -594,11 +596,17 @@ async function startJob() {
           job.stills.push({ id: sid, from: m.id, w: ph.w, h: ph.h, score: ph.score, thumb: await thumbDataUrl(su) });
         }
       } catch (e) {
-        m.error = '읽을 수 없는 파일';
+        m.error = (e && e.message) || '읽을 수 없는 파일';
+        console.warn('analyze failed', m.name, e);
       }
       setStep('analyze', 'run', base + span);
     }
-    if (!job.stills.length) throw new Error('사진이나 영상을 읽지 못했어요. 다른 파일로 다시 시도해 주세요.');
+    if (!job.stills.length) {
+      const why = job.media.filter((m) => m.error).map((m) => `${m.name}: ${m.error}`).join(' / ');
+      throw new Error(`사진이나 영상을 읽지 못했어요.${why ? ` (${why})` : ''} 아이폰은 설정 → 카메라 → 포맷에서 '높은 호환성'으로 찍은 영상이 가장 잘 읽혀요.`);
+    }
+    const failed = job.media.filter((m) => m.error);
+    if (failed.length) job.mediaNotice = `읽지 못한 파일 ${failed.length}개는 빼고 만들었어요 (${failed.map((m) => m.name).join(', ')}).`;
     const best = [...job.stills].sort((a, b) => b.score - a.score)[0];
     job.coverId = best.id; job.thumb = best.thumb;
     job.short.voice = videos.length ? 'original' : 'none';
@@ -668,7 +676,7 @@ async function startJob() {
 // 글 쓰기 (새 작업 · 다시 쓰기 공통)
 async function writeCopy(job, onStatus) {
   const args = { memo: job.memo, topic: job.topic, title: job.title, settings, stillCount: job.stills.length, style: job.style, perspective: job.perspective, useBiz: job.useBiz, speech: speechText(job), area: job.area || '', blogLength: settings.blogLength || 'long' };
-  job.copyNotice = '';
+  job.copyNotice = job.mediaNotice || '';
   if (hasAI()) {
     try {
       const top = [...job.stills].sort((a, b) => b.score - a.score).slice(0, 6).sort((a, b) => job.stills.indexOf(a) - job.stills.indexOf(b));
@@ -676,7 +684,7 @@ async function writeCopy(job, onStatus) {
       for (const s of top) images.push(await smallJpegBase64(await blobUrl(s.id)));
       job.copy = await draftWithAI({ ...args, images, onStatus });
     } catch (e) {
-      job.copyNotice = (e && e.message ? e.message : 'AI 글쓰기에 실패했어요') + ' 기본 문구로 만들었어요.';
+      job.copyNotice = [job.mediaNotice, (e && e.message ? e.message : 'AI 글쓰기에 실패했어요') + ' 기본 문구로 만들었어요.'].filter(Boolean).join(' ');
       job.copy = draftWithoutAI(args);
     }
   } else {
