@@ -217,6 +217,9 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var
 .keypad button:active{background:rgba(255,255,255,.22)}
 .keypad button.txt{background:none;border:0;font-size:15px;font-weight:600;color:#C8D4F0}
 .keypad button[disabled]{opacity:.35}
+.hintbox{margin:20px 0 0;padding:14px 20px;border-radius:16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);max-width:320px;width:100%}
+.hintbox span{display:block;font-size:12.5px;color:#9FB0D6}
+.hintbox b{display:block;font-size:19px;margin-top:4px;word-break:keep-all}
 .lockforgot{background:none;border:0;color:#9FB0D6;font-size:14px;margin-top:26px;text-decoration:underline;text-underline-offset:3px}
 .lockbtns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;margin-top:26px}
 @media (max-width:419px){.lockbtn{display:none}}
@@ -885,8 +888,9 @@ function vLock(){
   clearTimeout(lockTimer);
   if(ui.lockForgot)return `<div class="lockscr" role="dialog" aria-modal="true" aria-label="비밀번호 찾기"><img class="lm" src="${MARK}" alt="">
     <h1>비밀번호를 잊으셨나요?</h1>
-    <p>비밀번호는 이 ${DEV}에만 있어서 찾아 드릴 수 없어요.<br>잠금을 풀려면 이 ${DEV}의 기록을 모두 지워야 해요.<br>백업 파일이 있으면 지운 뒤 더보기 › 기기 맞추기에서 되돌릴 수 있어요.</p>
-    <div class="lockbtns"><button class="btn ${ui.lockForgot===2?'danger':'white'} pill block" data-act="lockWipe">${ui.lockForgot===2?'정말 모두 지우고 풀기':'기록 지우고 잠금 풀기'}</button><button class="btn glass pill block" data-act="lockBack">비밀번호 다시 입력</button></div></div>`;
+    ${lock&&lock.hint?`<div class="hintbox"><span>내가 적어 둔 힌트</span><b>${esc(lock.hint)}</b></div>`:''}
+    <p>${lock&&lock.hint?'힌트를 보고 기억이 나면 아래에서 다시 입력해 보세요.<br>':''}비밀번호는 이 ${DEV}에만 있어서 찾아 드릴 수 없어요.<br>끝내 기억나지 않으면 이 ${DEV}의 기록을 모두 지워야 풀려요.<br>백업 파일이 있으면 지운 뒤 더보기 › 기기 맞추기에서 되돌릴 수 있어요.</p>
+    <div class="lockbtns"><button class="btn white pill block" data-act="lockBack">비밀번호 다시 입력</button><button class="btn ${ui.lockForgot===2?'danger':'glass'} pill block" data-act="lockWipe">${ui.lockForgot===2?'정말 모두 지우고 풀기':'기록 지우고 잠금 풀기'}</button></div></div>`;
   const w=lockWait();
   if(w)lockTimer=setTimeout(()=>{if(ui.locked)render(true)},1000);
   const dots=[0,1,2,3].map(i=>`<i class="${i<ui.pinIn.length?'on':''}"></i>`).join('');
@@ -894,7 +898,7 @@ function vLock(){
   return `<div class="lockscr" role="dialog" aria-modal="true" aria-label="잠금"><img class="lm" src="${MARK}" alt="">
     <h1>비밀번호를 입력하세요</h1>
     <div class="pindots ${ui.lockShake?'shake':''}" aria-label="${ui.pinIn.length}자리 입력됨">${dots}</div>
-    <p class="lockmsg" role="status">${w?`여러 번 틀렸어요. ${w}초 뒤에 다시 입력해 주세요.`:esc(ui.lockMsg||'')}</p>
+    <p class="lockmsg" role="status">${w?`여러 번 틀렸어요. ${w>=60?Math.ceil(w/60)+'분':w+'초'} 뒤에 다시 입력해 주세요.`:esc(ui.lockMsg||'')}</p>
     <div class="keypad">${keys.map(k=>k===''?'<span></span>':`<button type="button" data-act="pinKey" data-val="${k}" ${w?'disabled':''} ${k==='back'?'class="txt" aria-label="지우기"':''}>${k==='back'?'지우기':k}</button>`).join('')}</div>
     <button class="lockforgot" data-act="lockForgot">비밀번호를 잊었어요</button></div>`;
 }
@@ -907,9 +911,9 @@ async function pinPress(k){
   if(ui.pinIn.length<4)return;
   const ok=(await pinHash(ui.pinIn,lock.salt))===lock.hash;
   ui.pinIn='';
-  if(ok){ui.locked=false;lock.fails=0;lock.waitUntil=0;lockSave();render(false);return}
+  if(ok){ui.locked=false;lock.fails=0;lock.rounds=0;lock.waitUntil=0;lockSave();render(false);return}
   lock.fails=n(lock.fails)+1;
-  if(lock.fails>=5){lock.fails=0;lock.waitUntil=Date.now()+30000}
+  if(lock.fails>=5){const W=[30,60,300,600],r=n(lock.rounds);lock.fails=0;lock.rounds=r+1;lock.waitUntil=Date.now()+W[Math.min(r,W.length-1)]*1000}
   lockSave();ui.lockMsg='비밀번호가 달라요';ui.lockShake=true;render(true);
 }
 function lockNow(){if(!lock)return;ui.locked=true;ui.pinIn='';ui.lockMsg='';ui.lockForgot=0;ui.modal=null;render(false)}
@@ -918,7 +922,9 @@ function lockCard(){
   let h=`<div class="card" id="lockcard"><div class="sec"><span>잠금</span>${lock?'<span class="pill ok">켜짐</span>':'<span class="pill">꺼짐</span>'}</div>
   <p class="note" style="margin:-4px 0 14px">직원이 매장 PC나 폰을 열어도 급여와 남는 돈이 보이지 않게 비밀번호 4자리로 잠가요.</p>`;
   if(!lock||ui.pinChange){
-    h+=`<div class="stk">${ui.pinChange?pf('pinCur','지금 비밀번호'):''}<div class="g2">${pf('pinNew','새 비밀번호')}${pf('pinNew2','한 번 더')}</div></div>
+    h+=`<div class="stk">${ui.pinChange?pf('pinCur','지금 비밀번호'):''}<div class="g2">${pf('pinNew','새 비밀번호')}${pf('pinNew2','한 번 더')}</div>
+    <label class="fld"><span>힌트 한 줄 (선택)</span><input class="inp txt" id="pinHint" type="text" maxlength="30" autocomplete="off" placeholder="예) 엄마 생신" value="${esc(lock?lock.hint||'':'')}"></label>
+    <p class="note" style="margin:-6px 0 0">비밀번호를 잊었을 때 잠금 화면에 보여요. 나만 알아볼 말로 적고, 비밀번호 숫자는 그대로 적지 마세요.</p></div>
     <div class="btns" style="margin-top:12px"><button class="btn sm" data-act="pinSet">${ui.pinChange?'비밀번호 바꾸기':'잠금 켜기'}</button>${ui.pinChange?'<button class="btn sm ghost" data-act="pinChangeNo">취소</button>':''}</div>`;
   }else{
     const a=n(lock.after);
@@ -926,7 +932,7 @@ function lockCard(){
     <div class="btns" style="margin-top:14px"><button class="btn sm" data-act="lockNow">${I('lock')}지금 잠그기</button><button class="btn sm ghost" data-act="pinChange">비밀번호 바꾸기</button></div>
     <div class="hr"></div>${ui.pinOff?`<div class="stk">${pf('pinCur','지금 비밀번호')}</div><div class="btns" style="margin-top:10px"><button class="btn sm danger" data-act="pinOff">잠금 끄기</button><button class="btn sm ghost" data-act="pinOffNo">취소</button></div>`:`<button class="btn sm ghost" data-act="pinOffAsk">잠금 끄기</button>`}`;
   }
-  return h+`<p class="note" style="margin:14px 0 0">비밀번호는 이 ${DEV}에만 저장되고 백업 파일에는 들어가지 않아요. 잊으면 이 ${DEV} 기록을 지워야 풀 수 있으니 백업을 꼭 해 두세요. 잠금은 화면을 가리는 기능이고, 기록을 암호화하지는 않아요.</p></div>`;
+  return h+`<p class="note" style="margin:14px 0 0">비밀번호는 이 ${DEV}에만 저장되고 백업 파일에는 들어가지 않아요. 잊으면 힌트가 나오고, 그래도 못 찾으면 이 ${DEV} 기록을 지워야 풀 수 있으니 백업을 꼭 해 두세요. 잠금은 화면을 가리는 기능이고, 기록을 암호화하지는 않아요.</p></div>`;
 }
 async function pinSet(){
   const v=id=>(($('#'+id)||{}).value||'').trim();
@@ -935,7 +941,9 @@ async function pinSet(){
   if(!/^\d{4}$/.test(a)){toast('숫자 4자리로 정해 주세요.');return}
   if(a!==b){toast('두 번 입력한 비밀번호가 달라요.');return}
   const salt=uid()+uid(),after=lock?n(lock.after):60;
-  lock={salt,hash:await pinHash(a,salt),after,fails:0,waitUntil:0};lockSave();
+  const hint=((($('#pinHint')||{}).value)||'').trim().slice(0,30);
+  if(hint&&hint.replace(/\D/g,'').includes(a)){toast('힌트에 비밀번호 숫자를 그대로 적지 마세요.');return}
+  lock={salt,hash:await pinHash(a,salt),after,fails:0,rounds:0,waitUntil:0,hint};lockSave();
   toast(ui.pinChange?'비밀번호를 바꿨어요':'잠금을 켰어요. 다음에 열 때부터 비밀번호를 물어봐요');ui.pinChange=false;render(true);
 }
 async function pinOff(){
