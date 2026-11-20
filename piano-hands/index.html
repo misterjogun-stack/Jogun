@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>손가락 피아노</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700&display=swap">
+<style>
+/* 레이아웃: 카메라 화면이 전체를 채우고, 아래쪽에 건반, 위쪽에 조작 막대가 겹쳐 놓인다. */
+:root {
+  --night: #12131f;        /* 바탕 */
+  --panel: rgba(18, 19, 31, 0.78);
+  --ink: #f4f1ff;          /* 글자 */
+  --muted: #b9b6d3;
+  --left: #4fc3f7;         /* 왼손 */
+  --right: #ffa94d;        /* 오른손 */
+  --star: #ffe066;         /* 칠 건반, 별 */
+  --line: rgba(255, 255, 255, 0.16);
+  --display: "Jua", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--night); color: var(--ink); font-family: var(--body);
+  overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+#stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#cam { position: fixed; width: 2px; height: 2px; opacity: 0; pointer-events: none; left: 0; top: 0; }
+
+.bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 5;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  padding-top: max(10px, env(safe-area-inset-top, 0px)); padding-bottom: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: linear-gradient(var(--panel), rgba(18, 19, 31, 0.35));
+}
+.bar h1 { font-family: var(--display); font-weight: 400; font-size: 1.6rem; margin: 0 6px 0 0; letter-spacing: 0.02em; }
+.group { display: flex; align-items: center; gap: 4px; }
+.group > span { font-size: 0.78rem; color: var(--muted); margin-right: 4px; letter-spacing: 0.04em; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.seg button, .btn {
+  font: 700 0.86rem var(--body); color: var(--ink); background: transparent; border: 0;
+  padding: 7px 12px; cursor: pointer; white-space: nowrap;
+}
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--night); }
+.btn { border: 1px solid var(--line); border-radius: 999px; }
+.btn:hover, .seg button:hover { background: rgba(255,255,255,0.12); }
+.seg button[aria-pressed="true"]:hover { background: var(--ink); }
+button:focus-visible, select:focus-visible { outline: 3px solid var(--star); outline-offset: 2px; }
+select {
+  font: 700 0.86rem var(--body); color: var(--ink); background: rgba(255,255,255,0.08);
+  border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px;
+}
+select option { color: #111; }
+.status { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: var(--muted); }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+
+.song {
+  position: fixed; left: 0; right: 0; z-index: 4; display: flex; align-items: center; gap: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.chips { display: flex; gap: 6px; overflow: hidden; flex: 1; min-width: 0; mask-image: linear-gradient(90deg, #000 85%, transparent); }
+.chip {
+  flex: none; font-family: var(--display); font-size: 1.25rem; min-width: 46px; text-align: center;
+  padding: 6px 8px; border-radius: 12px; background: rgba(18,19,31,0.6); color: var(--muted); border: 1px solid var(--line);
+}
+.chip.done { opacity: 0.35; }
+.chip.now { background: var(--star); color: var(--night); border-color: var(--star); transform: scale(1.12); }
+.progress { font-family: var(--display); font-size: 1.2rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.overlay {
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
+  background: rgba(12, 12, 22, 0.86);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px;
+}
+.card { max-width: 560px; width: 100%; text-align: center; }
+.card h2 { font-family: var(--display); font-weight: 400; font-size: clamp(2.4rem, 7vw, 3.6rem); margin: 0 0 8px; text-wrap: balance; }
+.card p { color: var(--muted); line-height: 1.65; margin: 0 0 10px; }
+.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 22px 0; text-align: left; }
+.how div { border: 1px solid var(--line); border-radius: 14px; padding: 12px; font-size: 0.88rem; line-height: 1.5; color: var(--ink); }
+.how b { display: block; font-family: var(--display); font-weight: 400; font-size: 1.2rem; margin-bottom: 4px; color: var(--star); }
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 10px; }
+.big {
+  font: 400 1.5rem var(--display); color: var(--night); background: var(--star); border: 0;
+  border-radius: 999px; padding: 14px 30px; cursor: pointer;
+}
+.big.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); font-size: 1.15rem; padding: 12px 22px; }
+.msg { min-height: 1.4em; margin-top: 14px; color: var(--star); font-weight: 700; }
+.stars { font-size: 3.4rem; letter-spacing: 0.1em; color: var(--star); margin: 6px 0 4px; }
+.stars .off { color: rgba(255,255,255,0.18); }
+@media (max-width: 560px) { .how { grid-template-columns: 1fr; } .bar h1 { font-size: 1.3rem; } }
+@media (prefers-reduced-motion: reduce) { .chip.now { transform: none; } }
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="피아노 건반과 카메라 화면"></canvas>
+<video id="cam" playsinline muted></video>
+
+<header class="bar" id="bar">
+  <h1>손가락 피아노</h1>
+  <div class="group"><span>놀이</span>
+    <div class="seg" id="modeSeg">
+      <button data-v="free" aria-pressed="true">자유 연주</button>
+      <button data-v="song" aria-pressed="false">노래 따라치기</button>
+    </div>
+  </div>
+  <div class="group" id="songGroup" hidden>
+    <select id="songSel" aria-label="노래 고르기"></select>
+    <button class="btn" id="listenBtn">들어보기</button>
+  </div>
+  <div class="group"><span>건반</span>
+    <div class="seg" id="rangeSeg">
+      <button data-v="full" aria-pressed="true">61건반</button>
+      <button data-v="mid" aria-pressed="false">3옥타브</button>
+      <button data-v="big" aria-pressed="false">2옥타브</button>
+    </div>
+  </div>
+  <div class="group"><span>손가락</span>
+    <div class="seg" id="fingerSeg">
+      <button data-v="all" aria-pressed="true">다섯 손가락</button>
+      <button data-v="index" aria-pressed="false">검지만</button>
+    </div>
+  </div>
+  <button class="btn" id="swapBtn" title="왼손과 오른손 색이 반대로 보이면 누르세요">왼손·오른손 바꾸기</button>
+  <div class="status">
+    <span><i class="dot" style="background:var(--left)"></i>왼손</span>
+    <span><i class="dot" style="background:var(--right)"></i>오른손</span>
+    <span id="camStatus">카메라 꺼짐</span>
+  </div>
+</header>
+
+<div class="song" id="songBar" hidden>
+  <div class="chips" id="chips"></div>
+  <div class="progress" id="progress">0 / 0</div>
+</div>
+
+<div class="overlay" id="startOverlay">
+  <div class="card">
+    <h2>손가락 피아노</h2>
+    <p>카메라가 손을 보고, 화면 속 손가락이 건반에 닿으면 소리가 나요.</p>
+    <div class="how">
+      <div><b>1. 손 보여 주기</b>카메라 앞 1미터쯤에서 두 손을 화면에 보여 주세요.</div>
+      <div><b>2. 건반 누르기</b>화면 아래 건반까지 손가락을 내리면 그 건반이 울려요.</div>
+      <div><b>3. 노래 따라치기</b>노란 건반을 차례로 누르면 노래가 완성돼요.</div>
+    </div>
+    <div class="actions">
+      <button class="big" id="startCam">카메라로 시작</button>
+      <button class="big ghost" id="startMouse">마우스·터치로 하기</button>
+    </div>
+    <div class="msg" id="startMsg" role="status"></div>
+  </div>
+</div>
+
+<div class="overlay" id="doneOverlay" hidden>
+  <div class="card">
+    <h2 id="doneTitle">다 쳤어요!</h2>
+    <div class="stars" id="doneStars"></div>
+    <p id="doneText"></p>
+    <div class="actions">
+      <button class="big" id="againBtn">한 번 더</button>
+      <button class="big ghost" id="nextBtn">다음 노래</button>
+      <button class="big ghost" id="freeBtn">자유 연주</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// ───────────────────────── 설정 ─────────────────────────
+const MP_VERSION = "0.10.14";
+const MP_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`;
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+
+// 61건반 = C2(36) ~ C7(96). 건반 수를 바꾸려면 lo/hi 만 고치면 된다.
+const RANGES = {
+  full: { lo: 36, hi: 96 },  // 61건반
+  mid:  { lo: 48, hi: 84 },  // 3옥타브 (37건반)
+  big:  { lo: 60, hi: 84 },  // 2옥타브 (25건반)
+};
+const FINGER_TIPS = { all: [4, 8, 12, 16, 20], index: [8] };
+const HAND_COLOR = { L: "#4fc3f7", R: "#ffa94d", P: "#c3a6ff" };
+const SOLFEGE = ["도", "도#", "레", "레#", "미", "파", "파#", "솔", "솔#", "라", "라#", "시"];
+const isBlack = (m) => [1, 3, 6, 8, 10].includes(m % 12);
+const noteLabel = (m) => SOLFEGE[m % 12];
+
+// 저작권이 끝난 옛 선율만 담았다. "음이름옥타브:박자" 형식.
+const SONGS = [
+  { id: "star", name: "작은 별", score:
+    "C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2 G4 G4 F4 F4 E4 E4 D4:2 G4 G4 F4 F4 E4 E4 D4:2 C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2" },
+  { id: "butterfly", name: "나비야", score:
+    "G4 E4 E4:2 F4 D4 D4:2 C4 D4 E4 F4 G4 G4 G4:2 G4 E4 E4 E4 F4 D4 D4 D4 C4 E4 G4 G4 E4 E4 E4:2 D4 D4 D4 D4 D4 E4 F4:2 E4 E4 E4 E4 E4 F4 G4:2 G4 E4 E4 E4 F4 D4 D4 D4 C4 E4 G4 G4 C4:4" },
+  { id: "plane", name: "비행기", score:
+    "E4 D4 C4 D4 E4 E4 E4:2 D4 D4 D4:2 E4 G4 G4:2 E4 D4 C4 D4 E4 E4 E4 E4 D4 D4 E4 D4 C4:4" },
+  { id: "joy", name: "환희의 송가", score:
+    "E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4:1.5 D4:0.5 D4:2 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4:1.5 C4:0.5 C4:2" },
+];
+const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+function parseScore(s) {
+  return s.trim().split(/\s+/).map((tok) => {
+    const [n, b] = tok.split(":");
+    const m = n.match(/^([A-G])(#?)(\d)$/);
+    return { midi: 12 * (Number(m[3]) + 1) + STEP[m[1]] + (m[2] ? 1 : 0), beats: b ? Number(b) : 1 };
+  });
+}
+SONGS.forEach((s) => (s.notes = parseScore(s.score)));
+
+// ───────────────────────── 상태 ─────────────────────────
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("fpiano_" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("fpiano_" + k, JSON.stringify(v)); } catch {} },
+};
+const state = {
+  mode: "free",
+  range: store.get("range", "full"),
+  fingerSet: store.get("fingers", "all"),
+  swap: store.get("swap", false),
+  songIdx: store.get("song", 0),
+  camOn: false,
+};
+const game = { idx: 0, hits: 0, misses: 0, shakeAt: 0, done: false };
+
+// ───────────────────────── 소리 ─────────────────────────
+let actx = null, master = null, reverbIn = null;
+function initAudio() {
+  if (actx) { actx.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  actx = new AC();
+  const comp = actx.createDynamicsCompressor();
+  comp.threshold.value = -14; comp.ratio.value = 4;
+  master = actx.createGain(); master.gain.value = 0.9;
+  master.connect(comp); comp.connect(actx.destination);
+  // 작은 방 울림
+  const len = Math.floor(actx.sampleRate * 1.6);
+  const ir = actx.createBuffer(2, len, actx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  }
+  const conv = actx.createConvolver(); conv.buffer = ir;
+  const wet = actx.createGain(); wet.gain.value = 0.22;
+  reverbIn = actx.createGain();
+  reverbIn.connect(conv); conv.connect(wet); wet.connect(comp);
+}
+const voices = new Map();
+function synthOn(midi, vel = 0.8) {
+  if (!actx) return;
+  synthOff(midi, 0.03);
+  const t = actx.currentTime;
+  const f = 440 * Math.pow(2, (midi - 69) / 12);
+  const decay = midi < 48 ? 4 : midi < 72 ? 3 : 1.8;
+  const out = actx.createGain();
+  out.gain.setValueAtTime(0, t);
+  out.gain.linearRampToValueAtTime(0.32 * vel, t + 0.006);
+  out.gain.setTargetAtTime(0.14 * vel, t + 0.01, 0.18);
+  out.gain.setTargetAtTime(0, t + 0.45, decay / 3);
+  const filt = actx.createBiquadFilter();
+  filt.type = "lowpass";
+  filt.frequency.setValueAtTime(Math.min(f * (6 + 8 * vel), 14000), t);
+  filt.frequency.setTargetAtTime(Math.min(f * 2.5, 9000), t, 0.5);
+  filt.connect(out); out.connect(master); out.connect(reverbIn);
+  const amps = [1, 0.5, 0.26, 0.14, 0.08, 0.04];
+  const oscs = [];
+  amps.forEach((a, i) => {
+    const n = i + 1;
+    const o = actx.createOscillator();
+    o.type = "sine";
+    o.frequency.value = f * n * (1 + 0.0004 * n * n);
+    const g = actx.createGain();
+    g.gain.setValueAtTime(a, t);
+    g.gain.setTargetAtTime(0, t, decay / (n * 1.4));
+    o.connect(g); g.connect(filt);
+    o.start(t); o.stop(t + decay + 1.5);
+    oscs.push(o);
+  });
+  // 해머가 줄을 치는 짧은 소리
+  const nb = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.03), actx.sampleRate);
+  const nd = nb.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * (1 - i / nd.length);
+  const ns = actx.createBufferSource(); ns.buffer = nb;
+  const bp = actx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = Math.min(f * 4, 8000); bp.Q.value = 1.2;
+  const ng = actx.createGain(); ng.gain.value = 0.12 * vel;
+  ns.connect(bp); bp.connect(ng); ng.connect(out); ns.start(t);
+  voices.set(midi, { out, oscs });
+}
+function synthOff(midi, rel = 0.18) {
+  const v = voices.get(midi);
+  if (!v || !actx) return;
+  const t = actx.currentTime;
+  const g = v.out.gain;
+  if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(t);
+  else { const cur = g.value; g.cancelScheduledValues(t); g.setValueAtTime(cur, t); }
+  g.setTargetAtTime(0, t, rel);
+  v.oscs.forEach((o) => { try { o.stop(t + rel * 6); } catch {} });
+  voices.delete(midi);
+}
+
+// ───────────────────────── 화면 배치 ─────────────────────────
+const canvas = document.getElementById("stage");
+const g2 = canvas.getContext("2d");
+const video = document.getElementById("cam");
+let W = 0, H = 0, DPR = 1;
+const kb = { x: 0, y: 0, w: 0, h: 0, ww: 0, blackH: 0, keys: [], byMidi: new Map() };
+
+function layout() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  const r = RANGES[state.range];
+  const left = Math.max(10, safeInset("left")), right = Math.max(10, safeInset("right"));
+  kb.x = left; kb.w = W - left - right;
+  kb.h = Math.max(110, Math.min(H * 0.3, 290));
+  kb.y = H - kb.h - Math.max(10, safeInset("bottom") + 8);
+  let whites = 0;
+  for (let m = r.lo; m <= r.hi; m++) if (!isBlack(m)) whites++;
+  kb.ww = kb.w / whites;
+  kb.blackH = kb.h * 0.6;
+  kb.keys = []; kb.byMidi.clear();
+  let wi = 0;
+  for (let m = r.lo; m <= r.hi; m++) {
+    let k;
+    if (isBlack(m)) {
+      const bw = kb.ww * 0.6;
+      k = { midi: m, black: true, x: kb.x + wi * kb.ww - bw / 2, y: kb.y, w: bw, h: kb.blackH };
+    } else {
+      k = { midi: m, black: false, x: kb.x + wi * kb.ww, y: kb.y, w: kb.ww, h: kb.h };
+      wi++;
+    }
+    kb.keys.push(k); kb.byMidi.set(m, k);
+  }
+  placeSongBar();
+}
+let insetProbe;
+function safeInset(side) {
+  if (!insetProbe) {
+    insetProbe = document.createElement("div");
+    insetProbe.style.cssText = "position:fixed;visibility:hidden;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)";
+    document.body.appendChild(insetProbe);
+  }
+  return parseFloat(getComputedStyle(insetProbe)["padding" + side[0].toUpperCase() + side.slice(1)]) || 0;
+}
+function placeSongBar() {
+  const b = document.getElementById("bar").getBoundingClientRect();
+  document.getElementById("songBar").style.top = b.bottom + 6 + "px";
+}
+
+function hitKey(x, y) {
+  if (y < kb.y || y > kb.y + kb.h) return null;
+  if (y <= kb.y + kb.blackH) {
+    for (const k of kb.keys) if (k.black && x >= k.x && x <= k.x + k.w) return k.midi;
+  }
+  for (const k of kb.keys) if (!k.black && x >= k.x && x < k.x + k.w) return k.midi;
+  return null;
+}
+// 건반 경계에서 소리가 떨리지 않게, 지금 누른 건반은 조금 넓게 본다.
+function resolveKey(cur, x, y) {
+  const raw = hitKey(x, y);
+  if (raw === cur || cur == null) return raw;
+  const ck = kb.byMidi.get(cur);
+  if (!ck) return raw;
+  if (raw != null && isBlack(raw) && !isBlack(cur)) {
+    const k = kb.byMidi.get(raw), m = k.w * 0.15;
+    if (x > k.x + m && x < k.x + k.w - m && y < k.y + k.h - m) return raw;
+  }
+  const mx = (ck.black ? ck.w : kb.ww) * 0.2;
+  const inside = x >= ck.x - mx && x <= ck.x + ck.w + mx && y >= kb.y - 8 && y <= ck.y + ck.h + (ck.black ? kb.ww * 0.2 : 30);
+  return inside ? cur : raw;
+}
+
+// ───────────────────────── 누르기 ─────────────────────────
+const held = new Map();     // midi -> 누르고 있는 손가락 수
+const lit = new Map();      // midi -> {hand, t}
+const fingers = new Map();  // 손가락 id -> {note, x, y, t, seen, hand}
+const particles = [], popups = [];
+
+function press(midi, vel, hand) {
+  const n = (held.get(midi) || 0) + 1;
+  held.set(midi, n);
+  lit.set(midi, { hand, t: performance.now() });
+  if (n > 1) return;
+  synthOn(midi, vel);
+  const k = kb.byMidi.get(midi);
+  if (k) {
+    const cx = k.x + k.w / 2;
+    for (let i = 0; i < 9; i++) {
+      particles.push({ x: cx, y: k.y, vx: (Math.random() - 0.5) * 2.4, vy: -2 - Math.random() * 3, life: 1, color: HAND_COLOR[hand], r: 3 + Math.random() * 4, star: false });
+    }
+    popups.push({ text: noteLabel(midi), x: cx, y: k.y - 18, life: 1, color: HAND_COLOR[hand] });
+  }
+  if (state.mode === "song") songPress(midi);
+}
+function release(midi) {
+  const n = (held.get(midi) || 0) - 1;
+  if (n <= 0) { held.delete(midi); lit.delete(midi); synthOff(midi); }
+  else held.set(midi, n);
+}
+function trackFinger(id, hand, x, y, now) {
+  let f = fingers.get(id);
+  if (!f || now - f.seen > 250) {
+    if (f && f.note != null) release(f.note);
+    f = { note: null, x, y, t: now, seen: now, hand, vy: 0 };
+    fingers.set(id, f);
+  }
+  const a = 0.65;
+  const nx = f.x + (x - f.x) * a, ny = f.y + (y - f.y) * a;
+  const dt = Math.max(8, now - f.t);
+  f.vy = f.vy * 0.5 + ((ny - f.y) / dt) * 0.5;
+  f.x = nx; f.y = ny; f.t = now; f.seen = now; f.hand = hand;
+  const note = resolveKey(f.note, nx, ny);
+  if (note !== f.note) {
+    if (f.note != null) release(f.note);
+    if (note != null) press(note, Math.max(0.4, Math.min(1, 0.6 + f.vy * 0.35)), hand);
+    f.note = note;
+  }
+}
+function dropFinger(id) {
+  const f = fingers.get(id);
+  if (!f) return;
+  if (f.note != null) release(f.note);
+  fingers.delete(id);
+}
+function sweepFingers(now, prefix) {
+  for (const [id, f] of fingers) if (id.startsWith(prefix) && now - f.seen > 140) dropFinger(id);
+}
+
+// ───────────────────────── 노래 따라치기 ─────────────────────────
+const chipsEl = document.getElementById("chips");
+const progressEl = document.getElementById("progress");
+function song() { return SONGS[state.songIdx] || SONGS[0]; }
+function target() { return state.mode === "song" && !game.done ? song().notes[game.idx]?.midi ?? null : null; }
+function startSong() {
+  game.idx = 0; game.hits = 0; game.misses = 0; game.done = false;
+  stopDemo();
+  chipsEl.replaceChildren(...song().notes.map((n) => {
+    const c = document.createElement("span");
+    c.className = "chip"; c.textContent = noteLabel(n.midi);
+    return c;
+  }));
+  updateChips();
+}
+function updateChips() {
+  const kids = chipsEl.children;
+  for (let i = 0; i < kids.length; i++) kids[i].className = "chip" + (i < game.idx ? " done" : i === game.idx ? " now" : "");
+  const first = Math.max(0, game.idx - 2);
+  chipsEl.scrollLeft = kids[first] ? kids[first].offsetLeft - chipsEl.offsetLeft : 0;
+  progressEl.textContent = `${Math.min(game.idx, song().notes.length)} / ${song().notes.length}`;
+}
+function songPress(midi) {
+  if (game.done || demoTimer) return;
+  const t = target();
+  if (midi === t) {
+    game.hits++;
+    const k = kb.byMidi.get(midi);
+    if (k) for (let i = 0; i < 14; i++) {
+      const ang = Math.random() * Math.PI * 2, sp = 2 + Math.random() * 4;
+      particles.push({ x: k.x + k.w / 2, y: k.y - 10, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 2, life: 1.2, color: "#ffe066", r: 6 + Math.random() * 5, star: true });
+    }
+    game.idx++;
+    if (game.idx >= song().notes.length) { game.done = true; setTimeout(showDone, 700); }
+    updateChips();
+  } else {
+    game.misses++;
+    game.shakeAt = performance.now();
+  }
+}
+function showDone() {
+  const total = game.hits + game.misses;
+  const acc = total ? game.hits / total : 1;
+  const stars = acc >= 0.85 ? 3 : acc >= 0.6 ? 2 : 1;
+  document.getElementById("doneTitle").textContent = stars === 3 ? "정말 잘했어요!" : stars === 2 ? "다 쳤어요!" : "끝까지 해냈어요!";
+  document.getElementById("doneStars").innerHTML = [0, 1, 2].map((i) => `<span class="${i < stars ? "" : "off"}">★</span>`).join("");
+  document.getElementById("doneText").textContent = `「${song().name}」 ${song().notes.length}음을 모두 쳤어요. 다른 건반을 누른 횟수는 ${game.misses}번이에요.`;
+  document.getElementById("doneOverlay").hidden = false;
+}
+let demoTimer = null;
+function stopDemo() {
+  if (demoTimer) { clearTimeout(demoTimer); demoTimer = null; }
+  for (const m of [...lit.keys()]) if (!held.get(m)) lit.delete(m);
+  document.getElementById("listenBtn").textContent = "들어보기";
+}
+function playDemo() {
+  initAudio();
+  if (demoTimer) { stopDemo(); return; }
+  document.getElementById("listenBtn").textContent = "그만 듣기";
+  const notes = song().notes, beat = 430;
+  let i = 0;
+  const step = () => {
+    if (i > 0) { synthOff(notes[i - 1].midi, 0.12); lit.delete(notes[i - 1].midi); }
+    if (i >= notes.length) { stopDemo(); return; }
+    const n = notes[i];
+    synthOn(n.midi, 0.75);
+    lit.set(n.midi, { hand: "P", t: performance.now() });
+    i++;
+    demoTimer = setTimeout(step, n.beats * beat);
+  };
+  step();
+}
+
+// ───────────────────────── 손 인식 ─────────────────────────
+let landmarker = null, lastVideoTime = -1, lastHands = [], handsSeenAt = 0;
+const camStatus = document.getElementById("camStatus");
+
+async function startCamera() {
+  const msg = document.getElementById("startMsg");
+  if (!window.isSecureContext) {
+    msg.textContent = "카메라는 https 주소나 내 컴퓨터에서 연 파일에서만 켜져요.";
+    return false;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) { msg.textContent = "이 브라우저는 카메라를 지원하지 않아요. 크롬에서 열어 주세요."; return false; }
+  msg.textContent = "카메라를 켜는 중…";
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+  } catch (e) {
+    msg.textContent = e && e.name === "NotAllowedError"
+      ? "카메라 사용이 막혀 있어요. 주소창 옆 카메라 아이콘에서 허용한 뒤 다시 눌러 주세요."
+      : "카메라를 켜지 못했어요. 다른 앱이 카메라를 쓰고 있는지 확인해 주세요.";
+    return false;
+  }
+  msg.textContent = "손 인식 준비 중… (처음에는 10초쯤 걸려요)";
+  try {
+    const { HandLandmarker, FilesetResolver } = await import(`${MP_URL}/vision_bundle.mjs`);
+    const files = await FilesetResolver.forVisionTasks(`${MP_URL}/wasm`);
+    const opts = (delegate) => ({
+      baseOptions: { modelAssetPath: MODEL_URL, delegate },
+      runningMode: "VIDEO", numHands: 2,
+      minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+    });
+    try { landmarker = await HandLandmarker.createFromOptions(files, opts("GPU")); }
+    catch { landmarker = await HandLandmarker.createFromOptions(files, opts("CPU")); }
+  } catch (e) {
+    msg.textContent = "손 인식 프로그램을 받지 못했어요. 인터넷 연결을 확인해 주세요. 지금은 마우스·터치로 칠 수 있어요.";
+    state.camOn = true;
+    camStatus.textContent = "카메라만 켜짐";
+    return true;
+  }
+  state.camOn = true;
+  camStatus.textContent = "손을 보여 주세요";
+  return true;
+}
+
+function videoRect() {
+  const vw = video.videoWidth || 16, vh = video.videoHeight || 9;
+  const s = Math.max(W / vw, H / vh);
+  const dw = vw * s, dh = vh * s;
+  return { x: (W - dw) / 2, y: (H - dh) / 2, w: dw, h: dh };
+}
+function detectHands(now) {
+  if (!landmarker || video.readyState < 2 || video.currentTime === lastVideoTime) return;
+  lastVideoTime = video.currentTime;
+  let res;
+  try { res = landmarker.detectForVideo(video, now); } catch { return; }
+  const vr = videoRect();
+  const hands = [];
+  const used = {};
+  const marks = res.landmarks || [];
+  const sides = res.handedness || res.handednesses || [];
+  marks.forEach((lm, i) => {
+    // 거울처럼 뒤집지 않은 카메라 영상을 넣으면 인식 결과의 왼쪽/오른쪽이 반대로 나온다.
+    const raw = sides[i]?.[0]?.categoryName || "Right";
+    let side = raw === "Left" ? "R" : "L";
+    if (state.swap) side = side === "L" ? "R" : "L";
+    const id = used[side] ? side + "2" : side;
+    used[side] = true;
+    const pts = lm.map((p) => ({ x: vr.x + (1 - p.x) * vr.w, y: vr.y + p.y * vr.h }));
+    hands.push({ side, id, pts });
+    for (const tip of FINGER_TIPS[state.fingerSet]) trackFinger(`H${id}-${tip}`, side, pts[tip].x, pts[tip].y, now);
+  });
+  sweepFingers(now, "H");
+  lastHands = hands;
+  if (hands.length) handsSeenAt = now;
+  camStatus.textContent = hands.length ? `손 ${hands.length}개 보여요` : "손을 보여 주세요";
+}
+
+// 자동 점검용: 가짜 손끝 좌표를 넣어 볼 수 있다.
+window.pianoTest = {
+  tips(list) { const now = performance.now(); list.forEach((t) => trackFinger("T" + t.id, t.hand || "R", t.x, t.y, now)); },
+  clear() { for (const id of [...fingers.keys()]) if (id.startsWith("T")) dropFinger(id); },
+  keyCenter(midi) { const k = kb.byMidi.get(midi); return k && { x: k.x + k.w / 2, y: k.y + k.h * (k.black ? 0.5 : 0.85) }; },
+  held: () => [...held.keys()], game: () => ({ ...game }),
+};
+
+// ───────────────────────── 그리기 ─────────────────────────
+const HAND_LINKS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+
+function roundRect(x, y, w, h, r) {
+  g2.beginPath();
+  g2.moveTo(x, y); g2.lineTo(x + w, y); g2.lineTo(x + w, y + h - r);
+  g2.quadraticCurveTo(x + w, y + h, x + w - r, y + h); g2.lineTo(x + r, y + h);
+  g2.quadraticCurveTo(x, y + h, x, y + h - r); g2.closePath();
+}
+function starPath(cx, cy, r) {
+  g2.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const rr = i % 2 ? r * 0.45 : r, a = -Math.PI / 2 + (i * Math.PI) / 5;
+    g2.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+  }
+  g2.closePath();
+}
+function drawBackground() {
+  if (state.camOn && video.readyState >= 2) {
+    const vr = videoRect();
+    g2.save();
+    g2.translate(vr.x + vr.w, vr.y); g2.scale(-1, 1);
+    g2.drawImage(video, 0, 0, vr.w, vr.h);
+    g2.restore();
+    g2.fillStyle = "rgba(14, 14, 28, 0.42)";
+    g2.fillRect(0, 0, W, H);
+  } else {
+    const gr = g2.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, "#1b1d33"); gr.addColorStop(1, "#0f1020");
+    g2.fillStyle = gr; g2.fillRect(0, 0, W, H);
+  }
+}
+function drawKeyboard(now) {
+  const tgt = target();
+  const pulse = 0.5 + 0.5 * Math.sin(now / 180);
+  const shake = now - game.shakeAt < 300 ? Math.sin((now - game.shakeAt) / 25) * 4 : 0;
+  // 건반 위 안내선
+  g2.fillStyle = "rgba(255,255,255,0.08)";
+  g2.fillRect(kb.x, kb.y - 4, kb.w, 4);
+  const labelSize = Math.max(9, Math.min(18, kb.ww * 0.42));
+  for (const k of kb.keys) {
+    if (k.black) continue;
+    const L = lit.get(k.midi);
+    roundRect(k.x + 1, k.y, k.w - 2, k.h, Math.min(8, k.w * 0.2));
+    if (L) {
+      const gr = g2.createLinearGradient(0, k.y, 0, k.y + k.h);
+      gr.addColorStop(0, "#ffffff"); gr.addColorStop(1, HAND_COLOR[L.hand]);
+      g2.fillStyle = gr;
+    } else if (k.midi === tgt) {
+      g2.fillStyle = `rgba(255, 224, 102, ${0.55 + 0.45 * pulse})`;
+    } else g2.fillStyle = "rgba(250, 249, 255, 0.93)";
+    g2.fill();
+    g2.strokeStyle = "rgba(20,20,40,0.35)"; g2.lineWidth = 1; g2.stroke();
+    const showAll = kb.ww >= 24;
+    if (showAll || k.midi % 12 === 0) {
+      g2.fillStyle = k.midi % 12 === 0 ? "#3b3f8f" : "rgba(40,40,70,0.55)";
+      g2.font = `${labelSize}px Jua, sans-serif`;
+      g2.textAlign = "center"; g2.textBaseline = "alphabetic";
+      g2.fillText(noteLabel(k.midi), k.x + k.w / 2, k.y + k.h - 10);
+      if (k.midi === 60) {
+        g2.font = `${Math.max(8, labelSize * 0.6)}px "Noto Sans KR", sans-serif`;
+        g2.fillText("가운데", k.x + k.w / 2, k.y + k.h - 12 - labelSize);
+      }
+    }
+  }
+  for (const k of kb.keys) {
+    if (!k.black) continue;
+    const L = lit.get(k.midi);
+    roundRect(k.x, k.y, k.w, k.h, Math.min(5, k.w * 0.2));
+    if (L) g2.fillStyle = HAND_COLOR[L.hand];
+    else if (k.midi === tgt) g2.fillStyle = `rgba(255, 210, 60, ${0.6 + 0.4 * pulse})`;
+    else {
+      const gr = g2.createLinearGradient(0, k.y, 0, k.y + k.h);
+      gr.addColorStop(0, "#2a2b3d"); gr.addColorStop(1, "#11121c");
+      g2.fillStyle = gr;
+    }
+    g2.fill();
+  }
+  // 칠 건반 위에 별과 다음 음 표시
+  if (tgt != null) {
+    const notes = song().notes;
+    for (let j = 3; j >= 0; j--) {
+      const n = notes[game.idx + j];
+      if (!n) continue;
+      const k = kb.byMidi.get(n.midi);
+      if (!k) continue;
+      const cx = k.x + k.w / 2 + (j === 0 ? shake : 0);
+      const cy = kb.y - 34 - j * 46 - (j === 0 ? pulse * 8 : 0);
+      const r = j === 0 ? Math.max(16, Math.min(26, kb.ww * 0.8)) : 11;
+      starPath(cx, cy, r);
+      g2.fillStyle = j === 0 ? "#ffe066" : `rgba(255, 224, 102, ${0.5 - j * 0.1})`;
+      g2.fill();
+      if (j === 0) {
+        g2.fillStyle = "#12131f"; g2.font = `${r * 0.8}px Jua, sans-serif`;
+        g2.textAlign = "center"; g2.textBaseline = "middle";
+        g2.fillText(noteLabel(n.midi).replace("#", ""), cx, cy + 2);
+      }
+    }
+  }
+  if (tgt != null && !kb.byMidi.get(tgt)) {
+    g2.fillStyle = "#ffe066"; g2.font = "20px Jua, sans-serif"; g2.textAlign = "center";
+    g2.fillText("칠 건반이 화면 밖에 있어요. 건반 수를 바꿔 보세요.", W / 2, kb.y - 40);
+  }
+}
+function drawHands() {
+  for (const h of lastHands) {
+    const c = HAND_COLOR[h.side];
+    g2.strokeStyle = c; g2.globalAlpha = 0.55; g2.lineWidth = 3;
+    g2.beginPath();
+    for (const [a, b] of HAND_LINKS) { g2.moveTo(h.pts[a].x, h.pts[a].y); g2.lineTo(h.pts[b].x, h.pts[b].y); }
+    g2.stroke();
+    g2.globalAlpha = 1;
+  }
+  for (const [id, f] of fingers) {
+    const c = HAND_COLOR[f.hand] || "#fff";
+    g2.beginPath(); g2.arc(f.x, f.y, f.note != null ? 13 : 9, 0, Math.PI * 2);
+    g2.fillStyle = f.note != null ? "#ffffff" : c; g2.fill();
+    g2.lineWidth = 4; g2.strokeStyle = c; g2.stroke();
+  }
+}
+function drawEffects() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life -= 0.022;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    g2.globalAlpha = Math.min(1, p.life);
+    g2.fillStyle = p.color;
+    if (p.star) { starPath(p.x, p.y, p.r); g2.fill(); }
+    else { g2.beginPath(); g2.arc(p.x, p.y, p.r, 0, Math.PI * 2); g2.fill(); }
+  }
+  for (let i = popups.length - 1; i >= 0; i--) {
+    const p = popups[i];
+    p.y -= 1.1; p.life -= 0.02;
+    if (p.life <= 0) { popups.splice(i, 1); continue; }
+    g2.globalAlpha = Math.min(1, p.life * 1.5);
+    g2.fillStyle = p.color; g2.font = "26px Jua, sans-serif"; g2.textAlign = "center"; g2.textBaseline = "middle";
+    g2.fillText(p.text, p.x, p.y);
+  }
+  g2.globalAlpha = 1;
+}
+function drawHint(now) {
+  if (!state.camOn || !landmarker) return;
+  if (now - handsSeenAt < 1500) return;
+  g2.fillStyle = "rgba(255,255,255,0.9)";
+  g2.font = `${Math.min(34, W / 18)}px Jua, sans-serif`;
+  g2.textAlign = "center"; g2.textBaseline = "middle";
+  g2.fillText("두 손을 화면에 보여 주세요", W / 2, kb.y / 2 + 30);
+}
+function frame(now) {
+  detectHands(now);
+  g2.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawBackground();
+  drawKeyboard(now);
+  drawHands();
+  drawEffects();
+  drawHint(now);
+  requestAnimationFrame(frame);
+}
+
+// ───────────────────────── 마우스·터치·키보드 ─────────────────────────
+canvas.addEventListener("pointerdown", (e) => {
+  initAudio();
+  canvas.setPointerCapture(e.pointerId);
+  trackFinger("P" + e.pointerId, "P", e.clientX, e.clientY, performance.now());
+});
+canvas.addEventListener("pointermove", (e) => {
+  const id = "P" + e.pointerId;
+  if (fingers.has(id)) { const f = fingers.get(id); f.x = e.clientX; f.y = e.clientY; trackFinger(id, "P", e.clientX, e.clientY, performance.now()); }
+});
+const endPointer = (e) => dropFinger("P" + e.pointerId);
+canvas.addEventListener("pointerup", endPointer);
+canvas.addEventListener("pointercancel", endPointer);
+// 손가락 대신 쓰는 점은 움직임이 없어도 사라지지 않게 매 프레임 갱신
+setInterval(() => { const now = performance.now(); for (const [id, f] of fingers) if (id.startsWith("P")) f.seen = now; }, 50);
+
+const KEYMAP = { KeyA: 60, KeyW: 61, KeyS: 62, KeyE: 63, KeyD: 64, KeyF: 65, KeyT: 66, KeyG: 67, KeyY: 68, KeyH: 69, KeyU: 70, KeyJ: 71, KeyK: 72, KeyO: 73, KeyL: 74, KeyP: 75, Semicolon: 76 };
+const keysDown = new Set();
+window.addEventListener("keydown", (e) => {
+  const m = KEYMAP[e.code];
+  if (m == null || e.repeat || keysDown.has(e.code) || e.target.tagName === "SELECT") return;
+  initAudio(); keysDown.add(e.code); press(m, 0.8, "P");
+});
+window.addEventListener("keyup", (e) => {
+  if (!keysDown.has(e.code)) return;
+  keysDown.delete(e.code); release(KEYMAP[e.code]);
+});
+
+// ───────────────────────── 조작 막대 ─────────────────────────
+function bindSeg(id, key, onChange) {
+  const el = document.getElementById(id);
+  const sync = () => el.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state[key])));
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    state[key] = b.dataset.v; sync(); onChange && onChange();
+  });
+  sync();
+}
+function releaseAll() { for (const id of [...fingers.keys()]) dropFinger(id); }
+function setMode(m) {
+  state.mode = m;
+  document.querySelectorAll("#modeSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === m)));
+  document.getElementById("songGroup").hidden = m !== "song";
+  document.getElementById("songBar").hidden = m !== "song";
+  if (m === "song") startSong(); else stopDemo();
+  requestAnimationFrame(placeSongBar);
+}
+bindSeg("modeSeg", "mode", () => setMode(state.mode));
+bindSeg("rangeSeg", "range", () => { store.set("range", state.range); releaseAll(); layout(); });
+bindSeg("fingerSeg", "fingerSet", () => { store.set("fingers", state.fingerSet); releaseAll(); });
+document.getElementById("swapBtn").addEventListener("click", () => { state.swap = !state.swap; store.set("swap", state.swap); releaseAll(); });
+
+const songSel = document.getElementById("songSel");
+SONGS.forEach((s, i) => songSel.add(new Option(s.name, String(i))));
+songSel.value = String(Math.min(state.songIdx, SONGS.length - 1));
+songSel.addEventListener("change", () => { state.songIdx = Number(songSel.value); store.set("song", state.songIdx); startSong(); songSel.blur(); });
+document.getElementById("listenBtn").addEventListener("click", playDemo);
+
+document.getElementById("againBtn").addEventListener("click", () => { document.getElementById("doneOverlay").hidden = true; startSong(); });
+document.getElementById("nextBtn").addEventListener("click", () => {
+  document.getElementById("doneOverlay").hidden = true;
+  state.songIdx = (state.songIdx + 1) % SONGS.length; songSel.value = String(state.songIdx); store.set("song", state.songIdx); startSong();
+});
+document.getElementById("freeBtn").addEventListener("click", () => { document.getElementById("doneOverlay").hidden = true; setMode("free"); });
+
+document.getElementById("startCam").addEventListener("click", async () => {
+  initAudio();
+  const btn = document.getElementById("startCam");
+  btn.disabled = true;
+  const ok = await startCamera();
+  btn.disabled = false;
+  if (ok) document.getElementById("startOverlay").hidden = true;
+});
+document.getElementById("startMouse").addEventListener("click", () => {
+  initAudio();
+  camStatus.textContent = "마우스·터치 모드";
+  document.getElementById("startOverlay").hidden = true;
+});
+
+window.addEventListener("resize", () => { releaseAll(); layout(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) releaseAll(); });
+layout();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
