@@ -8,10 +8,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700&display=swap">
 <style>
-/* 레이아웃: 카메라 화면이 전체를 채우고, 아래쪽에 건반, 위쪽에 조작 막대가 겹쳐 놓인다. */
+/* 레이아웃: 카메라 화면이 전체를 채우고, 아래쪽에 건반, 위쪽에 얇은 조작 막대와 접히는 설정 창이 겹쳐 놓인다. */
 :root {
   --night: #12131f;        /* 바탕 */
-  --panel: rgba(18, 19, 31, 0.78);
+  --panel: rgba(18, 19, 31, 0.8);
   --ink: #f4f1ff;          /* 글자 */
   --muted: #b9b6d3;
   --left: #4fc3f7;         /* 왼손 */
@@ -34,14 +34,14 @@ body {
 
 .bar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 5;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
   padding-top: max(10px, env(safe-area-inset-top, 0px)); padding-bottom: 10px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  background: linear-gradient(var(--panel), rgba(18, 19, 31, 0.35));
+  background: linear-gradient(var(--panel), rgba(18, 19, 31, 0.3));
 }
-.bar h1 { font-family: var(--display); font-weight: 400; font-size: 1.6rem; margin: 0 6px 0 0; letter-spacing: 0.02em; }
-.group { display: flex; align-items: center; gap: 4px; }
-.group > span { font-size: 0.78rem; color: var(--muted); margin-right: 4px; letter-spacing: 0.04em; }
+.bar h1 { font-family: var(--display); font-weight: 400; font-size: 1.5rem; margin: 0 4px 0 0; letter-spacing: 0.02em; }
+.group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.label { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.04em; min-width: 3.2em; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
 .seg button, .btn {
   font: 700 0.86rem var(--body); color: var(--ink); background: transparent; border: 0;
@@ -49,15 +49,24 @@ body {
 }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--night); }
 .btn { border: 1px solid var(--line); border-radius: 999px; }
+.btn[aria-expanded="true"] { background: var(--ink); color: var(--night); }
 .btn:hover, .seg button:hover { background: rgba(255,255,255,0.12); }
-.seg button[aria-pressed="true"]:hover { background: var(--ink); }
+.seg button[aria-pressed="true"]:hover, .btn[aria-expanded="true"]:hover { background: var(--ink); }
 button:focus-visible, select:focus-visible { outline: 3px solid var(--star); outline-offset: 2px; }
 select {
   font: 700 0.86rem var(--body); color: var(--ink); background: rgba(255,255,255,0.08);
   border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px;
 }
 select option { color: #111; }
-.status { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: var(--muted); }
+.status { margin-left: auto; font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+
+.settings {
+  position: fixed; z-index: 6; right: max(16px, env(safe-area-inset-right, 0px));
+  width: min(440px, calc(100% - 32px));
+  display: flex; flex-direction: column; gap: 12px;
+  background: rgba(18, 19, 31, 0.94); border: 1px solid var(--line); border-radius: 16px; padding: 14px;
+}
+.settings .note { font-size: 0.8rem; color: var(--muted); line-height: 1.5; margin: 0; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
 
 .song {
@@ -73,17 +82,24 @@ select option { color: #111; }
 .chip.now { background: var(--star); color: var(--night); border-color: var(--star); transform: scale(1.12); }
 .progress { font-family: var(--display); font-size: 1.2rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
+.toast {
+  position: fixed; z-index: 4; left: 50%; transform: translateX(-50%);
+  max-width: calc(100% - 32px); text-align: center;
+  background: var(--star); color: var(--night); font-family: var(--display); font-size: 1.1rem;
+  padding: 8px 18px; border-radius: 999px;
+}
+
 .overlay {
-  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
-  background: rgba(12, 12, 22, 0.86);
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; overflow-y: auto;
+  background: rgba(12, 12, 22, 0.88);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 24px;
 }
-.card { max-width: 560px; width: 100%; text-align: center; }
+.card { max-width: 600px; width: 100%; text-align: center; }
 .card h2 { font-family: var(--display); font-weight: 400; font-size: clamp(2.4rem, 7vw, 3.6rem); margin: 0 0 8px; text-wrap: balance; }
 .card p { color: var(--muted); line-height: 1.65; margin: 0 0 10px; }
 .how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 22px 0; text-align: left; }
-.how div { border: 1px solid var(--line); border-radius: 14px; padding: 12px; font-size: 0.88rem; line-height: 1.5; color: var(--ink); }
+.how div { border: 1px solid var(--line); border-radius: 14px; padding: 12px; font-size: 0.9rem; line-height: 1.55; color: var(--ink); }
 .how b { display: block; font-family: var(--display); font-weight: 400; font-size: 1.2rem; margin-bottom: 4px; color: var(--star); }
 .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 10px; }
 .big {
@@ -94,7 +110,11 @@ select option { color: #111; }
 .msg { min-height: 1.4em; margin-top: 14px; color: var(--star); font-weight: 700; }
 .stars { font-size: 3.4rem; letter-spacing: 0.1em; color: var(--star); margin: 6px 0 4px; }
 .stars .off { color: rgba(255,255,255,0.18); }
-@media (max-width: 560px) { .how { grid-template-columns: 1fr; } .bar h1 { font-size: 1.3rem; } }
+@media (max-width: 600px) {
+  .how { grid-template-columns: 1fr; }
+  .bar h1 { font-size: 1.2rem; }
+  .status { display: none; }
+}
 @media (prefers-reduced-motion: reduce) { .chip.now { transform: none; } }
 </style>
 </head>
@@ -104,50 +124,61 @@ select option { color: #111; }
 
 <header class="bar" id="bar">
   <h1>손가락 피아노</h1>
-  <div class="group"><span>놀이</span>
-    <div class="seg" id="modeSeg">
-      <button data-v="free" aria-pressed="true">자유 연주</button>
-      <button data-v="song" aria-pressed="false">노래 따라치기</button>
-    </div>
+  <div class="seg" id="modeSeg">
+    <button data-v="free" aria-pressed="true">자유 연주</button>
+    <button data-v="song" aria-pressed="false">노래 따라치기</button>
   </div>
   <div class="group" id="songGroup" hidden>
     <select id="songSel" aria-label="노래 고르기"></select>
     <button class="btn" id="listenBtn">들어보기</button>
   </div>
-  <div class="group"><span>건반</span>
+  <button class="btn" id="setBtn" aria-expanded="false" aria-controls="settings">설정</button>
+  <span class="status" id="camStatus">카메라 꺼짐</span>
+</header>
+
+<div class="settings" id="settings" hidden>
+  <div class="group"><span class="label">누르기</span>
+    <div class="seg" id="pressSeg">
+      <button data-v="fold" aria-pressed="true">손가락 접기</button>
+      <button data-v="touch" aria-pressed="false">건반까지 내리기</button>
+    </div>
+  </div>
+  <div class="group"><span class="label">건반</span>
     <div class="seg" id="rangeSeg">
       <button data-v="full" aria-pressed="true">61건반</button>
       <button data-v="mid" aria-pressed="false">3옥타브</button>
       <button data-v="big" aria-pressed="false">2옥타브</button>
     </div>
   </div>
-  <div class="group"><span>손가락</span>
+  <div class="group" id="fingerGroup"><span class="label">손가락</span>
     <div class="seg" id="fingerSeg">
       <button data-v="all" aria-pressed="true">다섯 손가락</button>
       <button data-v="index" aria-pressed="false">검지만</button>
     </div>
   </div>
-  <button class="btn" id="swapBtn" title="왼손과 오른손 색이 반대로 보이면 누르세요">왼손·오른손 바꾸기</button>
-  <div class="status">
+  <div class="group"><span class="label">손 색</span>
     <span><i class="dot" style="background:var(--left)"></i>왼손</span>
     <span><i class="dot" style="background:var(--right)"></i>오른손</span>
-    <span id="camStatus">카메라 꺼짐</span>
+    <button class="btn" id="swapBtn">색 바꾸기</button>
   </div>
-</header>
+  <p class="note" id="pressNote"></p>
+</div>
 
 <div class="song" id="songBar" hidden>
   <div class="chips" id="chips"></div>
   <div class="progress" id="progress">0 / 0</div>
 </div>
 
+<div class="toast" id="toast" hidden></div>
+
 <div class="overlay" id="startOverlay">
   <div class="card">
     <h2>손가락 피아노</h2>
-    <p>카메라가 손을 보고, 화면 속 손가락이 건반에 닿으면 소리가 나요.</p>
+    <p>카메라가 손을 보고 있다가, 손가락을 접으면 그 손가락의 건반이 울려요.</p>
     <div class="how">
-      <div><b>1. 손 보여 주기</b>카메라 앞 1미터쯤에서 두 손을 화면에 보여 주세요.</div>
-      <div><b>2. 건반 누르기</b>화면 아래 건반까지 손가락을 내리면 그 건반이 울려요.</div>
-      <div><b>3. 노래 따라치기</b>노란 건반을 차례로 누르면 노래가 완성돼요.</div>
+      <div><b>1. 세워 두기</b>휴대폰이나 태블릿은 손에 들지 말고 가로로 세워 두세요. 1미터쯤 떨어져 앉아요.</div>
+      <div><b>2. 손 들기</b>손바닥이 화면을 보게 두 손을 들면, 손 아래 건반 5개가 빛나요.</div>
+      <div><b>3. 손가락 접기</b>손가락 하나를 접으면 그 건반이 울려요. 손을 옆으로 옮기면 다른 건반으로 가요.</div>
     </div>
     <div class="actions">
       <button class="big" id="startCam">카메라로 시작</button>
@@ -183,6 +214,14 @@ const RANGES = {
   big:  { lo: 60, hi: 84 },  // 2옥타브 (25건반)
 };
 const FINGER_TIPS = { all: [4, 8, 12, 16, 20], index: [8] };
+// 손가락 접기용: 엄지=1 … 새끼=5 (피아노 손가락 번호)
+const FINGERS = [
+  { n: 1, tip: 4, base: 2 },
+  { n: 2, tip: 8, pip: 6, base: 5 },
+  { n: 3, tip: 12, pip: 10, base: 9 },
+  { n: 4, tip: 16, pip: 14, base: 13 },
+  { n: 5, tip: 20, pip: 18, base: 17 },
+];
 const HAND_COLOR = { L: "#4fc3f7", R: "#ffa94d", P: "#c3a6ff" };
 const SOLFEGE = ["도", "도#", "레", "레#", "미", "파", "파#", "솔", "솔#", "라", "라#", "시"];
 const isBlack = (m) => [1, 3, 6, 8, 10].includes(m % 12);
@@ -214,9 +253,12 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem("fpiano_" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("fpiano_" + k, JSON.stringify(v)); } catch {} },
 };
+const portrait = () => window.innerHeight > window.innerWidth;
 const state = {
   mode: "free",
-  range: store.get("range", "full"),
+  // 세로 화면에서는 61건반이 너무 좁아서 처음에는 2옥타브로 시작한다.
+  range: store.get("range", portrait() ? "big" : "full"),
+  pressMode: store.get("press", "fold"),
   fingerSet: store.get("fingers", "all"),
   swap: store.get("swap", false),
   songIdx: store.get("song", 0),
@@ -304,7 +346,7 @@ const canvas = document.getElementById("stage");
 const g2 = canvas.getContext("2d");
 const video = document.getElementById("cam");
 let W = 0, H = 0, DPR = 1;
-const kb = { x: 0, y: 0, w: 0, h: 0, ww: 0, blackH: 0, keys: [], byMidi: new Map() };
+const kb = { x: 0, y: 0, w: 0, h: 0, ww: 0, blackH: 0, keys: [], whites: [], byMidi: new Map() };
 
 function layout() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -313,13 +355,13 @@ function layout() {
   const r = RANGES[state.range];
   const left = Math.max(10, safeInset("left")), right = Math.max(10, safeInset("right"));
   kb.x = left; kb.w = W - left - right;
-  kb.h = Math.max(110, Math.min(H * 0.3, 290));
+  kb.h = Math.max(110, Math.min(H * (portrait() ? 0.24 : 0.3), 290));
   kb.y = H - kb.h - Math.max(10, safeInset("bottom") + 8);
+  kb.keys = []; kb.whites = []; kb.byMidi.clear();
   let whites = 0;
   for (let m = r.lo; m <= r.hi; m++) if (!isBlack(m)) whites++;
   kb.ww = kb.w / whites;
   kb.blackH = kb.h * 0.6;
-  kb.keys = []; kb.byMidi.clear();
   let wi = 0;
   for (let m = r.lo; m <= r.hi; m++) {
     let k;
@@ -327,12 +369,13 @@ function layout() {
       const bw = kb.ww * 0.6;
       k = { midi: m, black: true, x: kb.x + wi * kb.ww - bw / 2, y: kb.y, w: bw, h: kb.blackH };
     } else {
-      k = { midi: m, black: false, x: kb.x + wi * kb.ww, y: kb.y, w: kb.ww, h: kb.h };
+      k = { midi: m, black: false, x: kb.x + wi * kb.ww, y: kb.y, w: kb.ww, h: kb.h, wi };
+      kb.whites.push(k);
       wi++;
     }
     kb.keys.push(k); kb.byMidi.set(m, k);
   }
-  placeSongBar();
+  placeFloating();
 }
 let insetProbe;
 function safeInset(side) {
@@ -343,9 +386,11 @@ function safeInset(side) {
   }
   return parseFloat(getComputedStyle(insetProbe)["padding" + side[0].toUpperCase() + side.slice(1)]) || 0;
 }
-function placeSongBar() {
-  const b = document.getElementById("bar").getBoundingClientRect();
-  document.getElementById("songBar").style.top = b.bottom + 6 + "px";
+function placeFloating() {
+  const b = document.getElementById("bar").getBoundingClientRect().bottom;
+  document.getElementById("songBar").style.top = b + 6 + "px";
+  document.getElementById("settings").style.top = b + 6 + "px";
+  document.getElementById("toast").style.top = b + (state.mode === "song" ? 64 : 12) + "px";
 }
 
 function hitKey(x, y) {
@@ -353,7 +398,7 @@ function hitKey(x, y) {
   if (y <= kb.y + kb.blackH) {
     for (const k of kb.keys) if (k.black && x >= k.x && x <= k.x + k.w) return k.midi;
   }
-  for (const k of kb.keys) if (!k.black && x >= k.x && x < k.x + k.w) return k.midi;
+  for (const k of kb.whites) if (x >= k.x && x < k.x + k.w) return k.midi;
   return null;
 }
 // 건반 경계에서 소리가 떨리지 않게, 지금 누른 건반은 조금 넓게 본다.
@@ -374,8 +419,10 @@ function resolveKey(cur, x, y) {
 // ───────────────────────── 누르기 ─────────────────────────
 const held = new Map();     // midi -> 누르고 있는 손가락 수
 const lit = new Map();      // midi -> {hand, t}
-const fingers = new Map();  // 손가락 id -> {note, x, y, t, seen, hand}
-const particles = [], popups = [];
+const fingers = new Map();  // 건반까지 내리기·마우스: 손가락 id -> {note, x, y, t, seen, hand}
+const handStates = new Map(); // 손가락 접기: 손 id -> {start, score, down, tips, seen, side}
+const particles = [];
+let popup = null;
 
 function press(midi, vel, hand) {
   const n = (held.get(midi) || 0) + 1;
@@ -386,10 +433,11 @@ function press(midi, vel, hand) {
   const k = kb.byMidi.get(midi);
   if (k) {
     const cx = k.x + k.w / 2;
-    for (let i = 0; i < 9; i++) {
-      particles.push({ x: cx, y: k.y, vx: (Math.random() - 0.5) * 2.4, vy: -2 - Math.random() * 3, life: 1, color: HAND_COLOR[hand], r: 3 + Math.random() * 4, star: false });
+    for (let i = 0; i < 6; i++) {
+      particles.push({ x: cx, y: k.y, vx: (Math.random() - 0.5) * 2, vy: -2 - Math.random() * 2.5, life: 0.9, color: HAND_COLOR[hand], r: 3 + Math.random() * 3, star: false });
     }
-    popups.push({ text: noteLabel(midi), x: cx, y: k.y - 18, life: 1, color: HAND_COLOR[hand] });
+    // 음 이름은 방금 친 것 하나만 크게 보여 준다.
+    popup = { text: noteLabel(midi), x: Math.max(40, Math.min(W - 40, cx)), y: kb.y - 46, life: 1, color: HAND_COLOR[hand] };
   }
   if (state.mode === "song") songPress(midi);
 }
@@ -427,6 +475,69 @@ function sweepFingers(now, prefix) {
   for (const [id, f] of fingers) if (id.startsWith(prefix) && now - f.seen > 140) dropFinger(id);
 }
 
+// ── 손가락 접기 ──
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+// 0 = 쭉 편 손가락, 1 = 다 접은 손가락. 손 크기와 상관없이 같은 기준이 되도록 비율로 잰다.
+function foldScore(pts, f) {
+  if (f.n === 1) {
+    // 엄지: 끝이 약지 뿌리 쪽으로 다가가면 접은 것
+    const palm = dist(pts[0], pts[9]) || 1;
+    const r = dist(pts[4], pts[13]) / palm;   // 편 엄지 ≈ 1.0, 그냥 둔 엄지 ≈ 0.75, 접은 엄지 ≈ 0.4
+    return clamp01((0.85 - r) / 0.4);
+  }
+  const r = dist(pts[f.tip], pts[0]) / (dist(pts[f.pip], pts[0]) || 1); // 편 손가락 ≈ 1.35, 접은 손가락 ≈ 0.85
+  return clamp01((1.35 - r) / 0.5);
+}
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const PRESS_AT = 0.62, RELEASE_AT = 0.42;
+
+function foldHand(h, now) {
+  let hs = handStates.get(h.id);
+  if (!hs || now - hs.seen > 300) {
+    if (hs) releaseHand(hs);
+    hs = { start: null, score: {}, down: {}, tips: [], seen: now, side: h.side };
+    handStates.set(h.id, hs);
+  }
+  hs.seen = now; hs.side = h.side; hs.size = h.size || 100;
+  const n = kb.whites.length;
+  const span = Math.min(5, n);
+  // 화면에서 왼쪽에 있는 손가락부터 낮은 건반에 맞춘다. (진짜 피아노 손 모양과 같다)
+  const order = FINGERS.slice().sort((a, b) => h.pts[a.base].x - h.pts[b.base].x);
+  const cx = order.reduce((s, f) => s + h.pts[f.base].x, 0) / order.length;
+  const anyDown = Object.keys(hs.down).length > 0;
+  if (!anyDown || hs.start == null) {
+    const fi = (cx - kb.x) / kb.ww - 0.5;           // 손 가운데 아래 흰 건반 번호(소수)
+    const want = Math.max(0, Math.min(n - span, Math.round(fi - (span - 1) / 2)));
+    // 손이 조금 흔들려도 건반 묶음이 바뀌지 않게, 한 칸 가까이 움직여야 옮긴다.
+    if (hs.start == null || Math.abs(fi - (hs.start + (span - 1) / 2)) > 0.9) hs.start = want;
+    hs.start = Math.max(0, Math.min(n - span, hs.start));
+  }
+  hs.tips = [];
+  order.forEach((f, slot) => {
+    const key = slot < span ? kb.whites[hs.start + slot] : null;
+    const raw = foldScore(h.pts, f);
+    const s = hs.score[f.n] == null ? raw : hs.score[f.n] * 0.45 + raw * 0.55;
+    hs.score[f.n] = s;
+    const downMidi = hs.down[f.n];
+    if (downMidi == null && s > PRESS_AT && key) {
+      press(key.midi, 0.85, h.side);
+      hs.down[f.n] = key.midi;
+    } else if (downMidi != null && s < RELEASE_AT) {
+      release(downMidi);
+      delete hs.down[f.n];
+    }
+    const tip = h.pts[f.tip];
+    hs.tips.push({ x: tip.x, y: tip.y, midi: hs.down[f.n] ?? key?.midi ?? null, down: hs.down[f.n] != null, n: f.n });
+  });
+}
+function releaseHand(hs) {
+  for (const m of Object.values(hs.down)) release(m);
+  hs.down = {};
+}
+function sweepHands(now) {
+  for (const [id, hs] of handStates) if (now - hs.seen > 200) { releaseHand(hs); handStates.delete(id); }
+}
+
 // ───────────────────────── 노래 따라치기 ─────────────────────────
 const chipsEl = document.getElementById("chips");
 const progressEl = document.getElementById("progress");
@@ -455,9 +566,9 @@ function songPress(midi) {
   if (midi === t) {
     game.hits++;
     const k = kb.byMidi.get(midi);
-    if (k) for (let i = 0; i < 14; i++) {
+    if (k) for (let i = 0; i < 12; i++) {
       const ang = Math.random() * Math.PI * 2, sp = 2 + Math.random() * 4;
-      particles.push({ x: k.x + k.w / 2, y: k.y - 10, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 2, life: 1.2, color: "#ffe066", r: 6 + Math.random() * 5, star: true });
+      particles.push({ x: k.x + k.w / 2, y: k.y - 10, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 2, life: 1.1, color: "#ffe066", r: 6 + Math.random() * 5, star: true });
     }
     game.idx++;
     if (game.idx >= song().notes.length) { game.done = true; setTimeout(showDone, 700); }
@@ -501,7 +612,7 @@ function playDemo() {
 }
 
 // ───────────────────────── 손 인식 ─────────────────────────
-let landmarker = null, lastVideoTime = -1, lastHands = [], handsSeenAt = 0;
+let landmarker = null, lastVideoTime = -1, handsSeenAt = 0, handsCount = 0;
 const camStatus = document.getElementById("camStatus");
 
 async function startCamera() {
@@ -510,7 +621,7 @@ async function startCamera() {
     msg.textContent = "카메라는 https 주소나 내 컴퓨터에서 연 파일에서만 켜져요.";
     return false;
   }
-  if (!navigator.mediaDevices?.getUserMedia) { msg.textContent = "이 브라우저는 카메라를 지원하지 않아요. 크롬에서 열어 주세요."; return false; }
+  if (!navigator.mediaDevices?.getUserMedia) { msg.textContent = "이 브라우저는 카메라를 지원하지 않아요. 크롬이나 사파리에서 열어 주세요."; return false; }
   msg.textContent = "카메라를 켜는 중…";
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
@@ -526,9 +637,10 @@ async function startCamera() {
   try {
     const { HandLandmarker, FilesetResolver } = await import(`${MP_URL}/vision_bundle.mjs`);
     const files = await FilesetResolver.forVisionTasks(`${MP_URL}/wasm`);
+    // 뒤에 있는 사람 손까지 찾은 다음, 가장 크게 보이는 두 손만 쓴다.
     const opts = (delegate) => ({
       baseOptions: { modelAssetPath: MODEL_URL, delegate },
-      runningMode: "VIDEO", numHands: 2,
+      runningMode: "VIDEO", numHands: 4,
       minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5,
     });
     try { landmarker = await HandLandmarker.createFromOptions(files, opts("GPU")); }
@@ -556,38 +668,49 @@ function detectHands(now) {
   let res;
   try { res = landmarker.detectForVideo(video, now); } catch { return; }
   const vr = videoRect();
-  const hands = [];
-  const used = {};
   const marks = res.landmarks || [];
   const sides = res.handedness || res.handednesses || [];
-  marks.forEach((lm, i) => {
+  const found = marks.map((lm, i) => ({
+    raw: sides[i]?.[0]?.categoryName || "Right",
+    pts: lm.map((p) => ({ x: vr.x + (1 - p.x) * vr.w, y: vr.y + p.y * vr.h, z: (p.z || 0) * vr.w })),
+  }));
+  processHands(found, now);
+}
+function processHands(found, now) {
+  found.forEach((h) => (h.size = Math.hypot(h.pts[0].x - h.pts[9].x, h.pts[0].y - h.pts[9].y)));
+  found.sort((a, b) => b.size - a.size);
+  const biggest = found[0]?.size || 0;
+  const hands = found.filter((h, i) => i < 2 && h.size >= biggest * 0.5);
+  const used = {};
+  for (const h of hands) {
     // 거울처럼 뒤집지 않은 카메라 영상을 넣으면 인식 결과의 왼쪽/오른쪽이 반대로 나온다.
-    const raw = sides[i]?.[0]?.categoryName || "Right";
-    let side = raw === "Left" ? "R" : "L";
+    let side = h.raw === "Left" ? "R" : "L";
     if (state.swap) side = side === "L" ? "R" : "L";
-    const id = used[side] ? side + "2" : side;
+    h.side = side;
+    h.id = used[side] ? side + "2" : side;
     used[side] = true;
-    const pts = lm.map((p) => ({ x: vr.x + (1 - p.x) * vr.w, y: vr.y + p.y * vr.h }));
-    hands.push({ side, id, pts });
-    for (const tip of FINGER_TIPS[state.fingerSet]) trackFinger(`H${id}-${tip}`, side, pts[tip].x, pts[tip].y, now);
-  });
+    if (state.pressMode === "fold") foldHand(h, now);
+    else for (const tip of FINGER_TIPS[state.fingerSet]) trackFinger(`H${h.id}-${tip}`, side, h.pts[tip].x, h.pts[tip].y, now);
+  }
   sweepFingers(now, "H");
-  lastHands = hands;
+  sweepHands(now);
+  handsCount = hands.length;
   if (hands.length) handsSeenAt = now;
   camStatus.textContent = hands.length ? `손 ${hands.length}개 보여요` : "손을 보여 주세요";
 }
 
-// 자동 점검용: 가짜 손끝 좌표를 넣어 볼 수 있다.
+// 자동 점검용: 가짜 손끝 좌표나 가짜 손을 넣어 볼 수 있다.
 window.pianoTest = {
   tips(list) { const now = performance.now(); list.forEach((t) => trackFinger("T" + t.id, t.hand || "R", t.x, t.y, now)); },
   clear() { for (const id of [...fingers.keys()]) if (id.startsWith("T")) dropFinger(id); },
+  hands(list) { processHands(list, performance.now()); },
   keyCenter(midi) { const k = kb.byMidi.get(midi); return k && { x: k.x + k.w / 2, y: k.y + k.h * (k.black ? 0.5 : 0.85) }; },
+  whiteX(i) { const k = kb.whites[i]; return k && k.x + k.w / 2; },
   held: () => [...held.keys()], game: () => ({ ...game }),
+  handKeys: () => [...handStates.values()].map((hs) => hs.tips.map((t) => t.midi)),
 };
 
 // ───────────────────────── 그리기 ─────────────────────────
-const HAND_LINKS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
-
 function roundRect(x, y, w, h, r) {
   g2.beginPath();
   g2.moveTo(x, y); g2.lineTo(x + w, y); g2.lineTo(x + w, y + h - r);
@@ -609,7 +732,7 @@ function drawBackground() {
     g2.translate(vr.x + vr.w, vr.y); g2.scale(-1, 1);
     g2.drawImage(video, 0, 0, vr.w, vr.h);
     g2.restore();
-    g2.fillStyle = "rgba(14, 14, 28, 0.42)";
+    g2.fillStyle = "rgba(14, 14, 28, 0.45)";
     g2.fillRect(0, 0, W, H);
   } else {
     const gr = g2.createLinearGradient(0, 0, 0, H);
@@ -621,12 +744,8 @@ function drawKeyboard(now) {
   const tgt = target();
   const pulse = 0.5 + 0.5 * Math.sin(now / 180);
   const shake = now - game.shakeAt < 300 ? Math.sin((now - game.shakeAt) / 25) * 4 : 0;
-  // 건반 위 안내선
-  g2.fillStyle = "rgba(255,255,255,0.08)";
-  g2.fillRect(kb.x, kb.y - 4, kb.w, 4);
   const labelSize = Math.max(9, Math.min(18, kb.ww * 0.42));
-  for (const k of kb.keys) {
-    if (k.black) continue;
+  for (const k of kb.whites) {
     const L = lit.get(k.midi);
     roundRect(k.x + 1, k.y, k.w - 2, k.h, Math.min(8, k.w * 0.2));
     if (L) {
@@ -638,16 +757,33 @@ function drawKeyboard(now) {
     } else g2.fillStyle = "rgba(250, 249, 255, 0.93)";
     g2.fill();
     g2.strokeStyle = "rgba(20,20,40,0.35)"; g2.lineWidth = 1; g2.stroke();
+  }
+  // 손 그림자: 지금 손가락이 맡고 있는 흰 건반 5개
+  if (state.pressMode === "fold") {
+    for (const hs of handStates.values()) {
+      const c = HAND_COLOR[hs.side];
+      for (const t of hs.tips) {
+        const k = t.midi != null && kb.byMidi.get(t.midi);
+        if (!k) continue;
+        g2.globalAlpha = t.down ? 0 : 0.32;
+        g2.fillStyle = c;
+        roundRect(k.x + 1, k.y, k.w - 2, k.h, Math.min(8, k.w * 0.2));
+        g2.fill();
+        g2.globalAlpha = 1;
+        const fs = Math.max(10, Math.min(20, k.w * 0.55));
+        g2.fillStyle = c; g2.font = `${fs}px Jua, sans-serif`;
+        g2.textAlign = "center"; g2.textBaseline = "middle";
+        g2.fillText(String(t.n), k.x + k.w / 2, k.y + kb.blackH + (kb.h - kb.blackH) * 0.32);
+      }
+    }
+  }
+  for (const k of kb.whites) {
     const showAll = kb.ww >= 24;
     if (showAll || k.midi % 12 === 0) {
-      g2.fillStyle = k.midi % 12 === 0 ? "#3b3f8f" : "rgba(40,40,70,0.55)";
+      g2.fillStyle = k.midi % 12 === 0 ? "#3b3f8f" : "rgba(40,40,70,0.6)";
       g2.font = `${labelSize}px Jua, sans-serif`;
       g2.textAlign = "center"; g2.textBaseline = "alphabetic";
       g2.fillText(noteLabel(k.midi), k.x + k.w / 2, k.y + k.h - 10);
-      if (k.midi === 60) {
-        g2.font = `${Math.max(8, labelSize * 0.6)}px "Noto Sans KR", sans-serif`;
-        g2.fillText("가운데", k.x + k.w / 2, k.y + k.h - 12 - labelSize);
-      }
     }
   }
   for (const k of kb.keys) {
@@ -666,16 +802,16 @@ function drawKeyboard(now) {
   // 칠 건반 위에 별과 다음 음 표시
   if (tgt != null) {
     const notes = song().notes;
-    for (let j = 3; j >= 0; j--) {
+    for (let j = 2; j >= 0; j--) {
       const n = notes[game.idx + j];
       if (!n) continue;
       const k = kb.byMidi.get(n.midi);
       if (!k) continue;
       const cx = k.x + k.w / 2 + (j === 0 ? shake : 0);
-      const cy = kb.y - 34 - j * 46 - (j === 0 ? pulse * 8 : 0);
-      const r = j === 0 ? Math.max(16, Math.min(26, kb.ww * 0.8)) : 11;
+      const cy = kb.y - 26 - j * 34 - (j === 0 ? pulse * 6 : 0);
+      const r = j === 0 ? Math.max(16, Math.min(24, kb.ww * 0.8)) : 9;
       starPath(cx, cy, r);
-      g2.fillStyle = j === 0 ? "#ffe066" : `rgba(255, 224, 102, ${0.5 - j * 0.1})`;
+      g2.fillStyle = j === 0 ? "#ffe066" : `rgba(255, 224, 102, ${0.45 - j * 0.12})`;
       g2.fill();
       if (j === 0) {
         g2.fillStyle = "#12131f"; g2.font = `${r * 0.8}px Jua, sans-serif`;
@@ -683,22 +819,39 @@ function drawKeyboard(now) {
         g2.fillText(noteLabel(n.midi).replace("#", ""), cx, cy + 2);
       }
     }
-  }
-  if (tgt != null && !kb.byMidi.get(tgt)) {
-    g2.fillStyle = "#ffe066"; g2.font = "20px Jua, sans-serif"; g2.textAlign = "center";
-    g2.fillText("칠 건반이 화면 밖에 있어요. 건반 수를 바꿔 보세요.", W / 2, kb.y - 40);
+    if (!kb.byMidi.get(tgt)) {
+      g2.fillStyle = "#ffe066"; g2.font = "20px Jua, sans-serif"; g2.textAlign = "center";
+      g2.fillText("칠 건반이 화면 밖에 있어요. 설정에서 건반 수를 바꿔 보세요.", W / 2, kb.y - 40);
+    }
   }
 }
-function drawHands() {
-  for (const h of lastHands) {
-    const c = HAND_COLOR[h.side];
-    g2.strokeStyle = c; g2.globalAlpha = 0.55; g2.lineWidth = 3;
-    g2.beginPath();
-    for (const [a, b] of HAND_LINKS) { g2.moveTo(h.pts[a].x, h.pts[a].y); g2.lineTo(h.pts[b].x, h.pts[b].y); }
-    g2.stroke();
-    g2.globalAlpha = 1;
+function drawHands(now) {
+  const tgt = target();
+  const pulse = 0.5 + 0.5 * Math.sin(now / 160);
+  // 손가락 접기: 손가락 끝마다 그 손가락이 맡은 음 이름을 붙인다.
+  if (state.pressMode === "fold") {
+    for (const hs of handStates.values()) {
+      const c = HAND_COLOR[hs.side];
+      for (const t of hs.tips) {
+        const isTarget = t.midi != null && t.midi === tgt;
+        const base = Math.max(8, Math.min(15, (hs.size || 100) * 0.11));
+        const r = t.down ? base + 3 : base;
+        if (isTarget && !t.down) {
+          g2.beginPath(); g2.arc(t.x, t.y, r + 6 + pulse * 5, 0, Math.PI * 2);
+          g2.strokeStyle = "#ffe066"; g2.lineWidth = 4; g2.stroke();
+        }
+        g2.beginPath(); g2.arc(t.x, t.y, r, 0, Math.PI * 2);
+        g2.fillStyle = t.down ? "#ffffff" : isTarget ? "#ffe066" : c; g2.fill();
+        g2.lineWidth = 3; g2.strokeStyle = c; g2.stroke();
+        if (t.midi != null) {
+          g2.fillStyle = "#12131f"; g2.font = `${r * 1.05}px Jua, sans-serif`;
+          g2.textAlign = "center"; g2.textBaseline = "middle";
+          g2.fillText(noteLabel(t.midi), t.x, t.y + 1);
+        }
+      }
+    }
   }
-  for (const [id, f] of fingers) {
+  for (const f of fingers.values()) {
     const c = HAND_COLOR[f.hand] || "#fff";
     g2.beginPath(); g2.arc(f.x, f.y, f.note != null ? 13 : 9, 0, Math.PI * 2);
     g2.fillStyle = f.note != null ? "#ffffff" : c; g2.fill();
@@ -708,37 +861,39 @@ function drawHands() {
 function drawEffects() {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life -= 0.022;
+    p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life -= 0.025;
     if (p.life <= 0) { particles.splice(i, 1); continue; }
     g2.globalAlpha = Math.min(1, p.life);
     g2.fillStyle = p.color;
     if (p.star) { starPath(p.x, p.y, p.r); g2.fill(); }
     else { g2.beginPath(); g2.arc(p.x, p.y, p.r, 0, Math.PI * 2); g2.fill(); }
   }
-  for (let i = popups.length - 1; i >= 0; i--) {
-    const p = popups[i];
-    p.y -= 1.1; p.life -= 0.02;
-    if (p.life <= 0) { popups.splice(i, 1); continue; }
-    g2.globalAlpha = Math.min(1, p.life * 1.5);
-    g2.fillStyle = p.color; g2.font = "26px Jua, sans-serif"; g2.textAlign = "center"; g2.textBaseline = "middle";
-    g2.fillText(p.text, p.x, p.y);
+  if (popup) {
+    popup.y -= 0.6; popup.life -= 0.022;
+    if (popup.life <= 0) popup = null;
+    else {
+      g2.globalAlpha = Math.min(1, popup.life * 1.6);
+      g2.font = "42px Jua, sans-serif"; g2.textAlign = "center"; g2.textBaseline = "middle";
+      g2.lineWidth = 6; g2.strokeStyle = "rgba(18,19,31,0.75)"; g2.strokeText(popup.text, popup.x, popup.y);
+      g2.fillStyle = popup.color; g2.fillText(popup.text, popup.x, popup.y);
+    }
   }
   g2.globalAlpha = 1;
 }
 function drawHint(now) {
   if (!state.camOn || !landmarker) return;
   if (now - handsSeenAt < 1500) return;
-  g2.fillStyle = "rgba(255,255,255,0.9)";
-  g2.font = `${Math.min(34, W / 18)}px Jua, sans-serif`;
+  g2.fillStyle = "rgba(255,255,255,0.92)";
+  g2.font = `${Math.min(34, W / 14)}px Jua, sans-serif`;
   g2.textAlign = "center"; g2.textBaseline = "middle";
-  g2.fillText("두 손을 화면에 보여 주세요", W / 2, kb.y / 2 + 30);
+  g2.fillText(state.pressMode === "fold" ? "손바닥이 화면을 보게 손을 들어 주세요" : "두 손을 화면에 보여 주세요", W / 2, kb.y * 0.55);
 }
 function frame(now) {
   detectHands(now);
   g2.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawBackground();
   drawKeyboard(now);
-  drawHands();
+  drawHands(now);
   drawEffects();
   drawHint(now);
   requestAnimationFrame(frame);
@@ -747,6 +902,7 @@ function frame(now) {
 // ───────────────────────── 마우스·터치·키보드 ─────────────────────────
 canvas.addEventListener("pointerdown", (e) => {
   initAudio();
+  closeSettings();
   canvas.setPointerCapture(e.pointerId);
   trackFinger("P" + e.pointerId, "P", e.clientX, e.clientY, performance.now());
 });
@@ -757,7 +913,7 @@ canvas.addEventListener("pointermove", (e) => {
 const endPointer = (e) => dropFinger("P" + e.pointerId);
 canvas.addEventListener("pointerup", endPointer);
 canvas.addEventListener("pointercancel", endPointer);
-// 손가락 대신 쓰는 점은 움직임이 없어도 사라지지 않게 매 프레임 갱신
+// 마우스·터치 점은 움직임이 없어도 사라지지 않게 계속 갱신
 setInterval(() => { const now = performance.now(); for (const [id, f] of fingers) if (id.startsWith("P")) f.seen = now; }, 50);
 
 const KEYMAP = { KeyA: 60, KeyW: 61, KeyS: 62, KeyE: 63, KeyD: 64, KeyF: 65, KeyT: 66, KeyG: 67, KeyY: 68, KeyH: 69, KeyU: 70, KeyJ: 71, KeyK: 72, KeyO: 73, KeyL: 74, KeyP: 75, Semicolon: 76 };
@@ -782,19 +938,39 @@ function bindSeg(id, key, onChange) {
   });
   sync();
 }
-function releaseAll() { for (const id of [...fingers.keys()]) dropFinger(id); }
+function releaseAll() {
+  for (const id of [...fingers.keys()]) dropFinger(id);
+  for (const hs of handStates.values()) releaseHand(hs);
+  handStates.clear();
+}
 function setMode(m) {
   state.mode = m;
   document.querySelectorAll("#modeSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === m)));
   document.getElementById("songGroup").hidden = m !== "song";
   document.getElementById("songBar").hidden = m !== "song";
   if (m === "song") startSong(); else stopDemo();
-  requestAnimationFrame(placeSongBar);
+  requestAnimationFrame(placeFloating);
+}
+function syncPressUi() {
+  document.getElementById("fingerGroup").hidden = state.pressMode !== "touch";
+  document.getElementById("pressNote").textContent = state.pressMode === "fold"
+    ? "손 아래 흰 건반 5개를 손가락 다섯 개가 맡아요. 손가락을 접으면 울려요. 검은건반은 마우스·터치나 '건반까지 내리기'로 칠 수 있어요."
+    : "화면 속 손가락 끝을 건반까지 내리면 울려요. 여러 손가락이 한꺼번에 울리면 '검지만'을 고르세요.";
 }
 bindSeg("modeSeg", "mode", () => setMode(state.mode));
+bindSeg("pressSeg", "pressMode", () => { store.set("press", state.pressMode); releaseAll(); syncPressUi(); });
 bindSeg("rangeSeg", "range", () => { store.set("range", state.range); releaseAll(); layout(); });
 bindSeg("fingerSeg", "fingerSet", () => { store.set("fingers", state.fingerSet); releaseAll(); });
+syncPressUi();
 document.getElementById("swapBtn").addEventListener("click", () => { state.swap = !state.swap; store.set("swap", state.swap); releaseAll(); });
+
+const setBtn = document.getElementById("setBtn"), settingsEl = document.getElementById("settings");
+function closeSettings() { settingsEl.hidden = true; setBtn.setAttribute("aria-expanded", "false"); }
+setBtn.addEventListener("click", () => {
+  const open = settingsEl.hidden;
+  settingsEl.hidden = !open; setBtn.setAttribute("aria-expanded", String(open));
+  placeFloating();
+});
 
 const songSel = document.getElementById("songSel");
 SONGS.forEach((s, i) => songSel.add(new Option(s.name, String(i))));
@@ -809,13 +985,23 @@ document.getElementById("nextBtn").addEventListener("click", () => {
 });
 document.getElementById("freeBtn").addEventListener("click", () => { document.getElementById("doneOverlay").hidden = true; setMode("free"); });
 
+const toastEl = document.getElementById("toast");
+let toastTimer = null;
+function toast(text, ms = 6000) {
+  toastEl.textContent = text; toastEl.hidden = false; placeFloating();
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (toastEl.hidden = true), ms);
+}
+function orientationTip() {
+  if (portrait()) toast("휴대폰을 가로로 돌려 세우면 건반이 훨씬 넓어져요");
+}
+
 document.getElementById("startCam").addEventListener("click", async () => {
   initAudio();
   const btn = document.getElementById("startCam");
   btn.disabled = true;
   const ok = await startCamera();
   btn.disabled = false;
-  if (ok) document.getElementById("startOverlay").hidden = true;
+  if (ok) { document.getElementById("startOverlay").hidden = true; orientationTip(); }
 });
 document.getElementById("startMouse").addEventListener("click", () => {
   initAudio();
