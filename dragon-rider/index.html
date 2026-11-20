@@ -40,8 +40,8 @@ html.rot.land #app { transform: rotate(90deg) translateY(-100%); }
 html.rot.port #app { transform: rotate(-90deg) translateX(-100%); }
 .menu-opts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .opt-pill {
-  font-family: var(--font-display); font-size: 17px; color: var(--ink); cursor: pointer;
-  background: var(--white); border: 3px solid var(--ink); border-radius: 999px; padding: 5px 14px;
+  font-family: var(--font-display); font-size: 17px; color: var(--ink); cursor: pointer; min-height: 42px;
+  background: var(--white); border: 3px solid var(--ink); border-radius: 999px; padding: 6px 15px;
   box-shadow: 0 3px 0 rgba(29,42,74,.3);
 }
 .opt-pill:active { transform: translateY(2px); box-shadow: none; }
@@ -253,6 +253,10 @@ html.rot.land .hud-mid { margin-top: 0; }
 .reveal h2 { font-size: 40px; }
 @keyframes pop { from { transform: scale(.4); opacity: 0; } }
 #btnView[aria-pressed="true"] { background: var(--sun); }
+#touchRing {
+  position: fixed; left: 0; top: 0; width: 70px; height: 70px; border-radius: 50%; z-index: 14; pointer-events: none;
+  border: 4px solid rgba(255,255,255,.9); background: rgba(255,255,255,.18); box-shadow: 0 0 0 3px rgba(29,42,74,.25);
+}
 #hurt { position: fixed; inset: 0; pointer-events: none; z-index: 15; opacity: 0; transition: opacity .6s;
   background: radial-gradient(ellipse at center, rgba(255,60,90,0) 45%, rgba(255,40,70,.6) 100%); }
 #hurt.on { opacity: 1; transition: none; }
@@ -571,6 +575,7 @@ html.rot.land .hud-mid { margin-top: 0; }
 </section>
 
 <div id="ghostLabels"></div>
+<div id="touchRing" hidden></div>
 <div id="flash"></div>
 <div id="toast" hidden></div>
 <div id="hurt"></div>
@@ -2550,7 +2555,7 @@ window.addEventListener('keydown', (e) => {
   if ((e.code === 'Escape' || e.code === 'KeyP') && mode === 'play') pauseGame();
   else if ((e.code === 'Escape' || e.code === 'KeyP') && mode === 'pause') resumeGame();
   if (e.code === 'Enter') {
-    if (mode === 'menu') startGame(); else if (mode === 'over') startGame(); else if (mode === 'pause') resumeGame();
+    if (mode === 'menu') startGame(); else if (mode === 'over' && !$('#over').hidden) $('#btnRetry').click(); else if (mode === 'pause') resumeGame();
   }
 });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
@@ -2559,7 +2564,23 @@ canvas.addEventListener('pointerdown', (e) => {
   if (drag) return;
   drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  showRing(e.clientX, e.clientY);
 });
+// keep the phone (or the app around the game) from scrolling or closing while a finger steers
+for (const ev of ['touchstart', 'touchmove']) canvas.addEventListener(ev, (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+// a soft ring under the finger shows the drag is working
+function toAppXY(cx, cy) {
+  if (rotated === 1) return [cy, window.innerWidth - cx];
+  if (rotated === -1) return [window.innerHeight - cy, cx];
+  return [cx, cy];
+}
+function showRing(cx, cy) {
+  const r = $('#touchRing');
+  if (mode !== 'play') { r.hidden = true; return; }
+  const [x, y] = toAppXY(cx, cy);
+  r.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+  r.hidden = false;
+}
 canvas.addEventListener('pointermove', (e) => {
   if (!drag || e.pointerId !== drag.id) return;
   const sdx = e.clientX - drag.x, sdy = e.clientY - drag.y;
@@ -2568,13 +2589,15 @@ canvas.addEventListener('pointermove', (e) => {
   const dy = rotated === 1 ? -sdx : rotated === -1 ? sdx : sdy;
   drag.x = e.clientX; drag.y = e.clientY;
   if (mode !== 'play') return;
-  const kx = (2 * XR) / (Math.min(vw(), 900) * 0.68);
-  const ky = (YMAX - YMIN) / (vh() * 0.6);
-  const k = Math.max(kx, ky) * cur().agility;
-  p.tx = clamp(p.tx + dx * k, -XR, XR);
-  p.ty = clamp(p.ty - dy * k, YMIN, YMAX);
+  showRing(e.clientX, e.clientY);
+  // 60% of the screen width crosses the whole sky, and about 40% of its height covers top to bottom
+  const kx = (2 * XR) / (Math.min(vw(), 900) * 0.6);
+  const ky = (YMAX - YMIN) / (Math.min(vh(), 900) * 0.4);
+  p.tx = clamp(p.tx + dx * kx, -XR, XR);
+  p.ty = clamp(p.ty - dy * ky, YMIN, YMAX);
+  p.tutDrag = (p.tutDrag || 0) + Math.abs(sdx) + Math.abs(sdy);
 });
-const endDrag = (e) => { if (drag && e.pointerId === drag.id) drag = null; };
+const endDrag = (e) => { if (drag && e.pointerId === drag.id) { drag = null; $('#touchRing').hidden = true; } };
 canvas.addEventListener('pointerup', endDrag);
 canvas.addEventListener('pointercancel', endDrag);
 $('#btnFire').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); ensureAudio(); shootFire(); });
@@ -2657,15 +2680,18 @@ function startGame(opts) {
   const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   let msg = touch ? '손가락으로 화면을 끌어서 움직여요' : '방향키나 WASD, 또는 마우스로 끌어서 움직여요';
   msg += whoName() === '시훈이' ? '<br>시훈아, 가시를 피하고 코인을 모으자!' : '<br>가시를 피하고 코인을 모으자!';
-  if (D.fire) msg += touch ? '<br>불꽃 버튼으로 가시를 부숴요' : '<br>스페이스바로 불꽃을 쏴요';
+  if (D.fire) msg += runLevel.cue ? '<br>불꽃이 앞의 가시를 알아서 부숴 줘요' : touch ? '<br>불꽃 버튼으로 가시를 부숴요' : '<br>스페이스바로 불꽃을 쏴요';
   if (st) msg = (stageRun + 1) + '단계 · ' + st.name + '<br>결승선까지 ' + st.len + 'm! 코인 ' + st.coins + '개를 모아 봐요';
   msg += '<br>가시 벽은 노란 화살표 쪽으로 피해요!';
   updateStageHud();
   const hint = $('#hint'); hint.innerHTML = msg; hint.hidden = false; hint.classList.remove('fade');
   clearTimeout(hintTimer);
-  hintTimer = setTimeout(() => hint.classList.add('fade'), 3800);
+  p.tutDrag = 0;
+  p.tutorial = !save.tutDone && !st && !coop.on;
+  if (p.tutorial) hint.innerHTML = (touch ? '손가락을 화면에 대고<br>위아래, 왼쪽 오른쪽으로 끌어 보세요!' : '방향키나 WASD, 또는 마우스로 끌어서 움직여 보세요!') + '<br>가시 벽은 노란 화살표 쪽으로 피해요';
+  else hintTimer = setTimeout(() => hint.classList.add('fade'), 3800);
 }
-function pauseGame() { if (mode !== 'play') return; mode = 'pause'; show('hud', 'pause'); drag = null; Music.set(null); }
+function pauseGame() { if (mode !== 'play') return; mode = 'pause'; show('hud', 'pause'); drag = null; $('#touchRing').hidden = true; Music.set(null); }
 function resumeGame() { if (mode !== 'pause') return; mode = 'play'; show('hud'); SFX.click(); keepAwake(true); Music.set('play'); }
 function gameOver() {
   mode = 'over';
@@ -3406,6 +3432,18 @@ function updatePlay(dt) {
   if (p.shield) { shieldMesh.rotation.y += dt; shieldMesh.scale.setScalar(1 + Math.sin(time * 4) * 0.04); }
   p.fireCd = Math.max(0, p.fireCd - dt);
   if (D.fire) $('#btnFire').style.setProperty('--cd', (p.fireCd / D.fireCd).toFixed(3));
+  if (runLevel.cue && D.fire && p.fireCd <= 0 && mode === 'play' && !(p.freeze > 0)) {
+    for (const o of obstacles) {
+      if (o.dead || o.z > -6 || o.z < -34) continue;
+      const hx = o.kind === 'box' ? o.hx : o.r, hy = o.kind === 'box' ? o.hy : o.r, oy = o.kind === 'box' ? o.cy : o.y;
+      if (Math.abs(o.x - p.x) < hx + 0.8 && Math.abs(oy - p.y) < hy + 0.8) { shootFire(); break; }
+    }
+  }
+  // first flight ever: keep the "drag to move" tip up until the child has tried it
+  if (p.tutorial && (p.tutDrag || 0) > 140) {
+    p.tutorial = false; save.tutDone = true; persist();
+    $('#hint').classList.add('fade'); toast('잘했어! 그렇게 움직이는 거야', 1600);
+  }
 
   // spawn
   p.untilRow -= dz;
@@ -3706,6 +3744,8 @@ window.__dragonCoop = () => ({ zone: curZone, mode, on: coop.on, runId: coop.run
 window.__dragonTest = {
   warp(zi) { p.courseDist = zi * ZONE_LEN - 50; p.dist = zi * ZONE_LEN - 50; p.nextMile = Math.ceil(p.dist / 100) * 100; clearPortals(); applyZone(zi, true); p.rowZone = zi; for (const o of obstacles.slice()) { scene.remove(o.mesh); if (o.shadow) scene.remove(o.shadow); } obstacles = []; },
   star() { p.star = 60; },
+  ahead() { return { lv: runLevel.name, cue: runLevel.cue, fire: cur().fire, cd: p.fireCd, px: +p.x.toFixed(2), py: +p.y.toFixed(2), obs: obstacles.filter((o) => o.z > -40 && o.z < 0).map((o) => [o.type, +o.x.toFixed(1), +(o.kind === 'box' ? o.cy : o.y).toFixed(1), +o.z.toFixed(1), +(o.kind === 'box' ? o.hx : o.r).toFixed(1), +(o.kind === 'box' ? o.hy : o.r).toFixed(1)]) }; },
+  ctl() { return { tx: +p.tx.toFixed(2), ty: +p.ty.toFixed(2), XR, tut: !!p.tutorial, fireCd: +p.fireCd.toFixed(2), balls: fireballs.length, rot: rotated }; },
   safe() { p.inv = 999; },
   info() {
     const by = {}; let total = 0;
