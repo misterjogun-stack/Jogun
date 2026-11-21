@@ -98,7 +98,7 @@
 - Netlify 배지용 하단 여백(`--tab-lift`)은 0으로
 
 ## 배포 시 확인 (예전 Netlify 기준)
-- **아이콘·manifest 올리기**: `closing/` 안의 `manifest.webmanifest`, `icon-180.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `favicon-32.png`를 사이트에 같이 올리기 (기존 파일 교체)
+- **아이콘·manifest 올리기**: `zerobalance/` 안의 `manifest.webmanifest`, `icon-180.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `favicon-32.png`를 사이트에 같이 올리기 (기존 파일 교체)
 - 이미 홈 화면에 추가한 아이폰은 아이콘이 자동으로 안 바뀜 → 홈 화면에서 지우고 다시 추가 (기록은 브라우저에 남아 있지만, 지우기 전에 백업 권장)
 - 서비스 워커(`sw.js`)가 예전 화면을 캐시하고 있으면 한두 번 새로고침 후 새 버전이 보임
 - `--tab-lift: 52px` — 원래 코드처럼 하단 탭을 'Powered by Netlify' 배지 위로 올림. 배지가 없으면 `0px`로 바꾸면 화면이 넓어짐
