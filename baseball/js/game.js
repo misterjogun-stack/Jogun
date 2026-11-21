@@ -6,9 +6,9 @@ export const DT = 1 / 240;
 const G = 9.8, DRAG = 0.0058; // 야구공 공기 저항 (k = ρ·Cd·A / 2m)
 
 export const DIFF = {
-  easy:   { speed: [20, 23], types: ["four"], window: 0.17, ev: 5, zoneRate: 0.92, park: 0.8 },
-  normal: { speed: [26, 31], types: ["four", "four", "change", "curve"], window: 0.12, ev: 2, zoneRate: 0.8, park: 0.9 },
-  hard:   { speed: [32, 38], types: ["four", "four", "change", "curve", "slider"], window: 0.085, ev: 0, zoneRate: 0.7, park: 1 },
+  easy:   { speed: [20, 23], types: ["four"], window: 0.2, ev: 5, zoneRate: 0.92, park: 0.8 },
+  normal: { speed: [26, 31], types: ["four", "four", "change", "curve"], window: 0.14, ev: 2, zoneRate: 0.8, park: 0.9 },
+  hard:   { speed: [32, 38], types: ["four", "four", "change", "curve", "slider"], window: 0.1, ev: 0, zoneRate: 0.7, park: 1 },
 };
 export const PITCH_NAME = { four: "FASTBALL", change: "CHANGE-UP", curve: "CURVE", slider: "SLIDER" };
 export const RESULT = {
@@ -35,6 +35,7 @@ export class Round {
     this.pitch = null; this.swing = null; this.batter = { swingT: -9 }; this.pitcher = { windT: -9, relT: -9 };
     this.n = 0; this.score = 0; this.log = []; this.stats = { hr: 0, hits: 0, longest: 0, perfect: 0, topEv: 0 };
     this.auto = false; this.autoSkill = 1; this.landing = null;
+    this.calib = 0; this.autoCalib = true;
   }
   get d() { return DIFF[this.opts.diff]; }
   start() {
@@ -68,21 +69,26 @@ export class Round {
     };
     return { type, speed, p0, v0, acc, T, tgt, inZone: tx >= Z.x0 && tx <= Z.x1 && ty >= Z.y0 && ty <= Z.y1 };
   }
-  // 휘두르기: { power (1 이상) }
+  // 휘두르기: { power (1 이상), lead: 입력이 늦게 들어오는 시간(초), cam: 카메라 입력인지 }
+  // 카메라는 화면을 찍고 몸을 알아보는 데 시간이 걸려서, 휘두름을 알아챘을 때 실제 팔은 이미 조금 전에 움직였다.
+  // 그만큼 되돌려서 판정하고, 기기마다 다른 지연은 휘두를 때마다 조금씩 배워서 맞춘다(calib).
   doSwing(sw) {
     if (this.phase !== "pitch" && this.phase !== "windup") return;
     if (this.swing) return;
     this.swing = { t: this.t, power: sw.power || 1.2 };
-    this.batter.swingT = this.t;
+    this.batter.swingT = this.t - (sw.lead || 0) * 0.5;
     if (this.phase !== "pitch") { this.swing.dt = -1; this.emit("swing", sw); return; } // 너무 일찍
-    // 방망이가 공 지나가는 자리에 닿는 시각 = 휘두른 시각 + 0.12초
-    const contactT = this.t + 0.12;
+    const contactT = sw.cam ? this.t - (sw.lead || 0) - this.calib : this.t + 0.04;
     const arrive = this.pitch.relT + this.pitch.T;
     const dt = contactT - arrive;                 // - 빠름, + 늦음
     const w = this.d.window;
     this.swing.dt = dt;
+    if (sw.cam && this.autoCalib && Math.abs(dt) < 0.35) {
+      this.calib = clamp(this.calib + dt * 0.3, -0.25, 0.25);
+      this.emit("calib", { calib: this.calib });
+    }
     if (Math.abs(dt) > w * 1.15) this.swing.miss = true;
-    else this.swing.hitAt = arrive;               // 공이 그 자리에 오면 맞는다
+    else this.swing.hitAt = Math.max(arrive, this.t); // 이미 지나간 공도 판정이 맞으면 친다
     this.emit("swing", sw);
   }
   hit() {
@@ -98,6 +104,8 @@ export class Round {
     if (Math.abs(e) > 0.9) la = clamp(la + rand(-25, 30), -15, 75);
     const LA = (la * Math.PI) / 180, SP = (spray * Math.PI) / 180;
     const b = this.ball;
+    // 늦게 알아챈 휘두름이면 공을 맞은 자리로 되돌린다
+    if (b.state === "caught" || b.p.z < FIELD.CONTACT_Z) b.p = { x: p.tgt.x, y: p.tgt.y, z: FIELD.CONTACT_Z };
     b.state = "batted"; b.a = { x: 0, y: -G, z: 0 };
     b.v = { x: ev * Math.cos(LA) * Math.sin(SP), y: ev * Math.sin(LA), z: ev * Math.cos(LA) * Math.cos(SP) };
     this.batted = { ev, la, spray, q, maxH: 0, t0: this.t, wall: false };
@@ -152,12 +160,15 @@ export class Round {
       }
     } else if (this.phase === "pitch") {
       if (this.autoAt != null && this.t >= this.autoAt) { this.autoAt = null; this.doSwing({ power: 1.6 }); }
-      b.v.x += b.a.x * DT; b.v.y += b.a.y * DT; b.v.z += b.a.z * DT;
-      b.p.x += b.v.x * DT; b.p.y += b.v.y * DT; b.p.z += b.v.z * DT;
+      if (b.state === "pitch") {
+        b.v.x += b.a.x * DT; b.v.y += b.a.y * DT; b.v.z += b.a.z * DT;
+        b.p.x += b.v.x * DT; b.p.y += b.v.y * DT; b.p.z += b.v.z * DT;
+        if (b.p.z < -0.9) { b.state = "caught"; this.emit("catch", {}); }
+      }
       if (this.swing && this.swing.hitAt != null && this.t >= this.swing.hitAt) { this.hit(); return; }
-      if (b.p.z < -0.9) {
-        b.state = "caught";
-        this.emit("catch", {});
+      // 공이 미트에 들어가도 카메라 지연만큼은 기다렸다가 판정한다
+      const arrive = this.pitch.relT + this.pitch.T;
+      if (b.state === "caught" && this.t > arrive + d.window * 1.15 + 0.3) {
         if (this.swing) this.finish("swingmiss", { early: this.swing.dt < 0 });
         else this.finish(this.pitch.inZone ? "strike" : "ball");
       }
@@ -202,7 +213,7 @@ export class Round {
   planAuto() {
     if (Math.random() > this.autoSkill + 0.05) { this.autoAt = null; return; }
     const err = (1 - this.autoSkill) * 0.25 * (Math.random() * 2 - 1) + (Math.random() - 0.5) * 0.03;
-    this.autoAt = this.pitch.relT + this.pitch.T - 0.12 + err;
+    this.autoAt = this.pitch.relT + this.pitch.T - 0.04 + err;
   }
   // 공이 지금 칠 수 있는 자리 근처인지 (안내 표시용)
   ballNearPlate() {

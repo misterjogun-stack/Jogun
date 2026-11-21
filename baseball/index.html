@@ -253,7 +253,7 @@ input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-
     <p class="sub">카메라 앞에서 방망이를 휘두르듯 팔을 휘둘러 투수의 공을 쳐요. 담장을 넘기면 홈런!</p>
     <div class="steps">
       <div><b>1. 세워 두기</b>휴대폰·태블릿을 세워 두고(세로·가로 모두 돼요) 2미터쯤 떨어져 서요. 상체와 팔이 다 보이게요.</div>
-      <div><b>2. 휘두르기</b>공이 홈플레이트 앞 네모(스트라이크 존)에 들어올 때 옆으로 힘껏 휘둘러요. 너무 빠르면 왼쪽, 늦으면 오른쪽으로 가요.</div>
+      <div><b>2. 휘두르기</b>스트라이크 존 둘레의 원이 줄어들다 초록색이 될 때 옆으로 힘껏 휘둘러요. 빠르면 왼쪽, 늦으면 오른쪽으로 가요.</div>
       <div><b>3. 점수</b>홈런 1000점(+비거리), 3루타 500, 2루타 300, 안타 150점. 공 10개로 최고 점수에 도전!</div>
     </div>
     <div class="opts">
@@ -262,6 +262,7 @@ input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-
       <span>공 개수</span><div class="seg" id="pitchSeg"><button data-v="10">10개</button><button data-v="20">20개</button><button data-v="30">30개</button></div>
       <span>휘두르는 손</span><div class="seg" id="handSeg"><button data-v="right">오른손</button><button data-v="left">왼손</button></div>
       <span>휘두름 감도</span><div class="seg" id="sensSeg"><button data-v="1.3">둔하게</button><button data-v="1">보통</button><button data-v="0.75">예민하게</button></div>
+      <span>타이밍 자동 맞춤</span><div class="seg" id="calSeg"><button data-v="on">켜기</button><button data-v="off">끄기</button></div>
       <span>소리 크기</span><div class="seg" id="volSeg"><button data-v="0">끄기</button><button data-v="0.5">작게</button><button data-v="1">보통</button><button data-v="1.5">크게</button></div>
       <span>카메라 화면</span><div class="seg" id="pipSeg"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button><button data-v="off">숨기기</button></div>
       <span>경기 화면</span><div class="seg" id="viewSeg"><button data-v="0.75">가깝게</button><button data-v="1">보통</button><button data-v="1.3">멀게</button></div>
@@ -287,8 +288,10 @@ input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-
       <span>글자·버튼 크기</span><div class="seg" id="uiSeg2"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button><button data-v="xl">아주 크게</button></div>
       <span>화면 흔들림</span><div class="seg" id="shakeSeg2"><button data-v="on">켜기</button><button data-v="off">끄기</button></div>
       <span>휘두름 감도</span><div class="seg" id="sensSeg2"><button data-v="1.3">둔하게</button><button data-v="1">보통</button><button data-v="0.75">예민하게</button></div>
+      <span>타이밍 자동 맞춤</span><div class="seg" id="calSeg2"><button data-v="on">켜기</button><button data-v="off">끄기</button></div>
+      <span>지금 보정값</span><div><b id="calVal" style="font:800 1.1rem var(--cond)">0초</b> <button class="mini" id="calReset" type="button">처음부터 다시 맞추기</button></div>
     </div>
-    <p class="sub">마우스·터치로 할 때는 SWING 버튼이나 화면을 눌러요. 키보드는 스페이스.</p>
+    <p class="sub">카메라는 몸을 알아보는 데 시간이 조금 걸려요. 「타이밍 자동 맞춤」을 켜 두면 휘두를 때마다 늦거나 빠른 정도를 배워서 맞춰요.<br>마우스·터치로 할 때는 SWING 버튼이나 화면을 눌러요. 키보드는 스페이스.</p>
     <div class="actions">
       <button class="big" id="resumeBtn">계속하기</button>
       <button class="big ghost" id="restartBtn">처음 화면으로</button>

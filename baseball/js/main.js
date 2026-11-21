@@ -18,7 +18,10 @@ const opts = {
   name: store.get("name", "JOGUN"), diff: store.get("diff", "easy"), pitches: store.get("pitches", 10),
   hand: store.get("hand", "right"), sens: store.get("sens", 1), quality: store.get("quality", "auto"), vol: store.get("vol", 1),
   pip: store.get("pip", "m"), ui: store.get("ui", "m"), shake: store.get("shake", "on"), view: store.get("view", 1),
+  autoCal: store.get("autoCal", "on"),
 };
+// 카메라 입력 지연(초): 화면을 찍고 몸을 알아보고 휘두름을 알아채기까지 걸리는 대략의 시간
+const CAM_LEAD = 0.12;
 setVolume(opts.vol);
 let tracker = null;
 function applyLayout() {
@@ -45,6 +48,8 @@ world.onFirework = () => sfx.firework();
 let paused = true, timeScale = 1, hitStop = 0;
 const roundOpts = { diff: opts.diff, pitches: opts.pitches };
 const round = new Round(roundOpts, onEvent);
+round.calib = store.get("calib", 0); round.autoCalib = opts.autoCal === "on";
+function showCalib() { const c = round.calib; $("calVal").textContent = Math.abs(c) < 0.005 ? "0초" : `${c > 0 ? "+" : "−"}${Math.abs(c).toFixed(2)}초`; }
 
 // ── 화면 글자 ──
 const floaters = [];
@@ -136,6 +141,7 @@ function onEvent(type, d) {
       break;
     }
     case "over": endRound(); break;
+    case "calib": store.set("calib", d.calib); showCalib(); break;
   }
 }
 
@@ -153,7 +159,7 @@ function updateHint(nowS) {
 }
 
 // ── 입력 ──
-function doSwing(power = 1.3) { if (paused) return; initAudio(); round.doSwing({ power }); }
+function doSwing(power = 1.3, cam = false) { if (paused) return; initAudio(); round.doSwing({ power, cam, lead: cam ? CAM_LEAD : 0 }); }
 $("swingBtn").addEventListener("pointerdown", (e) => { e.stopPropagation(); e.preventDefault(); doSwing(1.4); });
 const gl = $("gl");
 const phist = []; let lastPointerSwing = -9;
@@ -206,6 +212,9 @@ for (const id of ["pipSeg", "pipSeg2"]) bindSeg(id, "pip", applyLayout);
 for (const id of ["uiSeg", "uiSeg2"]) bindSeg(id, "ui", applyLayout);
 for (const id of ["viewSeg", "viewSeg2"]) bindSeg(id, "view", () => (world.viewZoom = opts.view));
 bindSeg("shakeSeg2", "shake");
+for (const id of ["calSeg", "calSeg2"]) bindSeg(id, "autoCal", () => { round.autoCalib = opts.autoCal === "on"; });
+$("calReset").addEventListener("click", () => { round.calib = 0; store.set("calib", 0); showCalib(); });
+showCalib();
 $("nameInput").value = opts.name;
 const fsOk = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 for (const id of ["fsBtn", "fsBtn2"]) {
@@ -272,7 +281,7 @@ let last = performance.now(), acc = 0, firstFrame = true;
 function frame(now) {
   const nowS = now / 1000, dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  if (tracker) { const sw = tracker.detect(nowS); if (sw) doSwing(sw.power); }
+  if (tracker) { const sw = tracker.detect(nowS); if (sw) doSwing(sw.power, true); }
   if (hitStop > 0) hitStop -= dt;
   else if (!paused || round.phase === "over") {
     acc += dt * timeScale;

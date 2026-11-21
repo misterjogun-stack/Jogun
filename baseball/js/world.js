@@ -222,6 +222,9 @@ export class World {
     const pts = [[Z.x0, Z.y0], [Z.x1, Z.y0], [Z.x1, Z.y1], [Z.x0, Z.y1], [Z.x0, Z.y0]].map(([x, y]) => V(x, y, FIELD.CONTACT_Z - 0.2));
     this.zone = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x9fd0ff, transparent: true, opacity: 0.35 }));
     s.add(this.zone);
+    // 타이밍 원: 공이 올 때까지 줄어들다가 칠 순간에 초록색이 된다
+    this.timeRing = new THREE.Mesh(new THREE.RingGeometry(0.36, 0.4, 56), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }));
+    this.timeRing.position.copy(V(0, (Z.y0 + Z.y1) / 2, FIELD.CONTACT_Z - 0.2)); this.timeRing.visible = false; s.add(this.timeRing);
     this.pitchMark = new THREE.Mesh(new THREE.CircleGeometry(0.05, 20), new THREE.MeshBasicMaterial({ color: 0xffd84a, transparent: true, opacity: 0.9, toneMapped: false }));
     this.pitchMark.visible = false; s.add(this.pitchMark);
   }
@@ -518,6 +521,15 @@ export class World {
     if (round.pitch && (round.phase === "result" || round.phase === "wait") && round.ball.state === "caught") {
       this.pitchMark.visible = true; this.pitchMark.position.copy(V(round.pitch.tgt.x, round.pitch.tgt.y, FIELD.CONTACT_Z - 0.2));
     } else if (round.phase !== "result") this.pitchMark.visible = false;
+    // 타이밍 원
+    if (round.phase === "pitch" && b.state === "pitch" && !round.swing) {
+      const left = round.pitch.relT + round.pitch.T - t, w = round.d.window;
+      this.timeRing.visible = left > -w;
+      this.timeRing.scale.setScalar(1 + clamp(left / 0.7, 0, 1) * 1.4);
+      const c = this.timeRing.material.color;
+      if (Math.abs(left) < w * 0.6) c.setRGB(0.5, 2.2, 0.6); else if (left < 0.35) c.setRGB(2, 1.7, 0.4); else c.setRGB(1.4, 1.5, 1.7);
+      this.timeRing.material.opacity = clamp(1 - left / 1.2, 0.25, 1);
+    } else this.timeRing.visible = false;
     // 떨어진 자리 고리
     if (round.landing && round.phase === "result") {
       this.landRing.visible = true; this.landRing.position.copy(V(round.landing.x, 0.05, round.landing.z));
