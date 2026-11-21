@@ -4,179 +4,191 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>손 배드민턴</title>
+<meta name="description" content="카메라로 팔 동작을 인식해서 AI 선수와 치는 3D 배드민턴 게임">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Sans+KR:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Noto+Sans+KR:wght@400;700;900&display=swap">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
 <style>
-/* 레이아웃: 실내 경기장을 선수 뒤에서 내려다보는 3D 코트가 화면 전체를 채운다.
-   위에는 점수판, 아래에는 안내 문구, 오른쪽 아래에는 작은 카메라 화면. 경기장 분위기에 맞춰 어두운 화면 하나로 간다. */
+/* 레이아웃: 3D 경기장이 화면 전체. 중계 화면처럼 왼쪽 위에 손 인식 화면과 속도, 그 옆에 점수판,
+   오른쪽 위에 일시정지, 오른쪽에 기술 카드(스매시·클리어·드롭). 어두운 경기장 하나로 가는 단일 테마. */
 :root {
-  --night: #0b1230;       /* 경기장 바탕 */
-  --panel: rgba(11, 18, 48, 0.86);
-  --ink: #f5f7ff;
-  --muted: #a9b3d6;
-  --me: #ff8a3d;          /* 나 (주황 유니폼) */
-  --ai: #38d6ff;          /* 콕봇 (하늘색) */
-  --lime: #d4f75a;        /* 셔틀콕 강조, 칠 때 */
-  --line: rgba(255, 255, 255, 0.16);
-  --display: "Do Hyeon", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --night: #05070f;
+  --glass: rgba(10, 14, 28, 0.72);
+  --edge: rgba(150, 180, 255, 0.22);
+  --ink: #f3f6ff;
+  --muted: #9aa6c8;
+  --blue: #3b8bff;
+  --glow: #7cc4ff;
+  --red: #ff4d6d;
+  --lime: #d8ff6a;
+  --cond: "Barlow Condensed", "Arial Narrow", "Noto Sans KR", sans-serif;
   --body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --pipw: clamp(150px, 20vw, 330px);
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; }
-body {
-  background: var(--night); color: var(--ink); font-family: var(--body);
-  overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
-}
-#stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+body { background: var(--night); color: var(--ink); font-family: var(--body); overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #cam { position: fixed; width: 2px; height: 2px; opacity: 0; pointer-events: none; left: 0; top: 0; }
+.glass { background: var(--glass); border: 1px solid var(--edge); border-radius: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
-.top {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 5;
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px;
-  padding-top: max(10px, env(safe-area-inset-top, 0px)); padding-bottom: 8px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  background: linear-gradient(rgba(6, 10, 28, 0.75), rgba(6, 10, 28, 0));
-  pointer-events: none;
-}
-.top > * { pointer-events: auto; }
-.brand { font-family: var(--display); font-size: 1.35rem; letter-spacing: 0.02em; }
-.brand small { display: block; font-family: var(--body); font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; }
-.score {
-  display: flex; align-items: stretch; border-radius: 14px; overflow: hidden;
-  background: var(--panel); border: 1px solid var(--line);
-}
-.side { display: flex; align-items: center; gap: 10px; padding: 6px 14px; position: relative; }
-.side .name { font-weight: 700; font-size: 0.9rem; }
-.side .pts { font-family: var(--display); font-size: 2.1rem; line-height: 1; min-width: 1.3em; text-align: center; font-variant-numeric: tabular-nums; }
-.side.me { border-bottom: 3px solid var(--me); }
-.side.ai { border-bottom: 3px solid var(--ai); }
-.side .serve { width: 9px; height: 9px; border-radius: 50%; background: var(--lime); visibility: hidden; }
-.side.serving .serve { visibility: visible; }
-.score .to { align-self: center; padding: 0 6px; color: var(--muted); font-size: 0.75rem; text-align: center; line-height: 1.2; }
-.tools { justify-self: end; display: flex; gap: 8px; align-items: center; }
-.btn {
-  font: 700 0.86rem var(--body); color: var(--ink); background: rgba(255,255,255,0.06);
-  border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; white-space: nowrap;
-}
-.btn:hover { background: rgba(255,255,255,0.14); }
-button:focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
-.status { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+/* 왼쪽 위: 손 인식 화면, 속도 */
+.left { position: fixed; z-index: 5; top: max(16px, env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); width: var(--pipw); display: flex; flex-direction: column; gap: 14px; pointer-events: none; }
+.pip .lab { font: 700 0.92rem var(--cond); letter-spacing: 0.08em; margin: 0 0 6px 4px; }
+.pip canvas { display: block; width: 100%; aspect-ratio: 5 / 4; border-radius: 14px; border: 2px solid rgba(220, 232, 255, 0.75); background: #0b1020; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
+.speed { padding: 10px 16px 12px; width: 72%; }
+.speed span { display: block; font: 700 0.8rem var(--cond); letter-spacing: 0.1em; }
+.speed b { font: 800 2.7rem/1 var(--cond); color: var(--glow); font-variant-numeric: tabular-nums; }
+.speed small { font: 700 1.2rem var(--cond); margin-left: 4px; }
 
-#msg {
-  position: fixed; left: 0; right: 0; top: 30%; z-index: 4; text-align: center; pointer-events: none;
-  font-family: var(--display); font-size: clamp(2.6rem, 9vw, 5.2rem); letter-spacing: 0.02em;
-  text-shadow: 0 4px 0 rgba(0,0,0,0.35), 0 0 30px rgba(0,0,0,0.4);
-  transition: opacity 0.25s, transform 0.25s; opacity: 0; transform: scale(0.9);
+/* 점수판 */
+.board {
+  position: fixed; z-index: 5; top: max(22px, calc(env(safe-area-inset-top, 0px) + 6px));
+  left: calc(max(16px, env(safe-area-inset-left, 0px)) + var(--pipw) + 32px);
+  display: flex; align-items: stretch; overflow: hidden; border-radius: 8px;
+  background: rgba(8, 12, 24, 0.86); border: 1px solid rgba(255,255,255,0.14);
 }
-#msg.show { opacity: 1; transform: scale(1); }
-#msg small { display: block; font-size: 0.38em; color: var(--ink); opacity: 0.9; margin-top: 6px; }
-#msg.me { color: var(--me); } #msg.ai { color: var(--ai); } #msg.lime { color: var(--lime); } #msg.white { color: var(--ink); }
+.rows { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: 34px minmax(96px, auto) 46px; align-items: center; gap: 12px; padding: 0 0 0 12px; height: 38px; }
+.row + .row { border-top: 1px solid rgba(255,255,255,0.08); }
+.row svg { display: block; width: 34px; height: 23px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255,255,255,0.25); }
+.row .nm { font: 700 1.28rem var(--cond); letter-spacing: 0.04em; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.row .nm i { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); visibility: hidden; }
+.row.serving .nm i { visibility: visible; }
+.row .pt { height: 100%; display: grid; place-items: center; font: 800 1.75rem var(--cond); font-variant-numeric: tabular-nums; }
+.row.lead .pt { background: var(--blue); }
+.set { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; padding: 0 18px; border-left: 1px solid rgba(255,255,255,0.14); }
+.set span { font: 700 1.05rem var(--cond); letter-spacing: 0.06em; }
+.set b { font: 700 1.3rem var(--cond); font-variant-numeric: tabular-nums; }
 
-#hint {
-  position: fixed; left: 50%; transform: translateX(-50%); z-index: 4;
-  bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) + 10px));
-  max-width: calc(100% - 32px); text-align: center; pointer-events: none;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
-  padding: 8px 18px; font-weight: 700; font-size: 0.95rem;
-}
-#pip {
-  position: fixed; z-index: 4; right: max(12px, env(safe-area-inset-right, 0px));
-  bottom: max(60px, calc(env(safe-area-inset-bottom, 0px) + 56px));
-  width: 176px; height: 99px; border-radius: 12px; border: 2px solid var(--line); background: #000;
-}
+body:not(.cam) .board { left: calc(max(16px, env(safe-area-inset-left, 0px)) + var(--pipw) * 0.72 + 24px); }
+.pause { position: fixed; z-index: 5; top: max(16px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); width: 62px; height: 62px; display: grid; place-items: center; cursor: pointer; color: var(--ink); }
+.pause svg { width: 28px; height: 28px; }
 
-.overlay {
-  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; overflow-y: auto;
-  background: rgba(6, 10, 28, 0.88);
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 24px;
-}
-.card { max-width: 640px; width: 100%; text-align: center; }
-.card h2 { font-family: var(--display); font-weight: 400; font-size: clamp(2.6rem, 8vw, 4rem); margin: 0 0 6px; text-wrap: balance; }
-.card h2 em { font-style: normal; color: var(--lime); }
-.card p { color: var(--muted); line-height: 1.65; margin: 0 0 10px; }
-.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 18px 0; text-align: left; }
-.how div { border: 1px solid var(--line); border-radius: 14px; padding: 12px; font-size: 0.9rem; line-height: 1.55; }
-.how b { display: block; font-family: var(--display); font-weight: 400; font-size: 1.25rem; margin-bottom: 4px; color: var(--lime); }
-.opts { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 18px; margin: 6px 0 16px; }
-.opt { display: flex; align-items: center; gap: 8px; }
-.opt > span { font-size: 0.82rem; color: var(--muted); }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
-.seg button { font: 700 0.9rem var(--body); color: var(--ink); background: transparent; border: 0; padding: 8px 14px; cursor: pointer; }
-.seg button[aria-pressed="true"] { background: var(--ink); color: var(--night); }
-.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
-.big {
-  font: 400 1.6rem var(--display); color: var(--night); background: var(--lime); border: 0;
-  border-radius: 999px; padding: 13px 32px; cursor: pointer;
-}
-.big.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); font-size: 1.2rem; padding: 12px 22px; }
-.msgline { min-height: 1.4em; margin-top: 14px; color: var(--lime); font-weight: 700; }
-.final { font-family: var(--display); font-size: 3.4rem; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
-.final .m { color: var(--me); } .final .a { color: var(--ai); }
-.stats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 8px 0 14px; }
-.stats div { border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px; min-width: 110px; }
-.stats b { display: block; font-family: var(--display); font-size: 1.7rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+/* 오른쪽: 기술 카드 */
+.shots { position: fixed; z-index: 5; right: max(16px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-42%); display: flex; flex-direction: column; gap: 12px; }
+.shot { width: clamp(96px, 10.5vw, 170px); aspect-ratio: 1.08; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; padding: 10px 6px 12px; cursor: pointer; color: var(--ink); font: 800 clamp(0.95rem, 1.4vw, 1.35rem) var(--cond); letter-spacing: 0.06em; transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s; }
+.shot svg { width: 72%; flex: 1; min-height: 0; }
+.shot.ready { border-color: rgba(124, 196, 255, 0.7); }
+.shot.on { transform: scale(1.06); border-color: var(--glow); box-shadow: 0 0 24px rgba(124, 196, 255, 0.65), inset 0 0 18px rgba(124, 196, 255, 0.3); }
+.shot:focus-visible, .pause:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--glow); outline-offset: 2px; }
+
+/* 가운데 알림 띠, 셔틀콕 옆 글자, 아래 안내 */
+#banner { position: fixed; z-index: 6; left: 50%; top: 36%; transform: translate(-50%, -50%) skewX(-8deg) scale(0.92); pointer-events: none; text-align: center; opacity: 0; transition: opacity 0.25s, transform 0.25s; }
+#banner.show { opacity: 1; transform: translate(-50%, -50%) skewX(-8deg) scale(1); }
+#banner .k { display: inline-block; font: 800 1.1rem var(--cond); letter-spacing: 0.22em; padding: 4px 16px; background: var(--blue); }
+#banner.ai .k { background: var(--red); }
+#banner .v { font: 900 clamp(3rem, 9vw, 6.4rem)/0.95 var(--cond); letter-spacing: 0.02em; text-shadow: 0 6px 30px rgba(0,0,0,0.6); white-space: nowrap; }
+#banner .s { font: 700 1.1rem var(--body); margin-top: 6px; text-shadow: 0 2px 10px rgba(0,0,0,0.7); }
+.floater { position: fixed; z-index: 5; pointer-events: none; transform: translate(-50%, -100%); font: 900 2rem var(--cond); letter-spacing: 0.04em; text-shadow: 0 3px 16px rgba(0,0,0,0.8); white-space: nowrap; }
+#hint { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 10px)); max-width: calc(100% - 32px); text-align: center; pointer-events: none; padding: 9px 20px; font-weight: 700; font-size: 0.98rem; border-radius: 999px; }
+
+/* 메뉴 */
+.overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; overflow-y: auto; background: radial-gradient(ellipse at center, rgba(5,7,15,0.5), rgba(5,7,15,0.9)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px; }
+.card { max-width: 720px; width: 100%; padding: 26px 26px 22px; text-align: center; }
+.card h2 { font: italic 900 clamp(2.8rem, 8vw, 4.6rem)/0.95 var(--cond); letter-spacing: 0.02em; margin: 0 0 4px; text-wrap: balance; }
+.card h2 em { color: var(--glow); font-style: inherit; }
+.card .sub { color: var(--muted); margin: 6px 0 18px; line-height: 1.6; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; text-align: left; }
+.steps div { border: 1px solid var(--edge); border-radius: 12px; padding: 12px; font-size: 0.88rem; line-height: 1.55; background: rgba(255,255,255,0.03); }
+.steps b { display: block; font: 800 1.15rem var(--cond); letter-spacing: 0.06em; color: var(--glow); margin-bottom: 4px; }
+.opts { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; align-items: center; text-align: left; margin: 0 auto 18px; max-width: 560px; }
+.opts > span { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+.seg { display: inline-flex; flex-wrap: wrap; justify-self: start; border: 1px solid var(--edge); border-radius: 10px; overflow: hidden; }
+.seg button { font: 700 0.88rem var(--body); color: var(--ink); background: transparent; border: 0; padding: 8px 13px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--blue); }
+input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-spacing: 0.06em; color: var(--ink); background: rgba(255,255,255,0.06); border: 1px solid var(--edge); border-radius: 10px; padding: 8px 12px; width: 180px; text-transform: uppercase; }
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.big { font: 800 1.45rem var(--cond); letter-spacing: 0.06em; color: #fff; background: var(--blue); border: 0; border-radius: 10px; padding: 13px 30px; cursor: pointer; box-shadow: 0 8px 28px rgba(59,139,255,0.4); }
+.big.ghost { background: transparent; border: 1px solid var(--edge); box-shadow: none; font-size: 1.2rem; }
+.big:disabled { opacity: 0.6; cursor: wait; }
+.msgline { min-height: 1.4em; margin-top: 12px; color: var(--glow); font-weight: 700; }
+.final { font: 900 3.6rem var(--cond); margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+.final .a { color: var(--red); } .final .m { color: var(--glow); }
+.stats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 18px; }
+.stats div { border: 1px solid var(--edge); border-radius: 12px; padding: 8px 14px; min-width: 116px; }
+.stats b { display: block; font: 800 1.8rem var(--cond); font-variant-numeric: tabular-nums; }
 .stats span { font-size: 0.78rem; color: var(--muted); }
-@media (max-width: 640px) {
-  .how { grid-template-columns: 1fr; }
-  .brand, .status { display: none; }
-  .top { grid-template-columns: 1fr auto; }
-  .score { justify-self: start; }
-  #pip { width: 120px; height: 68px; }
-  .side { padding: 5px 10px; gap: 6px; }
-  .side .pts { font-size: 1.7rem; }
+.loading { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--night); font: 800 1.4rem var(--cond); letter-spacing: 0.12em; color: var(--muted); text-align: center; padding: 24px; }
+
+@media (max-width: 900px), (max-height: 520px) {
+  :root { --pipw: clamp(110px, 17vw, 200px); }
+  .row { height: 30px; grid-template-columns: 26px minmax(70px, auto) 36px; gap: 8px; padding-left: 8px; }
+  .row svg { width: 26px; height: 17px; }
+  .row .nm { font-size: 1.02rem; } .row .pt { font-size: 1.35rem; }
+  .set { padding: 0 10px; } .set span { font-size: 0.85rem; } .set b { font-size: 1.05rem; }
+  .speed { padding: 6px 10px 8px; width: 100%; } .speed b { font-size: 1.8rem; }
+  .pause { width: 48px; height: 48px; }
+  .shots { gap: 8px; } .shot { width: clamp(64px, 9vw, 100px); }
+  body:not(.cam) .board { left: calc(max(16px, env(safe-area-inset-left, 0px)) + var(--pipw) + 20px); }
+  .floater { font-size: 1.5rem; }
 }
-@media (prefers-reduced-motion: reduce) { #msg { transition: none; } }
+@media (max-width: 640px) {
+  .board { left: auto; right: max(12px, env(safe-area-inset-right, 0px)); top: calc(max(16px, env(safe-area-inset-top, 0px)) + 56px); }
+  .steps { grid-template-columns: 1fr; }
+  .opts { grid-template-columns: 1fr; }
+  .shots { top: auto; bottom: 74px; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { #banner, .shot { transition: none; } }
 </style>
 </head>
 <body>
-<canvas id="stage" aria-label="배드민턴 경기장"></canvas>
+<canvas id="gl" aria-label="3D 배드민턴 경기장"></canvas>
 <video id="cam" playsinline muted></video>
 
-<header class="top">
-  <div class="brand">손 배드민턴<small>나 vs AI 콕봇</small></div>
-  <div class="score" aria-live="polite">
-    <div class="side me" id="sideMe"><i class="serve"></i><span class="name">나</span><span class="pts" id="ptsMe">0</span></div>
-    <div class="to" id="toLabel">11점<br>먼저</div>
-    <div class="side ai" id="sideAi"><span class="pts" id="ptsAi">0</span><span class="name">콕봇</span><i class="serve"></i></div>
-  </div>
-  <div class="tools">
-    <span class="status" id="camStatus">카메라 꺼짐</span>
-    <button class="btn" id="pauseBtn">일시정지</button>
-  </div>
-</header>
+<div class="left">
+  <div class="pip" id="pipBox" hidden><p class="lab">HAND TRACKING</p><canvas id="pip"></canvas></div>
+  <div class="speed glass"><span>SPEED</span><b id="speedVal">0</b><small>km/h</small></div>
+</div>
 
-<div id="msg" class="white" aria-live="polite"></div>
-<div id="hint" hidden></div>
-<canvas id="pip" hidden aria-label="카메라 미리보기"></canvas>
+<div class="board" aria-live="polite">
+  <div class="rows">
+    <div class="row" id="rowMe"><span id="flagMe"></span><span class="nm"><span id="nameMe">JOGUN</span><i title="서브"></i></span><span class="pt" id="ptMe">0</span></div>
+    <div class="row" id="rowAi"><span id="flagAi"></span><span class="nm"><span>KENTA</span><i title="서브"></i></span><span class="pt" id="ptAi">0</span></div>
+  </div>
+  <div class="set"><span id="setNo">SET 1</span><b id="setScore">0 - 0</b></div>
+</div>
+
+<button class="pause glass" id="pauseBtn" aria-label="일시정지"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></svg></button>
+
+<div class="shots" id="shots">
+  <button class="shot glass" data-shot="smash" aria-label="스매시">
+    <svg viewBox="0 0 100 100" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M70 12 A34 34 0 0 1 88 52" stroke="#7cc4ff" stroke-width="3" opacity="0.85"/><g fill="#e8eeff"><circle cx="46" cy="24" r="7"/><path d="M40 33 L54 33 L62 56 L56 58 L52 48 L50 66 L58 90 L51 92 L43 72 L36 92 L29 90 L38 64 L38 48 L30 60 L25 57Z"/><path d="M53 34 L68 18 L72 21 L58 40Z"/></g><g stroke="#e8eeff" stroke-width="2.5"><line x1="70" y1="19" x2="80" y2="8"/><ellipse cx="84" cy="5" rx="6" ry="4" transform="rotate(-40 84 5)"/></g></svg>SMASH</button>
+  <button class="shot glass" data-shot="clear" aria-label="클리어">
+    <svg viewBox="0 0 100 100" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M30 20 A40 40 0 0 1 86 40" stroke="#7cc4ff" stroke-width="3" opacity="0.85"/><g fill="#e8eeff"><circle cx="40" cy="30" r="7"/><path d="M34 39 L48 39 L54 60 L49 62 L46 54 L45 70 L52 92 L45 94 L38 76 L30 94 L23 92 L32 68 L32 54 L24 58 L22 53Z"/><path d="M47 40 L70 30 L72 35 L52 46Z"/></g><g stroke="#e8eeff" stroke-width="2.5"><line x1="71" y1="32" x2="84" y2="24"/><ellipse cx="89" cy="21" rx="6" ry="4" transform="rotate(-30 89 21)"/></g></svg>CLEAR</button>
+  <button class="shot glass" data-shot="drop" aria-label="드롭">
+    <svg viewBox="0 0 100 100" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M74 18 A30 30 0 0 1 90 48" stroke="#7cc4ff" stroke-width="3" opacity="0.85"/><g fill="#e8eeff"><circle cx="56" cy="34" r="7"/><path d="M50 43 L64 43 L66 58 L61 59 L58 52 L60 68 L78 84 L73 90 L54 74 L40 92 L33 88 L46 68 L44 54 L32 64 L28 60Z"/><path d="M62 46 L80 54 L78 58 L60 52Z"/></g><g stroke="#e8eeff" stroke-width="2.5"><line x1="80" y1="56" x2="90" y2="62"/><ellipse cx="94" cy="64" rx="5" ry="3.5"/></g></svg>DROP</button>
+</div>
+
+<div id="banner"><div class="k" id="bannerK">POINT</div><div class="v" id="bannerV"></div><div class="s" id="bannerS"></div></div>
+<div id="hint" class="glass" hidden></div>
+<div id="floaters"></div>
 
 <div class="overlay" id="startOverlay">
-  <div class="card">
-    <h2>손 <em>배드민턴</em></h2>
-    <p>카메라 앞에서 손을 휘두르면 라켓이 셔틀콕을 쳐요. AI 선수 콕봇을 이겨 보세요.</p>
-    <div class="how">
-      <div><b>1. 세워 두기</b>휴대폰·태블릿을 가로로 세워 두고 2미터쯤 떨어져 서요. 팔을 크게 휘둘러도 손이 화면에 보이게요.</div>
-      <div><b>2. 휘두르기</b>셔틀콕 둘레가 초록색이 되면 손을 휘둘러요. 선수는 저절로 셔틀콕 쪽으로 뛰어가요.</div>
-      <div><b>3. 기술 쓰기</b>위로 휘두르면 높고 멀리, 위에서 아래로 내려치면 스매시! 손이 화면 왼쪽·오른쪽에 있으면 그쪽으로 날아가요.</div>
+  <div class="card glass">
+    <h2>HAND <em>BADMINTON</em></h2>
+    <p class="sub">카메라 앞에서 팔을 휘두르면 내 선수가 그대로 라켓을 휘둘러요. AI 선수 KENTA를 이겨 보세요.</p>
+    <div class="steps">
+      <div><b>1. 세워 두기</b>휴대폰·태블릿을 가로로 세워 두고 2미터쯤 떨어져 서요. 상체와 팔이 다 보이게요.</div>
+      <div><b>2. 휘두르기</b>바닥의 파란 원은 셔틀콕이 떨어질 자리예요. 선수는 저절로 달려가니 때맞춰 팔만 휘둘러요.</div>
+      <div><b>3. 기술</b>위에서 아래로 내려치면 SMASH, 위로 크게 올려치면 CLEAR, 살짝 휘두르면 DROP.</div>
     </div>
     <div class="opts">
-      <div class="opt"><span>난이도</span>
-        <div class="seg" id="diffSeg">
-          <button data-v="easy" aria-pressed="true">쉬움</button>
-          <button data-v="normal" aria-pressed="false">보통</button>
-          <button data-v="hard" aria-pressed="false">어려움</button>
-        </div>
-      </div>
-      <div class="opt"><span>경기</span>
-        <div class="seg" id="toSeg">
-          <button data-v="5" aria-pressed="false">5점</button>
-          <button data-v="11" aria-pressed="true">11점</button>
-          <button data-v="21" aria-pressed="false">21점</button>
-        </div>
-      </div>
+      <span>내 이름</span><input type="text" id="nameInput" maxlength="10" value="JOGUN" aria-label="내 이름">
+      <span>난이도</span><div class="seg" id="diffSeg"><button data-v="easy">쉬움</button><button data-v="normal">보통</button><button data-v="hard">어려움</button></div>
+      <span>점수</span><div class="seg" id="ptsSeg"><button data-v="5">5점</button><button data-v="11">11점</button><button data-v="21">21점</button></div>
+      <span>경기</span><div class="seg" id="gamesSeg"><button data-v="1">1게임</button><button data-v="3">3게임 (2선승)</button></div>
+      <span>라켓 손</span><div class="seg" id="handSeg"><button data-v="right">오른손</button><button data-v="left">왼손</button></div>
+      <span>휘두름 감도</span><div class="seg" id="sensSeg"><button data-v="1.3">둔하게</button><button data-v="1">보통</button><button data-v="0.75">예민하게</button></div>
+      <span>화질</span><div class="seg" id="qualSeg"><button data-v="auto">자동</button><button data-v="high">높음</button><button data-v="mid">보통</button><button data-v="low">낮음</button></div>
     </div>
     <div class="actions">
       <button class="big" id="startCam">카메라로 시작</button>
@@ -187,1087 +199,39 @@ button:focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
 </div>
 
 <div class="overlay" id="pauseOverlay" hidden>
-  <div class="card">
-    <h2>잠깐 쉬어요</h2>
+  <div class="card glass">
+    <h2>PAUSE</h2>
     <div class="opts">
-      <div class="opt"><span>소리</span>
-        <div class="seg" id="soundSeg">
-          <button data-v="on" aria-pressed="true">켜기</button>
-          <button data-v="off" aria-pressed="false">끄기</button>
-        </div>
-      </div>
+      <span>소리</span><div class="seg" id="soundSeg"><button data-v="on">켜기</button><button data-v="off">끄기</button></div>
+      <span>휘두름 감도</span><div class="seg" id="sensSeg2"><button data-v="1.3">둔하게</button><button data-v="1">보통</button><button data-v="0.75">예민하게</button></div>
     </div>
-    <p>마우스로 할 때는 화면 위에서 마우스를 빠르게 휘두르거나 눌러요. 키보드는 스페이스(높게), X(스매시), Z(살짝)예요.</p>
+    <p class="sub">마우스로 할 때는 화면에서 빠르게 휘두르거나 오른쪽 기술 카드를 눌러요. 키보드는 스페이스(CLEAR), X(SMASH), Z(DROP).</p>
     <div class="actions">
       <button class="big" id="resumeBtn">계속하기</button>
-      <button class="big ghost" id="restartBtn">처음부터</button>
+      <button class="big ghost" id="restartBtn">처음 화면으로</button>
     </div>
   </div>
 </div>
 
 <div class="overlay" id="overOverlay" hidden>
-  <div class="card">
-    <h2 id="overTitle">이겼어요!</h2>
+  <div class="card glass">
+    <h2 id="overTitle">YOU WIN</h2>
     <div class="final"><span class="m" id="finMe">0</span> : <span class="a" id="finAi">0</span></div>
     <div class="stats">
       <div><b id="stRally">0</b><span>가장 긴 랠리</span></div>
       <div><b id="stSmash">0</b><span>내 스매시</span></div>
+      <div><b id="stSpeed">0</b><span>최고 속도 km/h</span></div>
       <div><b id="stPerfect">0</b><span>완벽한 타이밍</span></div>
     </div>
     <div class="actions">
       <button class="big" id="againBtn">한 판 더</button>
-      <button class="big ghost" id="menuBtn">난이도 바꾸기</button>
+      <button class="big ghost" id="menuBtn">설정 바꾸기</button>
     </div>
   </div>
 </div>
 
-<script type="module">
-// ═════════════════════════ 설정 ═════════════════════════
-const MP_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
-const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+<div class="loading" id="loading">LOADING ARENA…</div>
 
-// 코트 치수 (실제 배드민턴 규격, 미터)
-const L = 13.4, NET_Z = 6.7, HW = 2.59, DHW = 3.05, NET_H = 1.55, NET_BOTTOM = 0.79;
-const SHORT_LINE = 1.98, LONG_LINE = 0.76;
-// 셔틀콕은 공기 저항이 아주 커서 빨리 날아가다가 금방 느려진다. (종단 속도 약 6.7m/s)
-const G = 9.8, DRAG = 0.22, DT = 1 / 240;
-
-const DIFF = {
-  easy:   { label: "쉬움",   aiSpeed: 2.6, aiReact: 0.5,  aiReach: 0.85, aiErr: 0.36, smash: 0.03, aim: "toMe",  meSpeed: 9.5, meReach: 1.75, swingThr: 1.05, buffer: 0.6,  meNoise: 0.0 },
-  normal: { label: "보통",   aiSpeed: 4.0, aiReact: 0.3,  aiReach: 1.0,  aiErr: 0.15, smash: 0.2,  aim: "any",   meSpeed: 5.4, meReach: 1.4,  swingThr: 1.3,  buffer: 0.42, meNoise: 0.25 },
-  hard:   { label: "어려움", aiSpeed: 6.2, aiReact: 0.16, aiReach: 1.15, aiErr: 0.05, smash: 0.42, aim: "away",  meSpeed: 4.3, meReach: 1.15, swingThr: 1.5,  buffer: 0.3,  meNoise: 0.45 },
-};
-const SHOT_NAME = { clear: "클리어", lift: "높이 띄우기", drive: "드라이브", drop: "드롭", net: "헤어핀", smash: "스매시!", long: "롱 서브", short: "숏 서브" };
-
-const store = {
-  get(k, d) { try { const v = localStorage.getItem("fbad_" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem("fbad_" + k, JSON.stringify(v)); } catch {} },
-};
-const opts = { diff: store.get("diff", "easy"), to: store.get("to", 11), sound: store.get("sound", true) };
-const D = () => DIFF[opts.diff];
-
-const rand = (a, b) => a + Math.random() * (b - a);
-const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const lerp = (a, b, t) => a + (b - a) * t;
-const distH = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-
-// ═════════════════════════ 셔틀콕 물리 ═════════════════════════
-function stepBody(p, v, dt) {
-  const sp = Math.hypot(v.x, v.y, v.z);
-  v.x -= DRAG * sp * v.x * dt;
-  v.y -= (G + DRAG * sp * v.y) * dt;
-  v.z -= DRAG * sp * v.z * dt;
-  p.x += v.x * dt; p.y += v.y * dt; p.z += v.z * dt;
-}
-function crossesNet(z0, z1) { return (z0 - NET_Z) * (z1 - NET_Z) <= 0 && z0 !== z1; }
-function simulate(p0, v0, maxT = 6) {
-  const p = { ...p0 }, v = { ...v0 };
-  const pts = [];
-  let t = 0, net = false, netY = null;
-  for (let i = 0; t < maxT; i++) {
-    const z0 = p.z;
-    stepBody(p, v, DT); t += DT;
-    if (netY == null && crossesNet(z0, p.z)) {
-      netY = p.y;
-      if (p.y < NET_H + 0.03 && Math.abs(p.x) < DHW) net = true;
-    }
-    if (i % 3 === 0) pts.push({ t, x: p.x, y: p.y, z: p.z });
-    if (p.y <= 0) break;
-  }
-  return { pts, land: { x: p.x, z: p.z, t }, net, netY };
-}
-// 목표 지점에 떨어지도록 속도를 찾는다. 네트에 걸리면 각도를 올려 다시 찾는다.
-function solveShot(from, target, elevDeg, { allowNet = false } = {}) {
-  let dx = target.x - from.x, dz = target.z - from.z;
-  const Dist = Math.hypot(dx, dz) || 0.01; dx /= Dist; dz /= Dist;
-  let elev = elevDeg, best = null;
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const e = (elev * Math.PI) / 180;
-    let lo = 1, hi = 46, sim = null, v = null;
-    for (let i = 0; i < 22; i++) {
-      const s = (lo + hi) / 2;
-      v = { x: dx * Math.cos(e) * s, y: Math.sin(e) * s, z: dz * Math.cos(e) * s };
-      sim = simulate(from, v);
-      const got = (sim.land.x - from.x) * dx + (sim.land.z - from.z) * dz;
-      if (got < Dist) lo = s; else hi = s;
-    }
-    best = { v, sim };
-    if (allowNet || (!sim.net && (sim.netY == null || sim.netY > NET_H + 0.12))) return best;
-    elev += 6;
-  }
-  return best;
-}
-
-// ═════════════════════════ 경기 상태 ═════════════════════════
-const me = { side: "me", x: 0.9, z: 4.4, tx: 0.9, tz: 4.4, plan: null, swingT: -9, swingDown: false, walk: 0, home: { x: 0, z: 3.3 } };
-const ai = { side: "ai", x: -0.9, z: 9.3, tx: -0.9, tz: 9.3, plan: null, swingT: -9, swingDown: false, walk: 0, home: { x: 0, z: 10.1 } };
-const sh = { p: { x: 0, y: 1, z: 4 }, v: { x: 0, y: 0, z: 0 }, state: "held", lastHitter: null, flightT: 0, netted: false, type: null, trail: [] };
-const game = {
-  phase: "idle",           // idle | countdown | serve | rally | point | over
-  server: "me", scoreMe: 0, scoreAi: 0, timer: 0, t: 0,
-  rally: 0, longest: 0, smashes: 0, perfects: 0, paused: true,
-};
-let pendingSwing = null;
-let shake = 0;
-const marks = [];      // 떨어진 자리 표시
-const particles = [];
-const floaters = [];   // 셔틀콕 옆에 잠깐 뜨는 글자
-let crowdCheer = 0;
-
-function other(s) { return s === "me" ? "ai" : "me"; }
-function ent(s) { return s === "me" ? me : ai; }
-
-function newMatch() {
-  game.scoreMe = 0; game.scoreAi = 0; game.rally = 0; game.longest = 0; game.smashes = 0; game.perfects = 0;
-  marks.length = 0; particles.length = 0; floaters.length = 0;
-  updateScore();
-  game.server = "me";
-  game.phase = "countdown"; game.timer = 1.6;
-  placeForServe("me", true);
-  showMsg("준비!", "white", 900);
-  setTimeout(() => { if (game.phase === "countdown") showMsg("시작!", "lime", 700); }, 900);
-  game.paused = false;
-}
-function placeForServe(server, teleport) {
-  const sc = server === "me" ? game.scoreMe : game.scoreAi;
-  const even = sc % 2 === 0;
-  // 점수가 짝수면 오른쪽 서비스 코트, 홀수면 왼쪽에서 서브한다. 받는 사람은 대각선.
-  let mx, ax;
-  if (server === "me") { mx = even ? 0.9 : -0.9; ax = -mx; }
-  else { ax = even ? -0.9 : 0.9; mx = -ax; }
-  me.tx = mx; me.tz = server === "me" ? 4.5 : 4.2;
-  ai.tx = ax; ai.tz = server === "ai" ? 8.9 : 9.2;
-  me.plan = null; ai.plan = null;
-  if (teleport) { me.x = me.tx; me.z = me.tz; ai.x = ai.tx; ai.z = ai.tz; }
-  sh.state = "held"; sh.lastHitter = null; sh.netted = false; sh.trail = [];
-  sh.v = { x: 0, y: 0, z: 0 };
-  if (teleport) holdShuttle();
-}
-function holdShuttle() {
-  const s = ent(game.server);
-  const dir = game.server === "me" ? 1 : -1;
-  sh.p = { x: s.x + 0.3 * dir, y: 0.95, z: s.z + 0.25 * dir };
-}
-
-// ── 치기 ──
-function hitShuttle(by, type, target, elev, opt = {}) {
-  const shot = solveShot(sh.p, target, elev, opt);
-  sh.v = { ...shot.v }; sh.state = "fly"; sh.lastHitter = by; sh.flightT = 0; sh.netted = false; sh.type = type;
-  const hitter = ent(by), recv = ent(other(by));
-  hitter.plan = null; hitter.swingT = game.t; hitter.swingDown = type === "smash";
-  // 밖으로 나갈 공은 받지 않고 그냥 둔다. (그래야 실수가 점수가 된다)
-  const l = shot.sim.land;
-  sh.willOut = !shot.sim.net && (Math.abs(l.x) > HW + 0.05 || l.z < -0.05 || l.z > L + 0.05);
-  recv.plan = sh.willOut ? null : planIntercept(shot.sim, recv);
-  sh.outCalled = false;
-  // 자동 점검: 사람처럼 가끔 늦거나 못 친다.
-  sh.autoOk = Math.random() < autoSkill; sh.autoLag = autoSkill < 1 ? gauss() * 0.12 : 0;
-  game.phase = "rally";
-  game.rally++;
-  const sp = Math.hypot(sh.v.x, sh.v.y, sh.v.z);
-  sfxHit(type === "smash" ? 1 : 0.55 + Math.min(0.35, sp / 60));
-  burst(sh.p, by === "me" ? "#ff8a3d" : "#38d6ff", type === "smash" ? 22 : 10);
-  if (type === "smash") {
-    shake = 0.35;
-    floater(sh.p, `${SHOT_NAME.smash} ${Math.round(sp * 3.6)}km/h`, "#d4f75a", 1.3);
-    if (by === "me") game.smashes++;
-  } else if (by === "me") floater(sh.p, SHOT_NAME[type], "#ffffff", 0.9);
-}
-// 받는 선수가 어디서 칠지: 궤적 위에서 제때 닿을 수 있는 가장 이른 지점
-function planIntercept(sim, e) {
-  const d = D();
-  const isAi = e.side === "ai";
-  const speed = isAi ? d.aiSpeed : d.meSpeed;
-  const react = isAi ? d.aiReact : 0.05;
-  const reach = isAi ? d.aiReach : d.meReach * 0.5;
-  let best = null;
-  for (const s of sim.pts) {
-    const mine = isAi ? s.z > NET_Z + 0.25 : s.z < NET_Z - 0.25;
-    if (!mine || s.y > 2.65 || s.y < 0.4) continue;
-    const need = Math.max(0, Math.hypot(s.x - e.x, s.z - e.z) - reach);
-    const can = speed * Math.max(0, s.t - react);
-    if (need <= can) return { ...s, react, miss: false };
-    if (!best || need - can < best.short) best = { ...s, react, miss: true, short: need - can };
-  }
-  if (!best) { const l = sim.land; best = { t: l.t, x: l.x, y: 0, z: l.z, react, miss: true }; }
-  return best;
-}
-
-function swingKind(sw, contactY) {
-  const dirY = sw.vy / (sw.speed || 1);       // + = 아래로
-  const power = sw.speed / D().swingThr;
-  if (contactY > 1.7 && dirY > 0.45) return "smash";
-  if (dirY < -0.3) return contactY < 1.0 ? "lift" : "clear";
-  if (power < 1.45) return contactY < 1.0 ? "net" : "drop";
-  return "drive";
-}
-function aimX(sw) {
-  const ax = (handAim() - 0.5) * 2 * 2.2;
-  return ax + clamp(sw.vx / (sw.speed || 1), -1, 1) * 0.5;
-}
-function meHit(sw) {
-  const d = D();
-  const type = swingKind(sw, sh.p.y);
-  const quality = me.plan ? 1 - Math.min(1, Math.abs(sh.flightT - me.plan.t) / 0.45) : 0.5;
-  if (quality > 0.78) { game.perfects++; floater({ ...sh.p, y: sh.p.y + 0.5 }, "완벽!", "#d4f75a", 0.9); }
-  const noise = d.meNoise * (1 - quality * 0.7);
-  const depth = { clear: 12.3, lift: 12.1, drive: 11.0, drop: 8.4, net: 7.7, smash: 10.6 }[type];
-  const elev = { clear: 48, lift: 55, drive: 7, drop: 6, net: 28, smash: -12 }[type];
-  let tx = aimX(sw) + gauss() * noise;
-  let tz = depth + gauss() * noise * 0.8 + (type === "clear" ? clamp((sw.speed / d.swingThr - 1.5) * 0.3, -0.6, 0.6) : 0);
-  // 쉬움에서는 내 공이 코트 밖으로 나가지 않게 잡아 준다.
-  const lim = opts.diff === "easy" ? 2.2 : 2.95;
-  tx = clamp(tx, -lim, lim);
-  tz = opts.diff === "easy" ? clamp(tz, 7.4, 12.9) : clamp(tz, 7.2, 13.9);
-  hitShuttle("me", type, { x: tx, z: tz }, elev);
-}
-function meServe(sw) {
-  const strong = sw.vy < 0 && sw.speed > D().swingThr * 1.35;
-  const tx = -Math.sign(me.x || 1) * 1.3 + (handAim() - 0.5) * 0.8;
-  if (strong) hitShuttle("me", "long", { x: tx, z: 12.2 }, 50);
-  else hitShuttle("me", "short", { x: tx, z: 8.9 }, 24);
-  floater(sh.p, SHOT_NAME[strong ? "long" : "short"], "#ffffff", 0.9);
-}
-function aiHit() {
-  const d = D();
-  const h = sh.p.y;
-  let type;
-  const r = Math.random();
-  if (h > 1.9) type = r < d.smash ? "smash" : r < d.smash + 0.25 ? "drop" : "clear";
-  else if (h > 1.0) type = r < 0.45 ? (opts.diff === "easy" ? "clear" : "drive") : r < 0.7 ? "drop" : "clear";
-  else type = r < 0.65 ? "lift" : "net";
-  const depth = { clear: 1.2, lift: 1.3, drive: 2.4, drop: 4.9, net: 5.4, smash: 2.8 }[type];
-  const elev = { clear: 48, lift: 55, drive: 7, drop: 6, net: 28, smash: -12 }[type];
-  let tx;
-  if (d.aim === "toMe") tx = clamp(me.x * 0.5 + gauss() * 0.6, -1.7, 1.7);
-  else if (d.aim === "away") tx = -Math.sign(me.x || (Math.random() - 0.5)) * rand(1.1, 2.2);
-  else tx = rand(-2.1, 2.1);
-  let tz = depth + gauss() * 0.3;
-  if (opts.diff === "easy") tz = clamp(tz, 1.6, 5.2);
-  // 가끔 실수: 밖으로 나가거나 네트에 걸린다.
-  if (Math.random() < d.aiErr) {
-    if (Math.random() < 0.5) { tz = -0.7; type = "clear"; }
-    else if (Math.random() < 0.5) tx = Math.sign(tx || 1) * 3.2;
-    else { hitShuttle("ai", "drive", { x: tx, z: NET_Z - 0.6 }, -4, { allowNet: true }); return; }
-  }
-  hitShuttle("ai", type, { x: tx, z: tz }, elev);
-}
-function aiServe() {
-  const easy = opts.diff === "easy";
-  const long = Math.random() < (easy ? 0.85 : 0.5);
-  const tx = -Math.sign(ai.x || 1) * 1.3;
-  if (long) hitShuttle("ai", "long", { x: tx, z: easy ? 2.0 : 1.2 }, 50);
-  else hitShuttle("ai", "short", { x: tx, z: 4.5 }, 24);
-}
-
-// ── 점수 ──
-function awardPoint(winner, reason) {
-  if (game.phase === "point" || game.phase === "over") return;
-  game.longest = Math.max(game.longest, game.rally);
-  game.rally = 0;
-  if (winner === "me") game.scoreMe++; else game.scoreAi++;
-  game.server = winner;
-  updateScore();
-  const head = winner === "me" ? "나의 점수!" : "콕봇 점수";
-  showMsg(`${head}<small>${reason}</small>`, winner, 1500);
-  sfxPoint(winner === "me");
-  sfxCrowd(winner === "me" ? 1 : 0.5);
-  crowdCheer = winner === "me" ? 1.6 : 0.7;
-  me.plan = null; ai.plan = null;
-  const done = game.scoreMe >= opts.to || game.scoreAi >= opts.to;
-  game.phase = done ? "over" : "point";
-  game.timer = done ? 1.8 : 1.9;
-  if (!done) placeForServe(game.server, false);
-  pendingSwing = null;
-}
-function landShuttle() {
-  const p = sh.p;
-  p.y = 0;
-  const hitter = sh.lastHitter;
-  if (!hitter) return;
-  if (sh.netted) { awardPoint(other(hitter), "네트에 걸렸어요"); sfxLand(); return; }
-  const inside = Math.abs(p.x) <= HW + 0.02 && p.z >= -0.02 && p.z <= L + 0.02;
-  marks.push({ x: p.x, z: p.z, in: inside, t: game.t });
-  sfxLand();
-  if (!inside) { awardPoint(other(hitter), "아웃!"); return; }
-  const landedSide = p.z > NET_Z ? "ai" : "me";
-  awardPoint(other(landedSide), landedSide === "me" ? "내 코트에 떨어졌어요" : "콕봇 코트에 떨어졌어요");
-}
-
-// ═════════════════════════ 한 걸음씩 진행 ═════════════════════════
-function moveEnt(e, dt, speed) {
-  const dx = e.tx - e.x, dz = e.tz - e.z, d = Math.hypot(dx, dz);
-  if (d < 0.01) return;
-  const st = Math.min(d, speed * dt);
-  e.x += (dx / d) * st; e.z += (dz / d) * st;
-  e.walk += st * 5;
-}
-function hittableByMe() {
-  return sh.state === "fly" && sh.lastHitter === "ai" && !sh.netted && sh.p.z < NET_Z - 0.05 &&
-    !sh.willOut && sh.p.y > 0.2 && sh.p.y < 2.95 && distH(me, sh.p) < D().meReach;
-}
-function physicsStep() {
-  const d = D();
-  game.t += DT;
-  if (sh.state === "fly" || sh.state === "net") {
-    const z0 = sh.p.z;
-    stepBody(sh.p, sh.v, DT);
-    sh.flightT += DT;
-    if (sh.state === "fly" && crossesNet(z0, sh.p.z) && sh.p.y < NET_H + 0.03 && Math.abs(sh.p.x) < DHW) {
-      // 네트에 걸리면 친 사람 쪽으로 떨어진다.
-      sh.state = "net"; sh.netted = true;
-      sh.p.z = NET_Z + (sh.lastHitter === "me" ? -0.06 : 0.06);
-      sh.v = { x: sh.v.x * 0.1, y: Math.min(0, sh.v.y) * 0.2, z: (sh.lastHitter === "me" ? -0.5 : 0.5) };
-      sfxNet();
-    }
-    if (sh.willOut && !sh.outCalled && sh.lastHitter === "ai" && sh.p.z < NET_Z) { sh.outCalled = true; floater({ ...sh.p, y: 1.2 }, "아웃 같아요, 그냥 둬요!", "#ffb4b4", 0.85); }
-    if (sh.p.y <= 0) { sh.state = "ground"; landShuttle(); }
-  }
-  // 선수 움직임
-  if (me.plan && sh.lastHitter === "ai") {
-    me.tx = me.plan.x - 0.32; me.tz = me.plan.z - 0.3;
-  } else if (game.phase === "rally" && sh.lastHitter === "me") { me.tx = lerp(me.tx, me.home.x, 0.02); me.tz = lerp(me.tz, me.home.z, 0.02); }
-  if (ai.plan && sh.lastHitter === "me") {
-    if (sh.flightT >= ai.plan.react) { ai.tx = ai.plan.x + 0.32; ai.tz = ai.plan.z + 0.3; }
-  } else if (game.phase === "rally" && sh.lastHitter === "ai") { ai.tx = lerp(ai.tx, ai.home.x, 0.02); ai.tz = lerp(ai.tz, ai.home.z, 0.02); }
-  moveEnt(me, DT, game.phase === "rally" ? d.meSpeed : 2.5);
-  moveEnt(ai, DT, game.phase === "rally" ? d.aiSpeed : 2.5);
-  me.z = clamp(me.z, -0.5, NET_Z - 0.4); ai.z = clamp(ai.z, NET_Z + 0.4, L + 0.5);
-
-  // 떨어진 셔틀콕은 잠깐 그대로 두었다가 서브할 사람 손으로 옮긴다.
-  if (game.phase === "serve" || game.phase === "countdown" || (game.phase === "point" && game.timer < 0.7)) holdShuttle();
-
-  // 콕봇이 칠 차례
-  if (sh.state === "fly" && sh.lastHitter === "me" && !sh.netted && ai.plan && sh.p.z > NET_Z + 0.05) {
-    if (sh.flightT >= ai.plan.t - 1e-6 && distH(ai, sh.p) < d.aiReach + 0.45 && sh.p.y > 0.25 && sh.p.y < 2.9) aiHit();
-  }
-  // 내가 칠 차례: 휘두른 동작은 잠깐 기억해 뒀다가 칠 수 있게 되면 친다.
-  if (pendingSwing && game.t - pendingSwing.t > d.buffer) pendingSwing = null;
-  if (autoPlay && hittableByMe() && sh.autoOk !== false && (!me.plan || sh.flightT >= me.plan.t - 0.05 + (sh.autoLag || 0))) pendingSwing = fakeSwing();
-  if (pendingSwing && hittableByMe()) { const sw = pendingSwing; pendingSwing = null; meHit(sw); }
-
-  // 진행 단계
-  if (game.phase === "countdown" || game.phase === "point" || game.phase === "over") {
-    game.timer -= DT;
-    if (game.timer <= 0) {
-      if (game.phase === "over") { endMatch(); return; }
-      game.phase = "serve";
-      game.timer = game.server === "ai" ? rand(0.9, 1.4) : 0;
-      pendingSwing = null;
-    }
-  } else if (game.phase === "serve") {
-    if (game.server === "ai") { game.timer -= DT; if (game.timer <= 0) aiServe(); }
-    else {
-      if (autoPlay && !pendingSwing) pendingSwing = fakeSwing(true);
-      if (pendingSwing) { const sw = pendingSwing; pendingSwing = null; meServe(sw); }
-    }
-  }
-}
-let autoPlay = false, autoSkill = 1;
-function fakeSwing(serve) {
-  const thr = D().swingThr;
-  const r = Math.random();
-  if (serve) return { t: game.t, vx: 0, vy: -thr * 2, speed: thr * 2 };
-  if (!hand || hand.src === "auto") hand = { ax: rand(0.12, 0.88), ay: 0.4, x: 0, y: 0, src: "auto", t: 0 };
-  if (r < 0.4) return { t: game.t, vx: rand(-1, 1), vy: -thr * 1.8, speed: thr * 2 };
-  if (r < 0.7) return { t: game.t, vx: 0, vy: thr * 1.8, speed: thr * 2 };
-  return { t: game.t, vx: thr * 1.8, vy: 0, speed: thr * 1.8 };
-}
-
-// ═════════════════════════ 손 인식과 휘두르기 ═════════════════════════
-const video = document.getElementById("cam");
-let landmarker = null, lastVideoTime = -1, handSeenAt = -9, camOn = false;
-const handHist = [];   // {t, x, y}: 화면 높이를 1로 둔 좌표
-let hand = null;       // 최근 손 {ax: 0..1 가로 위치, x, y, src}
-let lastSwingAt = -9, handSpeed = 0;
-const camStatus = document.getElementById("camStatus");
-
-async function startCamera() {
-  const msg = document.getElementById("startMsg");
-  if (!window.isSecureContext) { msg.textContent = "카메라는 https 주소에서만 켜져요."; return false; }
-  if (!navigator.mediaDevices?.getUserMedia) { msg.textContent = "이 브라우저는 카메라를 지원하지 않아요. 크롬이나 사파리에서 열어 주세요."; return false; }
-  msg.textContent = "카메라를 켜는 중…";
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-    video.srcObject = stream;
-    await video.play();
-  } catch (e) {
-    msg.textContent = e && e.name === "NotAllowedError"
-      ? "카메라 사용이 막혀 있어요. 주소창 옆 카메라 아이콘에서 허용한 뒤 다시 눌러 주세요."
-      : "카메라를 켜지 못했어요. 다른 앱이 카메라를 쓰고 있는지 확인해 주세요.";
-    return false;
-  }
-  msg.textContent = "손 인식 준비 중… (처음에는 10초쯤 걸려요)";
-  try {
-    const { HandLandmarker, FilesetResolver } = await import(`${MP_URL}/vision_bundle.mjs`);
-    const files = await FilesetResolver.forVisionTasks(`${MP_URL}/wasm`);
-    const o = (delegate) => ({
-      baseOptions: { modelAssetPath: MODEL_URL, delegate }, runningMode: "VIDEO", numHands: 2,
-      minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5,
-    });
-    try { landmarker = await HandLandmarker.createFromOptions(files, o("GPU")); }
-    catch { landmarker = await HandLandmarker.createFromOptions(files, o("CPU")); }
-  } catch {
-    msg.textContent = "손 인식 프로그램을 받지 못했어요. 인터넷 연결을 확인해 주세요.";
-    return false;
-  }
-  camOn = true;
-  document.getElementById("pip").hidden = false;
-  camStatus.textContent = "손을 보여 주세요";
-  return true;
-}
-let pipPts = null;
-function detectHands(nowS) {
-  if (!landmarker || video.readyState < 2 || video.currentTime === lastVideoTime) return;
-  lastVideoTime = video.currentTime;
-  let res;
-  try { res = landmarker.detectForVideo(video, nowS * 1000); } catch { return; }
-  const list = res.landmarks || [];
-  if (!list.length) { camStatus.textContent = "손을 보여 주세요"; pipPts = null; return; }
-  // 가장 크게 보이는 손 하나로 라켓을 움직인다.
-  const aspect = (video.videoWidth || 16) / (video.videoHeight || 9);
-  let bestLm = null, bestSize = 0;
-  for (const lm of list) {
-    const s = Math.hypot((lm[0].x - lm[9].x) * aspect, lm[0].y - lm[9].y);
-    if (s > bestSize) { bestSize = s; bestLm = lm; }
-  }
-  const ids = [0, 5, 9, 17];
-  const nx = ids.reduce((a, i) => a + (1 - bestLm[i].x), 0) / 4;
-  const ny = ids.reduce((a, i) => a + bestLm[i].y, 0) / 4;
-  pipPts = bestLm.map((p) => ({ x: 1 - p.x, y: p.y }));
-  feedHand(nowS, nx, ny, nx * aspect, ny, "cam");
-  handSeenAt = nowS;
-  camStatus.textContent = "손이 보여요";
-}
-function feedHand(t, ax, ay, x, y, src) {
-  hand = { ax, ay, x, y, src, t };
-  handHist.push({ t, x, y });
-  while (handHist.length && t - handHist[0].t > 0.3) handHist.shift();
-  detectSwing(t);
-}
-function handAim() {
-  return hand ? clamp(hand.ax, 0, 1) : 0.5;
-}
-function detectSwing(t) {
-  if (handHist.length < 2) return;
-  const cur = handHist[handHist.length - 1];
-  let old = handHist[0];
-  for (const s of handHist) if (cur.t - s.t <= 0.09) { old = s; break; }
-  const dt = cur.t - old.t;
-  if (dt < 0.025) return;
-  const vx = (cur.x - old.x) / dt, vy = (cur.y - old.y) / dt;
-  const sp = Math.hypot(vx, vy);
-  handSpeed = sp;
-  if (sp > D().swingThr && t - lastSwingAt > 0.38) {
-    lastSwingAt = t;
-    registerSwing({ vx, vy, speed: sp });
-  }
-}
-function registerSwing(sw) {
-  if (game.paused) return;
-  initAudio();
-  pendingSwing = { ...sw, t: game.t };
-  if (game.phase === "rally" || game.phase === "serve") { me.swingT = game.t; me.swingDown = sw.vy > 0; sfxSwoosh(); }
-  pipFlash = 1;
-}
-
-// ═════════════════════════ 소리 ═════════════════════════
-let actx = null, master = null, noise = null;
-function initAudio() {
-  if (actx) { if (actx.state === "suspended") actx.resume(); return; }
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return;
-  actx = new AC();
-  master = actx.createGain(); master.gain.value = 0.8;
-  const comp = actx.createDynamicsCompressor();
-  master.connect(comp); comp.connect(actx.destination);
-  noise = actx.createBuffer(1, actx.sampleRate * 2, actx.sampleRate);
-  const d = noise.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-}
-const canPlay = () => actx && opts.sound;
-function noiseHit({ dur, freq, q = 1, gain, type = "bandpass", sweepTo, attack = 0.002 }) {
-  const t = actx.currentTime;
-  const src = actx.createBufferSource(); src.buffer = noise;
-  const f = actx.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(freq, t); f.Q.value = q;
-  if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
-  const g = actx.createGain();
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  src.connect(f); f.connect(g); g.connect(master);
-  src.start(t, Math.random()); src.stop(t + dur + 0.05);
-}
-function tone(freq, dur, gain, type = "sine", when = 0, slideTo) {
-  const t = actx.currentTime + when;
-  const o = actx.createOscillator(); o.type = type; o.frequency.setValueAtTime(freq, t);
-  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
-  const g = actx.createGain();
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
-}
-function sfxHit(p) {
-  if (!canPlay()) return;
-  noiseHit({ dur: 0.07 + p * 0.05, freq: 2600, q: 1.4, gain: 0.55 * p });
-  tone(320, 0.09, 0.35 * p, "triangle", 0, 140);
-}
-function sfxSwoosh() { if (canPlay()) noiseHit({ dur: 0.2, freq: 500, q: 0.8, gain: 0.12, sweepTo: 2600, attack: 0.04 }); }
-function sfxLand() { if (canPlay()) { noiseHit({ dur: 0.09, freq: 380, type: "lowpass", gain: 0.3 }); tone(110, 0.08, 0.2, "sine"); } }
-function sfxNet() { if (canPlay()) { noiseHit({ dur: 0.3, freq: 900, q: 3, gain: 0.25 }); tone(180, 0.2, 0.08, "square", 0, 120); } }
-function sfxPoint(win) {
-  if (!canPlay()) return;
-  const notes = win ? [523, 659, 784, 1047] : [440, 349];
-  notes.forEach((f, i) => tone(f, 0.22, 0.18, "triangle", i * 0.09));
-}
-function sfxCrowd(level) {
-  if (!canPlay()) return;
-  const t = actx.currentTime;
-  const src = actx.createBufferSource(); src.buffer = noise; src.loop = true;
-  const f = actx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 750; f.Q.value = 0.5;
-  const g = actx.createGain();
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.16 * level, t + 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
-  src.connect(f); f.connect(g); g.connect(master); src.start(t, Math.random()); src.stop(t + 2.3);
-}
-
-// ═════════════════════════ 카메라(시점)와 투영 ═════════════════════════
-const canvas = document.getElementById("stage");
-const g = canvas.getContext("2d");
-const pip = document.getElementById("pip");
-const pg = pip.getContext("2d");
-let W = 0, H = 0, DPR = 1, F = 800, SHIFT = 0;
-// 멀리서 좁게 보는 시점이라 앞뒤 크기 차이가 덜하다. (상대 선수도 잘 보이게)
-const cam = { x: 0, y: 6.4, z: -8.8 }, look = { x: 0, y: 0.4, z: 6.9 };
-let fw = {}, rt = {}, up = {};
-function setupView() {
-  const dx = look.x - cam.x, dy = look.y - cam.y, dz = look.z - cam.z;
-  const n = Math.hypot(dx, dy, dz);
-  fw = { x: dx / n, y: dy / n, z: dz / n };
-  const rl = Math.hypot(fw.z, fw.x);
-  rt = { x: fw.z / rl, y: 0, z: -fw.x / rl };
-  up = { x: fw.y * rt.z - fw.z * rt.y, y: fw.z * rt.x - fw.x * rt.z, z: fw.x * rt.y - fw.y * rt.x };
-}
-function raw(x, y, z) {
-  const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
-  return { cx: dx * rt.x + dy * rt.y + dz * rt.z, cy: dx * up.x + dy * up.y + dz * up.z, cz: dx * fw.x + dy * fw.y + dz * fw.z };
-}
-function P(x, y, z) {
-  const r = raw(x, y, z);
-  if (r.cz < 0.2) return null;
-  return { x: W / 2 + (r.cx / r.cz) * F, y: H / 2 - (r.cy / r.cz) * F + SHIFT, s: F / r.cz };
-}
-function fitView() {
-  cam.x = 0; look.x = 0; setupView();
-  const tall = W < H;
-  // 세로 화면에서는 복식 옆줄이 조금 잘려도 코트를 크게 보여 준다.
-  const a = raw(0, 0, L), b = raw(0, 0, -0.3), c = raw(tall ? HW + 0.2 : DHW + 0.4, 0, -0.3);
-  const top = H * (tall ? 0.3 : H < 500 ? 0.3 : 0.24), bottom = H * 0.985;
-  const Fv = (bottom - top) / (a.cy / a.cz - b.cy / b.cz);
-  const Fh = (W * (tall ? 0.52 : 0.5)) / (c.cx / c.cz);
-  F = Math.min(Fv, Fh);
-  SHIFT = bottom - H / 2 + (b.cy / b.cz) * F;
-  if (Fh < Fv) SHIFT -= (H * 0.985 - top - (a.cy / a.cz - b.cy / b.cz) * F) * 0.45; // 세로 화면: 가운데쯤으로
-}
-function layout() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth; H = window.innerHeight;
-  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
-  const r = pip.getBoundingClientRect();
-  pip.width = Math.round((r.width || 176) * DPR); pip.height = Math.round((r.height || 99) * DPR);
-  fitView();
-  buildCrowd();
-}
-
-// ═════════════════════════ 그리기 ═════════════════════════
-const WALL_Z = 17.5;
-let crowd = [];
-function buildCrowd() {
-  crowd = [];
-  const cols = ["#ff6b6b", "#ffd166", "#06d6a0", "#4cc9f0", "#f72585", "#ffffff", "#b5179e", "#90be6d", "#f8961e"];
-  let seed = 7;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let row = 0; row < 5; row++) {
-    for (let i = 0; i < 46; i++) {
-      crowd.push({ x: -13 + i * 0.58 + rnd() * 0.25 + (row % 2) * 0.29, y: 0.55 + row * 0.62, z: WALL_Z - 0.2 - row * 0.05, c: cols[Math.floor(rnd() * cols.length)], ph: rnd() * 6.28, skin: rnd() < 0.5 ? "#f2c7a5" : "#c98d6a" });
-    }
-  }
-}
-function poly(pts, fill, stroke, lw) {
-  if (pts.some((p) => !p)) return;
-  g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
-  g.closePath();
-  if (fill) { g.fillStyle = fill; g.fill(); }
-  if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw || 1; g.stroke(); }
-}
-function floorRect(x0, z0, x1, z1, fill) { poly([P(x0, 0, z0), P(x1, 0, z0), P(x1, 0, z1), P(x0, 0, z1)], fill); }
-function drawArena(tS) {
-  const bg = g.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#070c22"); bg.addColorStop(1, "#141d44");
-  g.fillStyle = bg; g.fillRect(0, 0, W, H);
-  // 뒷벽
-  const wl = P(-22, 0, WALL_Z), wr = P(22, 0, WALL_Z), wtl = P(-22, 7.5, WALL_Z), wtr = P(22, 7.5, WALL_Z);
-  if (wl && wtl) {
-    const wg = g.createLinearGradient(0, wtl.y, 0, wl.y);
-    wg.addColorStop(0, "#0d1640"); wg.addColorStop(1, "#1c2a63");
-    poly([wl, wr, wtr, wtl], wg);
-    // 관중석 계단
-    for (let row = 0; row < 5; row++) {
-      const y0 = 0.3 + row * 0.62;
-      poly([P(-22, y0, WALL_Z - 0.1), P(22, y0, WALL_Z - 0.1), P(22, y0 + 0.62, WALL_Z - 0.1), P(-22, y0 + 0.62, WALL_Z - 0.1)], row % 2 ? "#18235a" : "#1f2c6b");
-    }
-    // 관중
-    const cheer = crowdCheer;
-    for (const c of crowd) {
-      const jump = Math.max(0, Math.sin(tS * 9 + c.ph)) * 0.18 * cheer + Math.sin(tS * 1.3 + c.ph) * 0.02;
-      const p = P(c.x, c.y + jump, c.z);
-      if (!p || p.x < -20 || p.x > W + 20) continue;
-      const r = 0.13 * p.s;
-      g.fillStyle = c.c; g.beginPath(); g.ellipse(p.x, p.y + r * 1.6, r * 1.35, r * 1.2, 0, Math.PI, 0); g.fill();
-      g.fillStyle = c.skin; g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fill();
-      if (cheer > 0.4 && (c.ph * 10) % 3 < 1) { g.strokeStyle = c.skin; g.lineWidth = Math.max(1, r * 0.35); g.beginPath(); g.moveTo(p.x - r, p.y + r); g.lineTo(p.x - r * 1.6, p.y - r * 1.4 - jump * p.s * 0.5); g.stroke(); }
-    }
-    // 현수막
-    const b0 = P(-6.5, 3.7, WALL_Z - 0.15), b1 = P(6.5, 3.7, WALL_Z - 0.15), b2 = P(6.5, 4.6, WALL_Z - 0.15), b3 = P(-6.5, 4.6, WALL_Z - 0.15);
-    poly([b0, b1, b2, b3], "#d4f75a");
-    if (b0 && b2) {
-      g.fillStyle = "#0b1230"; g.font = `${(b0.y - b3.y) * 0.62}px "Do Hyeon", sans-serif`;
-      g.textAlign = "center"; g.textBaseline = "middle";
-      g.fillText("손 배드민턴 챔피언십", (b0.x + b1.x) / 2, (b0.y + b3.y) / 2 + 1);
-    }
-    // 조명
-    for (const lx of [-8, -2.7, 2.7, 8]) {
-      const lp = P(lx, 6.6, WALL_Z - 0.3);
-      if (!lp) continue;
-      const rg = g.createRadialGradient(lp.x, lp.y, 0, lp.x, lp.y, lp.s * 2.2);
-      rg.addColorStop(0, "rgba(255,255,240,0.9)"); rg.addColorStop(0.15, "rgba(255,255,230,0.35)"); rg.addColorStop(1, "rgba(255,255,230,0)");
-      g.fillStyle = rg; g.beginPath(); g.arc(lp.x, lp.y, lp.s * 2.2, 0, Math.PI * 2); g.fill();
-    }
-  }
-  // 바닥 (나무)
-  const f0 = P(-22, 0, -1.5), f1 = P(22, 0, -1.5), f2 = P(22, 0, WALL_Z), f3 = P(-22, 0, WALL_Z);
-  if (f0 && f2) {
-    const fg = g.createLinearGradient(0, f3.y, 0, H);
-    fg.addColorStop(0, "#6b4527"); fg.addColorStop(1, "#b9824c");
-    poly([f0, f1, f2, f3], fg);
-    g.strokeStyle = "rgba(60,30,10,0.18)"; g.lineWidth = 1;
-    for (let x = -12; x <= 12; x += 0.7) {
-      const a = P(x, 0, -1.5), b = P(x, 0, WALL_Z);
-      if (a && b) { g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
-    }
-  }
-}
-function drawCourt() {
-  floorRect(-DHW - 0.45, -0.5, DHW + 0.45, L + 0.5, "#1d7a57");
-  // 코트 위 은은한 조명
-  const c = P(0, 0, NET_Z);
-  if (c) {
-    const rg = g.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.s * 9);
-    rg.addColorStop(0, "rgba(255,255,255,0.10)"); rg.addColorStop(1, "rgba(255,255,255,0)");
-    g.fillStyle = rg; g.fillRect(0, 0, W, H);
-  }
-  const w = 0.045, col = "rgba(255,255,255,0.92)";
-  const lineZ = (x, z0, z1) => floorRect(x - w / 2, z0, x + w / 2, z1, col);
-  const lineX = (z, x0, x1) => floorRect(x0, z - w / 2, x1, z + w / 2, col);
-  lineZ(-DHW, 0, L); lineZ(DHW, 0, L); lineZ(-HW, 0, L); lineZ(HW, 0, L);
-  lineX(0, -DHW, DHW); lineX(L, -DHW, DHW);
-  lineX(LONG_LINE, -DHW, DHW); lineX(L - LONG_LINE, -DHW, DHW);
-  lineX(NET_Z - SHORT_LINE, -DHW, DHW); lineX(NET_Z + SHORT_LINE, -DHW, DHW);
-  lineZ(0, 0, NET_Z - SHORT_LINE); lineZ(0, NET_Z + SHORT_LINE, L);
-}
-function drawNet() {
-  for (const x of [-DHW - 0.05, DHW + 0.05]) {
-    const a = P(x, 0, NET_Z), b = P(x, NET_H + 0.02, NET_Z);
-    if (a && b) { g.strokeStyle = "#e9edf7"; g.lineWidth = Math.max(2, 0.05 * a.s); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
-  }
-  const tl = P(-DHW, NET_H, NET_Z), tr = P(DHW, NET_H, NET_Z), br = P(DHW, NET_BOTTOM, NET_Z), bl = P(-DHW, NET_BOTTOM, NET_Z);
-  poly([tl, tr, br, bl], "rgba(10,14,30,0.32)");
-  if (tl && br) {
-    g.strokeStyle = "rgba(15,18,35,0.55)"; g.lineWidth = 1;
-    g.beginPath();
-    for (let x = -DHW; x <= DHW + 0.001; x += 0.2) { const a = P(x, NET_H, NET_Z), b = P(x, NET_BOTTOM, NET_Z); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); }
-    for (let y = NET_BOTTOM; y <= NET_H; y += 0.095) { const a = P(-DHW, y, NET_Z), b = P(DHW, y, NET_Z); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); }
-    g.stroke();
-  }
-  poly([P(-DHW, NET_H, NET_Z), P(DHW, NET_H, NET_Z), P(DHW, NET_H - 0.075, NET_Z), P(-DHW, NET_H - 0.075, NET_Z)], "#f5f7ff");
-}
-function shadow(x, z, r, a) {
-  const p = P(x, 0, z);
-  if (!p) return;
-  g.fillStyle = `rgba(0,0,0,${a})`;
-  g.beginPath(); g.ellipse(p.x, p.y, r * p.s, r * p.s * 0.32, 0, 0, Math.PI * 2); g.fill();
-}
-function racketAngle(e, isMe) {
-  // 오른쪽 팔 기준 각도 (화면에서 0 = 오른쪽, -90 = 위). 콕봇은 좌우를 뒤집어 그린다.
-  let base;
-  if (isMe) base = hand ? lerp(-100, 10, clamp((hand.ay - 0.15) / 0.7, 0, 1)) : -60;
-  else base = sh.state === "fly" && sh.lastHitter === "me" ? -95 : -55;
-  const st = (game.t - e.swingT) / 0.24;
-  if (st >= 0 && st < 1) {
-    const k = 1 - Math.pow(1 - st, 3);
-    return e.swingDown ? lerp(-120, 55, k) : lerp(40, -130, k);
-  }
-  return base;
-}
-function drawRacket(x, y, ang, s, col) {
-  const a = (ang * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
-  const hl = 0.2 * s, sl = 0.22 * s;
-  const hx = x + ca * hl, hy = y + sa * hl;
-  const cx = hx + ca * (sl + 0.11 * s), cy = hy + sa * (sl + 0.11 * s);
-  g.lineCap = "round";
-  g.strokeStyle = "#1c1f2e"; g.lineWidth = Math.max(2, 0.035 * s); g.beginPath(); g.moveTo(x, y); g.lineTo(hx, hy); g.stroke();
-  g.strokeStyle = "#cfd6e6"; g.lineWidth = Math.max(1, 0.016 * s); g.beginPath(); g.moveTo(hx, hy); g.lineTo(cx - ca * 0.11 * s, cy - sa * 0.11 * s); g.stroke();
-  g.save(); g.translate(cx, cy); g.rotate(a);
-  g.beginPath(); g.ellipse(0, 0, 0.12 * s, 0.095 * s, 0, 0, Math.PI * 2);
-  g.fillStyle = "rgba(255,255,255,0.12)"; g.fill();
-  if (s > 120) {
-    g.strokeStyle = "rgba(255,255,255,0.45)"; g.lineWidth = 1; g.beginPath();
-    for (let i = -4; i <= 4; i++) { const u = (i / 5) * 0.12 * s; const h = 0.095 * s * Math.sqrt(1 - (i / 5) ** 2); g.moveTo(u, -h); g.lineTo(u, h); }
-    for (let i = -3; i <= 3; i++) { const v = (i / 4) * 0.095 * s; const w = 0.12 * s * Math.sqrt(1 - (i / 4) ** 2); g.moveTo(-w, v); g.lineTo(w, v); }
-    g.stroke();
-  }
-  g.strokeStyle = col; g.lineWidth = Math.max(2, 0.022 * s); g.beginPath(); g.ellipse(0, 0, 0.12 * s, 0.095 * s, 0, 0, Math.PI * 2); g.stroke();
-  g.restore();
-}
-function drawKid(e) {
-  const foot = P(e.x, 0, e.z); if (!foot) return;
-  const s = foot.s;
-  const step = Math.sin(e.walk) * 0.09 * s;
-  g.save(); g.globalAlpha = 0.86;
-  g.lineCap = "round";
-  // 다리
-  g.strokeStyle = "#f2c7a5"; g.lineWidth = 0.1 * s;
-  g.beginPath(); g.moveTo(foot.x - 0.1 * s, foot.y - 0.62 * s); g.lineTo(foot.x - 0.11 * s + step, foot.y - 0.04 * s);
-  g.moveTo(foot.x + 0.1 * s, foot.y - 0.62 * s); g.lineTo(foot.x + 0.11 * s - step, foot.y - 0.04 * s); g.stroke();
-  g.fillStyle = "#f5f7ff";
-  g.beginPath(); g.ellipse(foot.x - 0.11 * s + step, foot.y - 0.03 * s, 0.08 * s, 0.045 * s, 0, 0, Math.PI * 2); g.ellipse(foot.x + 0.11 * s - step, foot.y - 0.03 * s, 0.08 * s, 0.045 * s, 0, 0, Math.PI * 2); g.fill();
-  // 반바지와 셔츠 (뒷모습)
-  g.fillStyle = "#1d2b5a"; roundRectP(foot.x - 0.19 * s, foot.y - 0.78 * s, 0.38 * s, 0.22 * s, 0.05 * s); g.fill();
-  g.fillStyle = "#ff8a3d"; roundRectP(foot.x - 0.21 * s, foot.y - 1.2 * s, 0.42 * s, 0.46 * s, 0.09 * s); g.fill();
-  g.fillStyle = "rgba(255,255,255,0.9)"; g.font = `${0.2 * s}px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText("1", foot.x, foot.y - 0.98 * s);
-  // 머리 (뒷모습)
-  g.fillStyle = "#f2c7a5"; g.beginPath(); g.arc(foot.x, foot.y - 1.32 * s, 0.13 * s, 0, Math.PI * 2); g.fill();
-  g.fillStyle = "#3a2618"; g.beginPath(); g.arc(foot.x, foot.y - 1.34 * s, 0.135 * s, Math.PI * 0.9, Math.PI * 2.1); g.fill();
-  // 왼팔
-  g.strokeStyle = "#f2c7a5"; g.lineWidth = 0.075 * s;
-  g.beginPath(); g.moveTo(foot.x - 0.2 * s, foot.y - 1.12 * s); g.lineTo(foot.x - 0.36 * s, foot.y - 0.82 * s); g.stroke();
-  // 오른팔과 라켓
-  const ang = racketAngle(e, true), a = (ang * Math.PI) / 180;
-  const sx = foot.x + 0.2 * s, sy = foot.y - 1.12 * s;
-  const hx = sx + Math.cos(a) * 0.45 * s, hy = sy + Math.sin(a) * 0.45 * s;
-  g.beginPath(); g.moveTo(sx, sy); g.lineTo(hx, hy); g.stroke();
-  g.restore();
-  drawRacket(hx, hy, ang, s, "#ff8a3d");
-}
-function drawBot(e, tS) {
-  const foot = P(e.x, 0, e.z); if (!foot) return;
-  const s = foot.s;
-  const step = Math.sin(e.walk) * 0.09 * s;
-  g.lineCap = "round";
-  g.strokeStyle = "#8a96b5"; g.lineWidth = 0.1 * s;
-  g.beginPath(); g.moveTo(foot.x - 0.11 * s, foot.y - 0.7 * s); g.lineTo(foot.x - 0.12 * s - step, foot.y - 0.05 * s);
-  g.moveTo(foot.x + 0.11 * s, foot.y - 0.7 * s); g.lineTo(foot.x + 0.12 * s + step, foot.y - 0.05 * s); g.stroke();
-  g.fillStyle = "#38d6ff";
-  g.beginPath(); g.ellipse(foot.x - 0.12 * s - step, foot.y - 0.04 * s, 0.09 * s, 0.05 * s, 0, 0, Math.PI * 2); g.ellipse(foot.x + 0.12 * s + step, foot.y - 0.04 * s, 0.09 * s, 0.05 * s, 0, 0, Math.PI * 2); g.fill();
-  // 몸통
-  const bodyG = g.createLinearGradient(foot.x - 0.25 * s, 0, foot.x + 0.25 * s, 0);
-  bodyG.addColorStop(0, "#c7d2e6"); bodyG.addColorStop(0.5, "#f1f5fc"); bodyG.addColorStop(1, "#b5c1d8");
-  g.fillStyle = bodyG; roundRectP(foot.x - 0.24 * s, foot.y - 1.3 * s, 0.48 * s, 0.62 * s, 0.12 * s); g.fill();
-  g.fillStyle = "#38d6ff"; g.beginPath(); g.arc(foot.x, foot.y - 1.02 * s, 0.07 * s, 0, Math.PI * 2); g.fill();
-  // 머리
-  g.fillStyle = "#e9eef8"; roundRectP(foot.x - 0.19 * s, foot.y - 1.66 * s, 0.38 * s, 0.31 * s, 0.1 * s); g.fill();
-  g.fillStyle = "#0e1630"; roundRectP(foot.x - 0.15 * s, foot.y - 1.6 * s, 0.3 * s, 0.17 * s, 0.07 * s); g.fill();
-  const blink = Math.sin(tS * 2.1) > 0.97 ? 0.2 : 1;
-  g.fillStyle = "#7ff9ff";
-  g.beginPath(); g.ellipse(foot.x - 0.065 * s, foot.y - 1.515 * s, 0.03 * s, 0.035 * s * blink, 0, 0, Math.PI * 2); g.ellipse(foot.x + 0.065 * s, foot.y - 1.515 * s, 0.03 * s, 0.035 * s * blink, 0, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = "#c7d2e6"; g.lineWidth = Math.max(1, 0.02 * s); g.beginPath(); g.moveTo(foot.x, foot.y - 1.66 * s); g.lineTo(foot.x, foot.y - 1.78 * s); g.stroke();
-  g.fillStyle = Math.sin(tS * 4) > 0 ? "#d4f75a" : "#38d6ff"; g.beginPath(); g.arc(foot.x, foot.y - 1.8 * s, 0.035 * s, 0, Math.PI * 2); g.fill();
-  // 팔: 콕봇은 우리를 보고 있어서 오른손이 화면 왼쪽에 있다.
-  g.strokeStyle = "#b5c1d8"; g.lineWidth = 0.075 * s;
-  g.beginPath(); g.moveTo(foot.x + 0.23 * s, foot.y - 1.2 * s); g.lineTo(foot.x + 0.36 * s, foot.y - 0.9 * s); g.stroke();
-  const ang = 180 - racketAngle(e, false), a = (ang * Math.PI) / 180;
-  const sx = foot.x - 0.23 * s, sy = foot.y - 1.2 * s;
-  const hx = sx + Math.cos(a) * 0.45 * s, hy = sy + Math.sin(a) * 0.45 * s;
-  g.beginPath(); g.moveTo(sx, sy); g.lineTo(hx, hy); g.stroke();
-  drawRacket(hx, hy, ang, s, "#38d6ff");
-}
-function roundRectP(x, y, w, h, r) {
-  g.beginPath();
-  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
-  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
-}
-function drawShuttle() {
-  // 꼬리
-  if (sh.trail.length > 1) {
-    const fast = sh.type === "smash";
-    for (let i = 1; i < sh.trail.length; i++) {
-      const a = P(sh.trail[i - 1].x, sh.trail[i - 1].y, sh.trail[i - 1].z), b = P(sh.trail[i].x, sh.trail[i].y, sh.trail[i].z);
-      if (!a || !b) continue;
-      g.strokeStyle = fast ? `rgba(212,247,90,${(i / sh.trail.length) * 0.8})` : `rgba(255,255,255,${(i / sh.trail.length) * 0.4})`;
-      g.lineWidth = Math.max(1.5, 0.05 * b.s * (i / sh.trail.length));
-      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
-    }
-  }
-  const p = P(sh.p.x, sh.p.y, sh.p.z);
-  if (!p) return;
-  const sp = Math.hypot(sh.v.x, sh.v.y, sh.v.z);
-  // 깃털은 날아가는 방향의 반대쪽, 멈춰 있으면 위쪽
-  let dx = 0, dy = 1, dz = 0;
-  if (sp > 0.3) { dx = -sh.v.x / sp; dy = -sh.v.y / sp; dz = -sh.v.z / sp; }
-  const tail = P(sh.p.x + dx * 0.085, sh.p.y + dy * 0.085, sh.p.z + dz * 0.085);
-  const r = Math.max(3, 0.03 * p.s);
-  if (tail) {
-    let ex = tail.x - p.x, ey = tail.y - p.y;
-    let el = Math.hypot(ex, ey);
-    if (el < r * 1.2) { ex = ex / (el || 1) * r * 1.2; ey = ey / (el || 1) * r * 1.2 || -r * 1.2; el = r * 1.2; }
-    const nx = -ey / el, ny = ex / el;
-    const tx = p.x + ex * 1.6, ty = p.y + ey * 1.6;
-    g.fillStyle = "rgba(255,255,255,0.96)"; g.strokeStyle = "#b9c2d6"; g.lineWidth = 1;
-    g.beginPath();
-    g.moveTo(p.x + nx * r * 0.7, p.y + ny * r * 0.7);
-    g.lineTo(tx + nx * r * 1.7, ty + ny * r * 1.7);
-    g.lineTo(tx - nx * r * 1.7, ty - ny * r * 1.7);
-    g.lineTo(p.x - nx * r * 0.7, p.y - ny * r * 0.7);
-    g.closePath(); g.fill(); g.stroke();
-  }
-  g.fillStyle = "#f6ecd9"; g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = "#e0523d"; g.lineWidth = Math.max(1, r * 0.3); g.beginPath(); g.arc(p.x, p.y, r * 0.75, 0, Math.PI * 2); g.stroke();
-}
-function drawHitRing(tS) {
-  if (!(sh.state === "fly" && sh.lastHitter === "ai" && !sh.netted && !sh.willOut)) return;
-  const p = P(sh.p.x, sh.p.y, sh.p.z);
-  if (!p) return;
-  const ready = hittableByMe();
-  const dist = distH(me, sh.p);
-  const r = ready ? 22 + Math.sin(tS * 20) * 3 : Math.min(90, 20 + (dist - D().meReach) * 14);
-  g.lineWidth = ready ? 5 : 2.5;
-  g.strokeStyle = ready ? "#7dff8c" : "rgba(255,255,255,0.55)";
-  g.beginPath(); g.arc(p.x, p.y, Math.max(14, r), 0, Math.PI * 2); g.stroke();
-  if (ready && opts.diff === "easy") {
-    g.fillStyle = "#7dff8c"; g.font = `26px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.textBaseline = "bottom";
-    g.fillText("지금 휘둘러요!", p.x, p.y - 30);
-  }
-}
-function drawMarks() {
-  for (let i = marks.length - 1; i >= 0; i--) {
-    const m = marks[i], age = game.t - m.t;
-    if (age > 2.4) { marks.splice(i, 1); continue; }
-    const p = P(m.x, 0, m.z);
-    if (!p) continue;
-    const a = 1 - age / 2.4;
-    g.strokeStyle = m.in ? `rgba(125,255,140,${a})` : `rgba(255,90,90,${a})`;
-    g.lineWidth = 3;
-    const rr = 0.22 * p.s * (1 + age * 0.3);
-    g.beginPath(); g.ellipse(p.x, p.y, rr, rr * 0.32, 0, 0, Math.PI * 2); g.stroke();
-    g.fillStyle = g.strokeStyle; g.font = `${Math.max(14, 0.3 * p.s)}px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.textBaseline = "bottom";
-    g.fillText(m.in ? "인" : "아웃", p.x, p.y - rr * 0.4);
-  }
-}
-function burst(pos, color, n) {
-  const p = P(pos.x, pos.y, pos.z);
-  if (!p) return;
-  for (let i = 0; i < n; i++) {
-    const a = Math.random() * Math.PI * 2, v = rand(1.5, 6);
-    particles.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, color, r: rand(2, 4.5) });
-  }
-}
-function floater(pos, text, color, size) { floaters.push({ pos: { ...pos }, text, color, size, life: 1 }); }
-function drawFx() {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const q = particles[i];
-    q.x += q.vx; q.y += q.vy; q.vy += 0.12; q.vx *= 0.97; q.life -= 0.03;
-    if (q.life <= 0) { particles.splice(i, 1); continue; }
-    g.globalAlpha = q.life; g.fillStyle = q.color; g.beginPath(); g.arc(q.x, q.y, q.r, 0, Math.PI * 2); g.fill();
-  }
-  g.globalAlpha = 1;
-  for (let i = floaters.length - 1; i >= 0; i--) {
-    const f = floaters[i];
-    f.life -= 0.016;
-    if (f.life <= 0) { floaters.splice(i, 1); continue; }
-    const p = P(f.pos.x, f.pos.y + 0.35 + (1 - f.life) * 0.5, f.pos.z);
-    if (!p) continue;
-    g.globalAlpha = Math.min(1, f.life * 2);
-    g.font = `${Math.round(30 * f.size)}px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
-    g.lineWidth = 5; g.strokeStyle = "rgba(6,10,28,0.7)"; g.strokeText(f.text, p.x, p.y);
-    g.fillStyle = f.color; g.fillText(f.text, p.x, p.y);
-  }
-  g.globalAlpha = 1;
-}
-function drawScene(tS) {
-  // 시점이 셔틀콕을 살짝 따라간다.
-  const fx = clamp(sh.p.x, -3, 3) * 0.18;
-  cam.x = lerp(cam.x, fx, 0.04); look.x = lerp(look.x, fx * 0.6, 0.04);
-  setupView();
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  if (shake > 0) { g.translate((Math.random() - 0.5) * shake * 22, (Math.random() - 0.5) * shake * 22); }
-  drawArena(tS);
-  drawCourt();
-  drawMarks();
-  shadow(ai.x, ai.z, 0.32, 0.35);
-  shadow(me.x, me.z, 0.3, 0.35);
-  shadow(sh.p.x, sh.p.z, 0.06 + sh.p.y * 0.01, clamp(0.5 - sh.p.y * 0.08, 0.12, 0.5));
-  const items = [
-    { z: ai.z, draw: () => drawBot(ai, tS) },
-    { z: NET_Z, draw: drawNet },
-    { z: me.z, draw: () => drawKid(me) },
-    { z: sh.p.z + 0.001, draw: drawShuttle },
-  ];
-  items.sort((a, b) => b.z - a.z).forEach((it) => it.draw());
-  drawHitRing(tS);
-  drawFx();
-}
-let pipFlash = 0;
-function drawPip() {
-  if (pip.hidden) return;
-  const w = pip.width, h = pip.height;
-  pg.setTransform(1, 0, 0, 1, 0, 0);
-  pg.fillStyle = "#000"; pg.fillRect(0, 0, w, h);
-  if (video.readyState >= 2) {
-    const vw = video.videoWidth, vh = video.videoHeight;
-    const s = Math.max(w / vw, h / vh), dw = vw * s, dh = vh * s;
-    pg.save(); pg.translate((w + dw) / 2, (h - dh) / 2); pg.scale(-1, 1); pg.drawImage(video, 0, 0, dw, dh); pg.restore();
-    if (pipPts) {
-      const map = (q) => ({ x: (w - dw) / 2 + q.x * dw, y: (h - dh) / 2 + q.y * dh });
-      const c = map({ x: (pipPts[0].x + pipPts[9].x) / 2, y: (pipPts[0].y + pipPts[9].y) / 2 });
-      pg.fillStyle = pipFlash > 0 ? "#d4f75a" : "#ff8a3d";
-      pg.beginPath(); pg.arc(c.x, c.y, (8 + pipFlash * 8) * DPR, 0, Math.PI * 2); pg.fill();
-    }
-  }
-  pipFlash = Math.max(0, pipFlash - 0.06);
-}
-
-// ═════════════════════════ 화면 글자 ═════════════════════════
-const msgEl = document.getElementById("msg"), hintEl = document.getElementById("hint");
-let msgTimer = null;
-function showMsg(html, cls, ms) {
-  msgEl.innerHTML = html; msgEl.className = cls + " show";
-  clearTimeout(msgTimer); msgTimer = setTimeout(() => (msgEl.className = cls), ms);
-}
-function updateScore() {
-  document.getElementById("ptsMe").textContent = game.scoreMe;
-  document.getElementById("ptsAi").textContent = game.scoreAi;
-  document.getElementById("sideMe").classList.toggle("serving", game.server === "me");
-  document.getElementById("sideAi").classList.toggle("serving", game.server === "ai");
-  document.getElementById("toLabel").innerHTML = `${opts.to}점<br>먼저`;
-}
-let lastHint = "";
-function updateHint() {
-  let h = "";
-  const usingCam = camOn && performance.now() / 1000 - handSeenAt < 0.6;
-  if (game.paused || game.phase === "idle") h = "";
-  else if (camOn && !usingCam && game.phase !== "over") h = "손을 카메라에 보여 주세요";
-  else if (game.phase === "serve" && game.server === "me") h = "손을 휘둘러 서브! 위로 크게 휘두르면 멀리 날아가요";
-  else if (game.phase === "serve") h = "콕봇이 서브해요";
-  else if (game.phase === "rally" && sh.lastHitter === "ai") h = sh.willOut ? "밖으로 나가는 공이에요. 치지 말고 그냥 둬요" : hittableByMe() ? "지금이에요! 휘둘러요" : "셔틀콕 둘레가 초록색이 되면 휘둘러요";
-  else if (game.phase === "rally") h = "콕봇이 받으러 가요";
-  if (h !== lastHint) { lastHint = h; hintEl.textContent = h; hintEl.hidden = !h; }
-}
-function endMatch() {
-  game.phase = "idle"; game.paused = true;
-  clearTimeout(msgTimer); msgEl.className = "white";
-  const win = game.scoreMe > game.scoreAi;
-  document.getElementById("overTitle").textContent = win ? "이겼어요!" : "콕봇이 이겼어요";
-  document.getElementById("finMe").textContent = game.scoreMe;
-  document.getElementById("finAi").textContent = game.scoreAi;
-  document.getElementById("stRally").textContent = game.longest;
-  document.getElementById("stSmash").textContent = game.smashes;
-  document.getElementById("stPerfect").textContent = game.perfects;
-  document.getElementById("overOverlay").hidden = false;
-  if (win) { sfxCrowd(1.4); crowdCheer = 2; for (let i = 0; i < 120; i++) particles.push({ x: rand(0, W), y: rand(-H * 0.3, 0), vx: rand(-1, 1), vy: rand(1, 4), life: 2.5, color: ["#d4f75a", "#ff8a3d", "#38d6ff", "#ffffff"][i % 4], r: rand(3, 6) }); }
-}
-
-// ═════════════════════════ 루프 ═════════════════════════
-let lastFrame = performance.now(), acc = 0, timeScale = 1;
-function frame(nowMs) {
-  const nowS = nowMs / 1000;
-  const dt = Math.min(0.05, (nowMs - lastFrame) / 1000);
-  lastFrame = nowMs;
-  detectHands(nowS);
-  if (!game.paused) {
-    acc += dt * timeScale;
-    let n = 0;
-    while (acc >= DT && n < 2400) { physicsStep(); acc -= DT; n++; }
-    if (sh.state === "fly" || sh.state === "net") { sh.trail.push({ ...sh.p }); if (sh.trail.length > 14) sh.trail.shift(); }
-    else if (sh.trail.length) sh.trail.shift();
-  }
-  shake = Math.max(0, shake - dt);
-  crowdCheer = Math.max(0, crowdCheer - dt * 0.6);
-  drawScene(nowS);
-  drawPip();
-  updateHint();
-  requestAnimationFrame(frame);
-}
-
-// ═════════════════════════ 마우스·터치·키보드 ═════════════════════════
-canvas.addEventListener("pointermove", (e) => {
-  if (camOn && performance.now() / 1000 - handSeenAt < 0.5) return;
-  const t = performance.now() / 1000;
-  feedHand(t, e.clientX / W, e.clientY / H, e.clientX / H, e.clientY / H, "pointer");
-});
-canvas.addEventListener("pointerdown", (e) => {
-  initAudio();
-  const t = performance.now() / 1000;
-  feedHand(t, e.clientX / W, e.clientY / H, e.clientX / H, e.clientY / H, "pointer");
-  if (camOn && t - handSeenAt < 0.5) return;
-  // 그냥 누르면 위로 휘두른 것으로 친다. 화면 위쪽 1/3을 누르면 스매시.
-  const thr = D().swingThr;
-  const down = e.clientY < H * 0.33;
-  setTimeout(() => { if (t - lastSwingAt > 0.2) { lastSwingAt = t; registerSwing(down ? { vx: 0, vy: thr * 2, speed: thr * 2 } : { vx: 0, vy: -thr * 2, speed: thr * 2 }); } }, 60);
-});
-window.addEventListener("keydown", (e) => {
-  if (e.repeat) return;
-  const thr = D().swingThr;
-  const map = { Space: { vx: 0, vy: -thr * 2, speed: thr * 2 }, KeyX: { vx: 0, vy: thr * 2, speed: thr * 2 }, KeyZ: { vx: thr * 1.1, vy: 0, speed: thr * 1.1 } };
-  if (map[e.code]) { e.preventDefault(); registerSwing(map[e.code]); }
-  if (e.code === "Escape" && !game.paused) pause();
-});
-
-// ═════════════════════════ 메뉴 ═════════════════════════
-function bindSeg(id, get, set) {
-  const el = document.getElementById(id);
-  const sync = () => el.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === String(get()))));
-  el.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; set(b.dataset.v); sync(); });
-  sync();
-}
-bindSeg("diffSeg", () => opts.diff, (v) => { opts.diff = v; store.set("diff", v); });
-bindSeg("toSeg", () => opts.to, (v) => { opts.to = Number(v); store.set("to", opts.to); updateScore(); });
-bindSeg("soundSeg", () => (opts.sound ? "on" : "off"), (v) => { opts.sound = v === "on"; store.set("sound", opts.sound); });
-
-function begin() {
-  document.getElementById("startOverlay").hidden = true;
-  document.getElementById("overOverlay").hidden = true;
-  if (window.innerHeight > window.innerWidth) setTimeout(() => showMsg("<small>휴대폰을 가로로 돌려 세우면 더 잘 보여요</small>", "white", 2600), 2600);
-  newMatch();
-}
-document.getElementById("startCam").addEventListener("click", async () => {
-  initAudio();
-  const btn = document.getElementById("startCam");
-  btn.disabled = true;
-  const ok = await startCamera();
-  btn.disabled = false;
-  if (ok) begin();
-});
-document.getElementById("startMouse").addEventListener("click", () => { initAudio(); camStatus.textContent = "마우스·터치"; begin(); });
-function pause() { if (game.phase === "idle") return; game.paused = true; document.getElementById("pauseOverlay").hidden = false; }
-document.getElementById("pauseBtn").addEventListener("click", pause);
-document.getElementById("resumeBtn").addEventListener("click", () => { document.getElementById("pauseOverlay").hidden = true; game.paused = false; lastFrame = performance.now(); });
-document.getElementById("restartBtn").addEventListener("click", () => { document.getElementById("pauseOverlay").hidden = true; game.phase = "idle"; document.getElementById("startOverlay").hidden = false; });
-document.getElementById("againBtn").addEventListener("click", () => { document.getElementById("overOverlay").hidden = true; newMatch(); });
-document.getElementById("menuBtn").addEventListener("click", () => { document.getElementById("overOverlay").hidden = true; document.getElementById("startOverlay").hidden = false; });
-document.addEventListener("visibilitychange", () => { if (document.hidden && !game.paused) pause(); });
-window.addEventListener("resize", layout);
-
-// 자동 점검용
-window.badmintonTest = {
-  auto(on, skill = 1) { autoPlay = on; autoSkill = skill; }, speed(n) { timeScale = n; },
-  state: () => ({ phase: game.phase, me: game.scoreMe, ai: game.scoreAi, rally: game.rally, longest: game.longest, smashes: game.smashes, sh: sh.state, hitter: sh.lastHitter }),
-  swing(vx, vy, speed) { registerSwing({ vx, vy, speed }); },
-  solve: (from, to, e) => { const s = solveShot(from, to, e); return { land: s.sim.land, net: s.sim.net, netY: s.sim.netY, v: s.v }; },
-};
-
-updateScore();
-layout();
-placeForServe("me", true);
-requestAnimationFrame(frame);
-</script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
