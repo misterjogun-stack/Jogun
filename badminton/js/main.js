@@ -268,7 +268,6 @@ function begin() {
   sfx.ambience(true);
   match.start();
   updateScore();
-  if (innerHeight > innerWidth) setTimeout(() => banner("", "", "휴대폰을 가로로 돌려 세우면 더 넓게 보여요", "me", 2600), 2600);
 }
 function sizePip() {
   const c = $("pip"), r = c.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);

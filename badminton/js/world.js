@@ -486,7 +486,10 @@ export class World {
     this.camera.aspect = aspect;
     // 세로 화면에서는 좌우 시야를 넓혀서 코트 폭이 들어오게 한다.
     const base = 46;
-    this.camera.fov = aspect < 1.25 ? Math.min(88, (2 * Math.atan(Math.tan((base * Math.PI) / 360) * 1.25 / aspect) * 180) / Math.PI) : base;
+    this.portrait = aspect < 0.9;
+    // 세로 화면: 좌우 시야를 약 48도로 맞추고, 카메라가 선수와 셔틀콕을 옆으로 따라간다.
+    if (this.portrait) this.camera.fov = Math.min(92, (2 * Math.atan(Math.tan((48 * Math.PI) / 360) / aspect) * 180) / Math.PI);
+    else this.camera.fov = aspect < 1.25 ? Math.min(88, (2 * Math.atan(Math.tan((base * Math.PI) / 360) * 1.25 / aspect) * 180) / Math.PI) : base;
     this.camera.updateProjectionMatrix();
     if (this.composer) {
       this.composer.setSize(w, h);
@@ -558,8 +561,15 @@ export class World {
     }
     // 카메라: 내 선수 오른쪽 뒤에서 상대 코트를 본다
     const zv = this.viewZoom;
-    const want = V(me.x * 0.65 + 0.75, 0.6 + 1.8 * zv, me.z - 5.0 * zv);
-    const look = V(me.x * 0.3 + 0.3 + (sh.p.x - me.x) * 0.06, 0.6, me.z + 7.0);
+    let want, look;
+    if (this.portrait) {
+      const mid = lerp(me.x, clamp(sh.p.x, -3, 3), 0.35);
+      want = V(mid * 0.85 + 0.2, 1.4 + 3.6 * zv, me.z - 5.0 * zv);
+      look = V(mid * 0.9, 0, me.z + 4.8);
+    } else {
+      want = V(me.x * 0.65 + 0.75, 0.6 + 1.8 * zv, me.z - 5.0 * zv);
+      look = V(me.x * 0.3 + 0.3 + (sh.p.x - me.x) * 0.06, 0.6, me.z + 7.0);
+    }
     const k = 1 - Math.exp(-dt * 3);
     this.camPos.lerp(want, k); this.camLook.lerp(look, k);
     this.camera.position.copy(this.camPos);
