@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>개인정보 · 이용 안내 | ZeroBalance</title>
+<meta name="description" content="ZeroBalance가 어떤 정보를 어디에 저장하고, 무엇을 밖으로 보내는지 정리했어요.">
+<meta name="theme-color" content="#F3F5F9">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{--bg:#F3F5F9;--panel:#fff;--ink:#131A26;--ink2:#333D4B;--mute:#5F6B7A;--line:#E7EBF0;--pri:#2B67F8;--pri-text:#2459E6;--pri-soft:#EDF2FF;
+  --sans:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.75 var(--sans);letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
+a{color:var(--pri-text)}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px calc(56px + env(safe-area-inset-bottom,0px))}
+header{display:flex;align-items:center;justify-content:space-between;height:64px}
+header a.logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+header img.lmk{height:26px;width:auto;display:block}header img.lwm{height:13px;width:auto;display:block}
+header a.back{font-weight:700;font-size:14px;text-decoration:none;color:var(--ink2);min-height:44px;display:inline-flex;align-items:center}
+h1{font-size:28px;line-height:1.3;letter-spacing:-.035em;font-weight:800;margin:18px 0 8px}
+.lead{color:var(--mute);margin:0 0 22px}
+.sum{background:var(--pri-soft);border:1px solid #D6E2FF;border-radius:20px;padding:20px;margin:0 0 14px}
+.sum b{display:block;font-size:18px;margin-bottom:6px;letter-spacing:-.02em}
+.sum p{margin:0;color:var(--ink2)}
+section{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;margin-top:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 20px rgba(16,24,40,.05)}
+h2{font-size:18px;letter-spacing:-.02em;margin:0 0 8px}
+section p{margin:0 0 8px;color:var(--ink2);font-size:15.5px}
+section p:last-child{margin-bottom:0}
+ul{margin:6px 0 0;padding-left:20px;color:var(--ink2);font-size:15.5px}
+li{margin:4px 0}
+.small{color:var(--mute);font-size:13.5px}
+footer{margin-top:28px;color:var(--mute);font-size:13.5px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="../" aria-label="ZeroBalance 소개 페이지"><img class="lmk" src="../assets/zb-mark-light.png" alt=""><img class="lwm" src="../assets/zb-wordmark-light.png" alt="ZERO BALANCE"></a>
+    <a class="back" href="../app/">앱으로 돌아가기</a>
+  </header>
+  <h1>개인정보 · 이용 안내</h1>
+  <p class="lead">ZeroBalance가 어떤 정보를 어디에 저장하고, 무엇을 밖으로 보내는지 쉬운 말로 정리했어요.</p>
+
+  <div class="sum"><b>한 줄 요약</b><p>입력한 매출·지출·직원 급여는 <b style="display:inline;font-size:inherit">내가 쓰는 기기 안에만</b> 저장돼요. 운영자(제작자)에게도, 다른 회사 서버에도 보내지 않아요.</p></div>
+
+  <section>
+    <h2>1. 어디에 저장되나요?</h2>
+    <p>앱에 입력한 모든 기록은 지금 쓰는 <b>기기의 브라우저 저장 공간</b>에 보관돼요. 서버에 올라가지 않아요.</p>
+    <ul>
+      <li>매출·지출·손님 수, 직원 이름과 급여 입력, 매장 설정</li>
+      <li>잠금을 켠 경우: 비밀번호(원래 숫자가 아닌 변환한 값)와 내가 적은 힌트</li>
+    </ul>
+    <p class="small" style="margin-top:8px">그래서 기기를 잃어버리거나 브라우저 데이터를 지우면 기록도 사라져요. 앱의 <b>더보기 › 기기 맞추기 · 백업</b>으로 파일을 만들어 따로 보관해 주세요.</p>
+  </section>
+
+  <section>
+    <h2>2. 밖으로 나가는 것이 있나요?</h2>
+    <p>입력한 기록은 밖으로 나가지 않아요. 다만 화면을 보여 주려고 아래 접속은 일어나요.</p>
+    <ul>
+      <li><b>사이트 제공(Vercel):</b> 앱 파일을 내려받을 때 일반적인 접속 기록(접속 시각, IP 주소 등)이 호스팅 회사에 남을 수 있어요.</li>
+      <li><b>글꼴(jsDelivr):</b> 예쁜 글꼴을 불러오려고 글꼴 배포 서비스에 접속해요. 이때도 접속한 기기의 IP 주소 같은 일반 정보가 그쪽에 보일 수 있어요.</li>
+    </ul>
+    <p class="small" style="margin-top:8px">앱 안에는 광고, 분석 도구, 외부 로그인이 없어요.</p>
+  </section>
+
+  <section>
+    <h2>3. 내가 직접 보내는 것</h2>
+    <ul>
+      <li><b>백업·정산 이미지:</b> 내가 직접 카톡이나 문자로 보내는 곳으로만 가요.</li>
+      <li><b>문의·의견:</b> ‘문의 · 개선 제안’을 누르면 적은 내용과 앱 버전·기기 종류가 복사되고 인스타그램 DM이 열려요. 보내기 전에 내용을 확인할 수 있고, 매출 같은 숫자는 함께 보내지 않아요. 인스타그램에서의 처리는 인스타그램 정책을 따라요.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. 잠금 기능은 어떤 보호를 하나요?</h2>
+    <p>비밀번호 잠금은 <b>다른 사람이 화면을 넘겨보지 못하게 가려 주는 기능</b>이에요. 기록 자체를 암호화하지는 않아요.</p>
+    <p>비밀번호를 잊으면 찾아 드릴 수 없어요. 힌트로도 못 찾으면 이 기기의 기록을 지워야 풀 수 있어요.</p>
+  </section>
+
+  <section>
+    <h2>5. 기록 지우기</h2>
+    <ul>
+      <li>앱 <b>설정 › 전체 데이터 지우기</b>를 누르면 이 기기의 기록이 모두 지워져요.</li>
+      <li>브라우저의 사이트 데이터를 지워도 같은 효과예요.</li>
+      <li>다른 곳에 저장해 둔 백업 파일은 직접 삭제해 주세요.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>6. 직원 정보를 입력할 때</h2>
+    <p>직원 이름·급여를 입력하는 경우 그 정보는 내 기기 안에만 보관돼요. 정산내역 이미지나 문자를 직원에게 보낼 때는 해당 직원에게만 보내 주세요.</p>
+  </section>
+
+  <section>
+    <h2>7. 세금·급여 계산에 대해</h2>
+    <p>앱이 보여 주는 세금과 급여 금액은 입력한 숫자로 계산한 <b>추정치</b>이고, 세무·노무 자문이 아니에요. 세율과 요율은 해마다 바뀔 수 있어요. 실제 신고와 지급 전에는 세무사 등 전문가와 확인해 주세요.</p>
+  </section>
+
+  <section>
+    <h2>8. 문의</h2>
+    <p>궁금한 점은 인스타그램 <a href="https://ig.me/m/soowan_jg" target="_blank" rel="noopener">@soowan_jg</a> DM으로 보내 주세요.</p>
+  </section>
+
+  <footer>시행일: 2026년 11월 21일 · 앱이 바뀌면 이 안내도 함께 고쳐요.</footer>
+</div>
+</body>
+</html>

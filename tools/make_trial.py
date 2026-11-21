@@ -78,7 +78,7 @@ rep("function render(keep){",
     "function render(keep){")
 
 # 6) 정식 주소(소개 페이지) 링크 빼기
-rep('<br><a href="../">${I(\'arrow\')}소개 페이지</a>', '')
+rep('<br><a href="../">${I(\'arrow\')}소개 페이지</a><br><a href="../privacy/">${I(\'shield\')}개인정보 · 이용 안내</a>', '')
 
 # 7) 띠 모양
 rep(".sumbox span{",
