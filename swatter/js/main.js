@@ -1,6 +1,7 @@
 // 손 파리채: 카메라 화면 위에 벌레를 그리고, 손(또는 마우스)으로 찰싹 잡는다.
 import { Game, STAGES, drawBackdrop, drawProps, drawBug, drawFx, drawSwatter } from "./game.js";
 import { HandTracker } from "./hands.js";
+import { drawBugReal, drawPropsReal, drawSwatterReal } from "./real.js";
 import { sfx, initAudio, setVolume, haptic } from "./audio.js";
 
 const $ = (id) => document.getElementById(id);
@@ -10,7 +11,7 @@ const store = {
 };
 const opts = {
   stage: store.get("stage", "kitchen"), duo: store.get("duo", "solo"), time: store.get("time", 60), diff: store.get("diff", "easy"),
-  sens: store.get("sens", 1), vol: store.get("vol", 1), ui: store.get("ui", "m"), shake: store.get("shake", "on"),
+  sens: store.get("sens", 1), vol: store.get("vol", 1), ui: store.get("ui", "m"), shake: store.get("shake", "on"), look: store.get("look", "real"),
 };
 setVolume(opts.vol);
 document.body.dataset.ui = opts.ui;
@@ -126,6 +127,7 @@ for (const id of ["sensSeg", "sensSeg2"]) bindSeg(id, "sens", () => { if (tracke
 for (const id of ["volSeg", "volSeg2"]) bindSeg(id, "vol", () => { setVolume(opts.vol); initAudio(); sfx.swat(true); });
 for (const id of ["uiSeg", "uiSeg2"]) bindSeg(id, "ui", () => (document.body.dataset.ui = opts.ui));
 bindSeg("shakeSeg2", "shake");
+for (const id of ["lookSeg", "lookSeg2"]) bindSeg(id, "look");
 const fsOk = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 for (const id of ["fsBtn", "fsBtn2"]) {
   const b = $(id); b.hidden = !fsOk;
@@ -229,14 +231,15 @@ function frame(now) {
     g.save(); g.translate(r.x + r.w, r.y); g.scale(-1, 1); g.drawImage(video, 0, 0, r.w, r.h); g.restore();
   } else { g.fillStyle = "#05070f"; g.fillRect(-20, -20, W + 40, H + 40); }
   drawBackdrop(g, W, H, gameOpts.stage, camOn);
-  drawProps(g, W, H, gameOpts.stage, nowS);
+  const real = opts.look === "real";
+  (real ? drawPropsReal : drawProps)(g, W, H, gameOpts.stage, nowS);
   const bugs = [...game.bugs].sort((a, b) => (a.kind === "mosquito" ? a.approach : 0) - (b.kind === "mosquito" ? b.approach : 0));
-  for (const b of bugs) drawBug(g, b, game.S, nowS);
+  for (const b of bugs) (real ? drawBugReal : drawBug)(g, b, game.S, nowS);
   drawFx(g, game, game.S);
   if (gameOpts.duo) { g.strokeStyle = "rgba(255,255,255,0.35)"; g.setLineDash([12, 10]); g.lineWidth = 3; g.beginPath(); g.moveTo(W / 2, 0); g.lineTo(W / 2, H); g.stroke(); g.setLineDash([]); }
   for (const h of hands) {
     const k = swatAnim.get(h.id) || 0;
-    drawSwatter(g, h, game.S, P_COLOR[h.owner], k > 0 ? 1 - k / 0.22 : 0);
+    (real ? drawSwatterReal : drawSwatter)(g, h, game.S, P_COLOR[h.owner], k > 0 ? 1 - k / 0.22 : 0);
   }
   for (const [id, k] of swatAnim) { if (k - dt <= 0) swatAnim.delete(id); else swatAnim.set(id, k - dt); }
   updateHud();
@@ -260,8 +263,9 @@ const sTest = (window.sTest = {
   autoOn: false, autoT: 0,
   auto(on) { this.autoOn = on; },
   speed(n) { timeScale = n; },
-  state: () => ({ phase: game.phase, left: game.left, players: game.players, bugs: game.bugs.length, kinds: game.bugs.map((b) => b.kind) }),
+  state: () => ({ phase: game.phase, left: game.left, players: game.players, bugs: game.bugs.length, kinds: game.bugs.map((b) => b.kind), pos: game.bugs.map((b) => [b.kind, Math.round(b.x), Math.round(b.y), b.mode]) }),
   begin: () => begin(),
+  game,
 });
 function autoPlay(hands) {
   if (paused || game.phase !== "play") return;
