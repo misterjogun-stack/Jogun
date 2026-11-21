@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>손 파리채</title>
+<meta name="description" content="카메라로 손을 인식해서 화면 속 파리·모기를 파리채로 잡는 게임">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Noto+Sans+KR:wght@400;700;900&display=swap">
+<!-- three.js 는 쓰지 않는다 -->
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+/* 레이아웃: 카메라 화면(또는 그림 배경)이 화면 전체이고 그 위에 벌레와 파리채를 그린다.
+   위쪽 가운데 남은 시간, 왼쪽 위 점수(둘이서면 오른쪽 위에 2P 점수), 오른쪽 위 일시정지. 어두운 단일 테마. */
+:root {
+  --night: #05070f;
+  --glass: rgba(10, 14, 28, 0.72);
+  --edge: rgba(150, 180, 255, 0.22);
+  --ink: #f3f6ff;
+  --muted: #9aa6c8;
+  --blue: #3b8bff;
+  --glow: #7cc4ff;
+  --red: #ff4d6d;
+  --lime: #d8ff6a;
+  --cond: "Barlow Condensed", "Arial Narrow", "Noto Sans KR", sans-serif;
+  --body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --pipw: clamp(150px, 20vw, 330px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--night); color: var(--ink); font-family: var(--body); overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#cam { position: fixed; width: 2px; height: 2px; opacity: 0; pointer-events: none; left: 0; top: 0; }
+.glass { background: var(--glass); border: 1px solid var(--edge); border-radius: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+
+/* 왼쪽 위: 손 인식 화면, 속도 */
+/* 왼쪽 위 묶음: [손 인식 화면 + 속도] [점수판] */
+.tl { position: fixed; z-index: 5; top: max(16px, env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); display: flex; align-items: flex-start; gap: 22px; flex-wrap: wrap; max-width: calc(100% - 120px); pointer-events: none; }
+.left { width: var(--pipw); display: flex; flex-direction: column; gap: 14px; }
+body:not(.cam) .left, body[data-pip="off"] .left { width: calc(var(--pipw) * 0.72); }
+body:not(.cam) .speed, body[data-pip="off"] .speed { width: 100%; }
+body[data-pip="off"] .pip { display: none; }
+body[data-pip="s"] { --pipw: clamp(96px, 12vw, 190px); }
+body[data-pip="l"] { --pipw: clamp(200px, 32vw, 520px); }
+/* 글자·버튼 크기 */
+body[data-ui="s"] .hud { zoom: 0.8; }
+body[data-ui="l"] .hud { zoom: 1.25; }
+body[data-ui="xl"] .hud { zoom: 1.5; }
+.pip .lab { font: 700 0.92rem var(--cond); letter-spacing: 0.08em; margin: 0 0 6px 4px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pip .lab span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mini { flex: none; white-space: nowrap; pointer-events: auto; font: 700 0.75rem var(--body); color: var(--ink); background: rgba(10,14,28,0.7); border: 1px solid var(--edge); border-radius: 8px; padding: 3px 8px; cursor: pointer; }
+#flash { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity 0.28s ease-out; }
+#flash.show { opacity: 1; transition: none; }
+#flash.lime { background: radial-gradient(ellipse at center, rgba(216,255,106,0) 35%, rgba(216,255,106,0.42)); }
+#flash.red { background: radial-gradient(ellipse at center, rgba(255,77,109,0) 35%, rgba(255,77,109,0.38)); }
+.pip canvas { display: block; width: 100%; aspect-ratio: 5 / 4; border-radius: 14px; border: 2px solid rgba(220, 232, 255, 0.75); background: #0b1020; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
+.speed { padding: 10px 16px 12px; width: 72%; }
+.speed span { display: block; font: 700 0.8rem var(--cond); letter-spacing: 0.1em; }
+.speed b { font: 800 2.7rem/1 var(--cond); color: var(--glow); font-variant-numeric: tabular-nums; }
+.speed small { font: 700 1.2rem var(--cond); margin-left: 4px; }
+
+/* 점수판 */
+.board {
+  margin-top: 6px;
+  display: flex; align-items: stretch; overflow: hidden; border-radius: 8px;
+  background: rgba(8, 12, 24, 0.86); border: 1px solid rgba(255,255,255,0.14);
+}
+.rows { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: 34px minmax(96px, auto) 46px; align-items: center; gap: 12px; padding: 0 0 0 12px; height: 38px; }
+.row + .row { border-top: 1px solid rgba(255,255,255,0.08); }
+.row svg { display: block; width: 34px; height: 23px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255,255,255,0.25); }
+.row .nm { font: 700 1.28rem var(--cond); letter-spacing: 0.04em; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.row .nm i { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); visibility: hidden; }
+.row.serving .nm i { visibility: visible; }
+.row .pt { height: 100%; display: grid; place-items: center; font: 800 1.75rem var(--cond); font-variant-numeric: tabular-nums; }
+.row.lead .pt { background: var(--blue); }
+.set { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; padding: 0 18px; border-left: 1px solid rgba(255,255,255,0.14); }
+.set span { font: 700 1.05rem var(--cond); letter-spacing: 0.06em; }
+.set b { font: 700 1.3rem var(--cond); font-variant-numeric: tabular-nums; }
+
+.pause { position: fixed; z-index: 5; top: max(16px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); width: 62px; height: 62px; display: grid; place-items: center; cursor: pointer; color: var(--ink); }
+.pause svg { width: 28px; height: 28px; }
+
+/* 오른쪽: 기술 카드 */
+.shots { position: fixed; z-index: 5; right: max(16px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-42%); display: flex; flex-direction: column; gap: 12px; }
+.shot { width: clamp(96px, 10.5vw, 170px); aspect-ratio: 1.08; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; padding: 10px 6px 12px; cursor: pointer; color: var(--ink); font: 800 clamp(0.95rem, 1.4vw, 1.35rem) var(--cond); letter-spacing: 0.06em; transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s; }
+.shot svg { width: 72%; flex: 1; min-height: 0; }
+.shot.ready { border-color: rgba(124, 196, 255, 0.7); }
+.shot.on { transform: scale(1.06); border-color: var(--glow); box-shadow: 0 0 24px rgba(124, 196, 255, 0.65), inset 0 0 18px rgba(124, 196, 255, 0.3); }
+.shot:focus-visible, .pause:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--glow); outline-offset: 2px; }
+
+/* 가운데 알림 띠, 셔틀콕 옆 글자, 아래 안내 */
+#banner { position: fixed; z-index: 6; left: 50%; top: 36%; transform: translate(-50%, -50%) skewX(-8deg) scale(0.92); pointer-events: none; text-align: center; opacity: 0; transition: opacity 0.25s, transform 0.25s; }
+#banner.show { opacity: 1; transform: translate(-50%, -50%) skewX(-8deg) scale(1); }
+#banner .k { display: inline-block; font: 800 1.1rem var(--cond); letter-spacing: 0.22em; padding: 4px 16px; background: var(--blue); }
+#banner.ai .k { background: var(--red); }
+#banner .v { font: 900 clamp(3rem, 9vw, 6.4rem)/0.95 var(--cond); letter-spacing: 0.02em; text-shadow: 0 6px 30px rgba(0,0,0,0.6); white-space: nowrap; }
+#banner .s { font: 700 1.1rem var(--body); margin-top: 6px; text-shadow: 0 2px 10px rgba(0,0,0,0.7); }
+.floater { position: fixed; z-index: 5; pointer-events: none; transform: translate(-50%, -100%); font: 900 2rem var(--cond); letter-spacing: 0.04em; text-shadow: 0 3px 16px rgba(0,0,0,0.8); white-space: nowrap; }
+#hint { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 10px)); max-width: calc(100% - 32px); text-align: center; pointer-events: none; padding: 9px 20px; font-weight: 700; font-size: 0.98rem; border-radius: 999px; }
+
+/* 메뉴 */
+.overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; overflow-y: auto; background: radial-gradient(ellipse at center, rgba(5,7,15,0.5), rgba(5,7,15,0.9)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px; }
+.card { max-width: 720px; width: 100%; padding: 26px 26px 22px; text-align: center; }
+.card h2 { font: italic 900 clamp(2.8rem, 8vw, 4.6rem)/0.95 var(--cond); letter-spacing: 0.02em; margin: 0 0 4px; text-wrap: balance; }
+.card h2 em { color: var(--glow); font-style: inherit; }
+.card .sub { color: var(--muted); margin: 6px 0 18px; line-height: 1.6; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; text-align: left; }
+.steps div { border: 1px solid var(--edge); border-radius: 12px; padding: 12px; font-size: 0.88rem; line-height: 1.55; background: rgba(255,255,255,0.03); }
+.steps b { display: block; font: 800 1.15rem var(--cond); letter-spacing: 0.06em; color: var(--glow); margin-bottom: 4px; }
+.opts { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; align-items: center; text-align: left; margin: 0 auto 18px; max-width: 560px; }
+.opts > span { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+.seg { display: inline-flex; flex-wrap: wrap; justify-self: start; border: 1px solid var(--edge); border-radius: 10px; overflow: hidden; }
+.seg button { font: 700 0.88rem var(--body); color: var(--ink); background: transparent; border: 0; padding: 8px 13px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--blue); }
+input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-spacing: 0.06em; color: var(--ink); background: rgba(255,255,255,0.06); border: 1px solid var(--edge); border-radius: 10px; padding: 8px 12px; width: 180px; text-transform: uppercase; }
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.big { font: 800 1.45rem var(--cond); letter-spacing: 0.06em; color: #fff; background: var(--blue); border: 0; border-radius: 10px; padding: 13px 30px; cursor: pointer; box-shadow: 0 8px 28px rgba(59,139,255,0.4); }
+.big.ghost { background: transparent; border: 1px solid var(--edge); box-shadow: none; font-size: 1.2rem; }
+.big:disabled { opacity: 0.6; cursor: wait; }
+.msgline { min-height: 1.4em; margin-top: 12px; color: var(--glow); font-weight: 700; }
+.final { font: 900 3.6rem var(--cond); margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+.final .a { color: var(--red); } .final .m { color: var(--glow); }
+.stats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 18px; }
+.stats div { border: 1px solid var(--edge); border-radius: 12px; padding: 8px 14px; min-width: 116px; }
+.stats b { display: block; font: 800 1.8rem var(--cond); font-variant-numeric: tabular-nums; }
+.stats span { font-size: 0.78rem; color: var(--muted); }
+.loading { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--night); font: 800 1.4rem var(--cond); letter-spacing: 0.12em; color: var(--muted); text-align: center; padding: 24px; }
+
+/* 넓은 화면에서는 설정을 두 줄로 놓아 시작 버튼이 한 화면에 보이게 */
+@media (min-width: 960px) {
+  .card { max-width: 980px; }
+  .opts { grid-template-columns: auto 1fr auto 1fr; max-width: 920px; gap: 10px 16px; }
+}
+@media (max-height: 760px) {
+  .card { padding: 18px 22px 16px; }
+  .card .sub { margin: 4px 0 12px; }
+  .steps { margin-bottom: 12px; } .steps div { padding: 9px 11px; }
+  .opts { margin-bottom: 12px; }
+}
+@media (max-width: 900px), (max-height: 520px) {
+  :root { --pipw: clamp(110px, 17vw, 200px); }
+  .row { height: 30px; grid-template-columns: 26px minmax(70px, auto) 36px; gap: 8px; padding-left: 8px; }
+  .row svg { width: 26px; height: 17px; }
+  .row .nm { font-size: 1.02rem; } .row .pt { font-size: 1.35rem; }
+  .set { padding: 0 10px; } .set span { font-size: 0.85rem; } .set b { font-size: 1.05rem; }
+  .speed { padding: 6px 10px 8px; } .speed b { font-size: 1.8rem; }
+  .tl { gap: 14px; }
+  .pause { width: 48px; height: 48px; }
+  .shots { gap: 8px; } .shot { width: clamp(64px, 9vw, 100px); }
+  .floater { font-size: 1.5rem; }
+}
+@media (max-width: 640px) {
+  .steps { grid-template-columns: 1fr; }
+  .opts { grid-template-columns: 1fr; }
+  .shots { top: auto; bottom: 74px; transform: none; }
+}
+/* 세로 화면: 점수판 맨 위, 그 아래 카메라 화면과 속도를 나란히, 기술 카드는 아래쪽에 가로로 */
+@media (max-aspect-ratio: 9/10) {
+  :root { --pipw: clamp(96px, 30vw, 220px); }
+  .tl { flex-direction: column-reverse; gap: 10px; max-width: calc(100% - 84px); }
+  .left { flex-direction: row; align-items: flex-end; gap: 10px; width: auto !important; }
+  .pip { width: var(--pipw); }
+  body[data-pip="s"] { --pipw: clamp(80px, 22vw, 150px); }
+  body[data-pip="l"] { --pipw: clamp(150px, 44vw, 320px); }
+  .pip canvas { aspect-ratio: 3 / 4; }
+  .speed { width: auto !important; min-width: 96px; }
+  .board { margin-top: 0; }
+  .shots { top: auto; right: 0; left: 0; bottom: max(64px, calc(env(safe-area-inset-bottom, 0px) + 60px)); transform: none; flex-direction: row; justify-content: center; gap: 10px; padding-inline: 12px; }
+  .shot { width: min(24vw, 104px); aspect-ratio: 1.3; gap: 2px; padding: 6px 4px 8px; background: rgba(10, 14, 28, 0.55); }
+  #hint { bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px)); font-size: 0.88rem; }
+  #banner { top: 42%; }
+  #banner .v { font-size: clamp(2.4rem, 13vw, 4rem); }
+  .floater { font-size: 1.4rem; }
+}
+/* 작은 화면: 시작 버튼을 설정보다 위로 */
+@media (max-width: 640px), (max-height: 520px) {
+  .card { display: flex; flex-direction: column; }
+  .card .actions { order: 2; margin-bottom: 12px; }
+  .card .msgline { order: 3; margin: 0 0 10px; }
+  .card .steps { order: 4; } .card .opts { order: 5; } .card .stats, .card .final { order: 1; }
+}
+@media (prefers-reduced-motion: reduce) { #banner, .shot { transition: none; } }
+
+/* 손 파리채 전용 */
+:root { --p1: #4fa3ff; --p2: #ff9f43; --gold: #ffd84a; }
+.timer { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); top: max(14px, env(safe-area-inset-top, 0px)); padding: 6px 22px; text-align: center; border-radius: 16px; }
+.timer b { display: block; font: 900 2.6rem/1 var(--cond); font-variant-numeric: tabular-nums; }
+.timer span { font: 700 0.8rem var(--cond); letter-spacing: 0.14em; color: var(--muted); }
+.timer.hurry b { color: var(--red); animation: hurry 0.5s infinite alternate; }
+@keyframes hurry { to { transform: scale(1.12); } }
+.pscore { position: fixed; z-index: 5; top: max(14px, env(safe-area-inset-top, 0px)); padding: 8px 16px 10px; min-width: 150px; border-radius: 14px; }
+.pscore.p1 { left: max(16px, env(safe-area-inset-left, 0px)); border-left: 5px solid var(--p1); }
+.pscore.p2 { right: max(90px, calc(env(safe-area-inset-right, 0px) + 90px)); border-right: 5px solid var(--p2); text-align: right; }
+.pscore span { display: block; font: 800 0.85rem var(--cond); letter-spacing: 0.12em; color: var(--muted); }
+.pscore b { font: 900 2.3rem/1 var(--cond); font-variant-numeric: tabular-nums; }
+.pscore .combo { display: inline-block; margin-top: 4px; font: 900 1rem var(--cond); letter-spacing: 0.06em; padding: 2px 10px; border-radius: 999px; background: var(--gold); color: #1a1200; visibility: hidden; }
+.pscore .combo.on { visibility: visible; }
+.goldbar { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); top: calc(max(14px, env(safe-area-inset-top, 0px)) + 84px); font: 900 1.1rem var(--cond); letter-spacing: 0.1em; color: #1a1200; background: var(--gold); padding: 4px 16px; border-radius: 999px; box-shadow: 0 0 24px rgba(255,216,74,0.7); }
+.bossbar { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); top: calc(max(14px, env(safe-area-inset-top, 0px)) + 84px); width: min(420px, 60vw); padding: 6px 12px 8px; }
+.bossbar span { font: 800 0.85rem var(--cond); letter-spacing: 0.12em; }
+.bossbar .hp { height: 12px; border-radius: 6px; background: rgba(255,255,255,0.12); overflow: hidden; margin-top: 4px; }
+.bossbar .hp i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ff4d6d, #c084fc); transition: width 0.2s; }
+.stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 16px; }
+.stage { border: 2px solid var(--edge); border-radius: 14px; padding: 12px 10px; cursor: pointer; color: var(--ink); text-align: left; font: 400 0.82rem/1.45 var(--body); min-height: 96px; }
+.stage b { display: block; font: 800 1.2rem var(--cond); letter-spacing: 0.04em; margin-bottom: 4px; }
+.stage[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255,216,74,0.35); }
+.stage.kitchen { background: linear-gradient(160deg, rgba(246,231,207,0.18), rgba(181,122,70,0.25)); }
+.stage.camp { background: linear-gradient(160deg, rgba(13,22,56,0.6), rgba(224,123,57,0.25)); }
+.stage.picnic { background: linear-gradient(160deg, rgba(191,230,255,0.15), rgba(134,201,111,0.3)); }
+.stage.boss { background: linear-gradient(160deg, rgba(42,15,61,0.7), rgba(192,132,252,0.3)); }
+.record { color: var(--gold); font: 800 1.2rem var(--cond); letter-spacing: 0.1em; min-height: 1.4em; }
+.duoRes { display: flex; justify-content: center; gap: 18px; font: 900 3rem var(--cond); margin: 6px 0; }
+.duoRes .a { color: var(--p1); } .duoRes .b { color: var(--p2); }
+@media (max-width: 760px) { .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pscore { min-width: 110px; padding: 6px 12px 8px; } .pscore b { font-size: 1.8rem; } .timer b { font-size: 2rem; } .pscore.p2 { right: max(74px, calc(env(safe-area-inset-right, 0px) + 74px)); } }
+@media (max-aspect-ratio: 9/10) { .timer { top: calc(max(14px, env(safe-area-inset-top, 0px)) + 66px); } .goldbar, .bossbar { top: calc(max(14px, env(safe-area-inset-top, 0px)) + 140px); } }
+#cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#banner { width: min(94vw, 980px); }
+#banner .v { white-space: normal; text-wrap: balance; }
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="파리채 게임 화면"></canvas>
+<video id="cam" playsinline muted></video>
+
+<div class="pscore p1 glass hud" id="ps1"><span id="ps1Name">SCORE</span><b id="ps1Val">0</b><br><i class="combo" id="ps1Combo">COMBO</i></div>
+<div class="pscore p2 glass hud" id="ps2" hidden><span>2P</span><b id="ps2Val">0</b><br><i class="combo" id="ps2Combo">COMBO</i></div>
+<div class="timer glass hud" id="timer"><b id="timeVal">60</b><span>SECONDS</span></div>
+<div class="goldbar hud" id="goldBar" hidden>GOLDEN TIME ×2</div>
+<div class="bossbar glass hud" id="bossBar" hidden><span>파리왕</span><div class="hp"><i id="bossHp"></i></div></div>
+<button class="pause glass hud" id="pauseBtn" aria-label="일시정지"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></svg></button>
+
+<div id="banner"><div class="k" id="bannerK"></div><div class="v" id="bannerV"></div><div class="s" id="bannerS"></div></div>
+<div id="hint" class="glass hud" hidden></div>
+
+<div class="overlay" id="startOverlay">
+  <div class="card glass">
+    <h2>HAND <em>SWATTER</em></h2>
+    <p class="sub">손이 파리채가 돼요! 화면 속 파리·모기를 손을 휘둘러 "찰싹" 잡아요. 꿀벌은 잡으면 안 돼요.</p>
+    <div class="steps">
+      <div><b>1. 세워 두기</b>휴대폰·태블릿을 세워 두고 1~2미터 떨어져 서요. 손이 화면에 보이면 파리채가 생겨요.</div>
+      <div><b>2. 찰싹!</b>벌레 위에서 손을 빠르게 휘둘러요. 천천히 다가가면 파리가 도망가요. 모기를 놓치면 물려요!</div>
+      <div><b>3. 콤보</b>연달아 잡으면 점수가 최대 5배. 황금 파리를 잡으면 6초 동안 2배!</div>
+    </div>
+    <div class="stages" id="stageSeg">
+      <button class="stage kitchen" data-v="kitchen"><b>부엌</b>수박과 케이크에 파리가 앉아요</button>
+      <button class="stage camp" data-v="camp"><b>캠핑장 밤</b>모기가 얼굴로 날아와요</button>
+      <button class="stage picnic" data-v="picnic"><b>피크닉</b>꿀벌은 피해서 잡아요</button>
+      <button class="stage boss" data-v="boss"><b>파리왕</b>여러 번 때려야 하는 보스</button>
+    </div>
+    <div class="opts">
+      <span>인원</span><div class="seg" id="duoSeg"><button data-v="solo">혼자</button><button data-v="duo">둘이서 대결</button></div>
+      <span>시간</span><div class="seg" id="timeSeg"><button data-v="30">30초</button><button data-v="60">60초</button><button data-v="90">90초</button></div>
+      <span>난이도</span><div class="seg" id="diffSeg"><button data-v="easy">쉬움</button><button data-v="normal">보통</button><button data-v="hard">어려움</button></div>
+      <span>휘두름 감도</span><div class="seg" id="sensSeg"><button data-v="1.3">둔하게</button><button data-v="1">보통</button><button data-v="0.75">예민하게</button></div>
+      <span>소리 크기</span><div class="seg" id="volSeg"><button data-v="0">끄기</button><button data-v="0.5">작게</button><button data-v="1">보통</button><button data-v="1.5">크게</button></div>
+      <span>글자·버튼 크기</span><div class="seg" id="uiSeg"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button><button data-v="xl">아주 크게</button></div>
+    </div>
+    <div class="actions">
+      <button class="big" id="startCam">카메라로 시작</button>
+      <button class="big ghost" id="startMouse">마우스·터치로 하기</button>
+      <button class="big ghost" id="fsBtn">전체 화면</button>
+    </div>
+    <div class="msgline" id="startMsg" role="status"></div>
+  </div>
+</div>
+
+<div class="overlay" id="pauseOverlay" hidden>
+  <div class="card glass">
+    <h2>PAUSE</h2>
+    <div class="opts">
+      <span>소리 크기</span><div class="seg" id="volSeg2"><button data-v="0">끄기</button><button data-v="0.5">작게</button><button data-v="1">보통</button><button data-v="1.5">크게</button></div>
+      <span>휘두름 감도</span><div class="seg" id="sensSeg2"><button data-v="1.3">둔하게</button><button data-v="1">보통</button><button data-v="0.75">예민하게</button></div>
+      <span>글자·버튼 크기</span><div class="seg" id="uiSeg2"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button><button data-v="xl">아주 크게</button></div>
+      <span>화면 흔들림</span><div class="seg" id="shakeSeg2"><button data-v="on">켜기</button><button data-v="off">끄기</button></div>
+    </div>
+    <p class="sub">마우스·터치로 할 때는 벌레를 누르면 찰싹! 키보드 스페이스는 마우스 자리를 찰싹.</p>
+    <div class="actions">
+      <button class="big" id="resumeBtn">계속하기</button>
+      <button class="big ghost" id="restartBtn">처음 화면으로</button>
+      <button class="big ghost" id="fsBtn2">전체 화면</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overOverlay" hidden>
+  <div class="card glass">
+    <h2 id="overTitle">TIME UP!</h2>
+    <div class="final" id="soloRes"><span class="m" id="finScore">0</span><small style="font-size:1.4rem;color:var(--muted)"> 점</small></div>
+    <div class="duoRes" id="duoRes" hidden><span class="a" id="fin1">0</span><span style="color:var(--muted)">:</span><span class="b" id="fin2">0</span></div>
+    <div class="record" id="recordLine"></div>
+    <div class="stats">
+      <div><b id="stFly">0</b><span>파리</span></div>
+      <div><b id="stMos">0</b><span>모기</span></div>
+      <div><b id="stBig">0</b><span>왕파리</span></div>
+      <div><b id="stGold">0</b><span>황금 파리</span></div>
+      <div><b id="stCombo">0</b><span>최고 콤보</span></div>
+      <div><b id="stBite">0</b><span>물린 횟수</span></div>
+    </div>
+    <div class="actions">
+      <button class="big" id="againBtn">한 판 더</button>
+      <button class="big ghost" id="menuBtn">스테이지 고르기</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading" id="loading">LOADING…</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
