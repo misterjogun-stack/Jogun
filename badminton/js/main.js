@@ -17,7 +17,7 @@ const QUAL = {
 const opts = {
   name: store.get("name", "JOGUN"), diff: store.get("diff", "easy"), points: store.get("points", 11), games: store.get("games", 1),
   hand: store.get("hand", "right"), sens: store.get("sens", 1), quality: store.get("quality", "auto"), vol: store.get("vol", 1),
-  pip: store.get("pip", "m"), ui: store.get("ui", "m"), shake: store.get("shake", "on"),
+  pip: store.get("pip", "m"), ui: store.get("ui", "m"), shake: store.get("shake", "on"), view: store.get("view", 1),
 };
 setVolume(opts.vol);
 let tracker = null;
@@ -45,6 +45,7 @@ let world;
 try { world = new World($("gl"), QUAL[qName]); }
 catch (e) { loading.textContent = "이 기기에서는 3D 화면을 켤 수 없어요. 화질을 '낮음'으로 바꾸거나 다른 브라우저로 열어 주세요."; throw e; }
 world.setPlayerName(opts.name);
+world.viewZoom = opts.view;
 
 // ── 경기 ──
 let pointerAim = 0.5, paused = true, timeScale = 1;
@@ -221,6 +222,26 @@ for (const id of ["volSeg", "volSeg2"]) bindSeg(id, "vol", () => { setVolume(opt
 for (const id of ["pipSeg", "pipSeg2"]) bindSeg(id, "pip", () => { applyLayout(); syncAll(); });
 for (const id of ["uiSeg", "uiSeg2"]) bindSeg(id, "ui", () => { applyLayout(); syncAll(); });
 bindSeg("shakeSeg2", "shake");
+for (const id of ["viewSeg", "viewSeg2"]) bindSeg(id, "view", () => { world.viewZoom = opts.view; syncAll(); });
+// 경기 화면 확대·축소: 마우스 휠, 두 손가락 벌리기·오므리기
+let viewSaveTimer = null;
+function setView(v) {
+  opts.view = Math.max(0.6, Math.min(1.6, v)); world.viewZoom = opts.view;
+  clearTimeout(viewSaveTimer); viewSaveTimer = setTimeout(() => { store.set("view", opts.view); syncAll(); }, 300);
+}
+$("gl").addEventListener("wheel", (e) => { e.preventDefault(); setView(opts.view * (1 + Math.sign(e.deltaY) * 0.06)); }, { passive: false });
+const touches = new Map();
+let pinchStart = null;
+$("gl").addEventListener("pointerdown", (e) => {
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touches.size === 2) { const [a, b] = [...touches.values()]; pinchStart = { d: Math.hypot(a.x - b.x, a.y - b.y), v: opts.view }; lastPointerSwing = performance.now() / 1000; }
+});
+$("gl").addEventListener("pointermove", (e) => {
+  if (!touches.has(e.pointerId)) return;
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinchStart && touches.size === 2) { const [a, b] = [...touches.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); setView(pinchStart.v * pinchStart.d / Math.max(20, d)); lastPointerSwing = performance.now() / 1000; }
+});
+for (const ev of ["pointerup", "pointercancel"]) $("gl").addEventListener(ev, (e) => { touches.delete(e.pointerId); if (touches.size < 2) pinchStart = null; });
 function syncAll() { syncers.forEach((f) => f()); }
 // 전체 화면 (지원하는 브라우저에서만 보인다)
 const fsOk = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);

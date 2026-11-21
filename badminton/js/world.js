@@ -196,6 +196,7 @@ export class World {
     this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
     this.scene.environmentIntensity = 0.45;
     this.shake = 0; this.cheer = 0;
+    this.viewZoom = 1; // 경기 화면 거리: 1보다 작으면 가깝게, 크면 멀게
     this.buildLights();
     this.buildFloor();
     this.buildNet();
@@ -556,7 +557,8 @@ export class World {
       this._cheerWas = this.cheer > 0.01;
     }
     // 카메라: 내 선수 오른쪽 뒤에서 상대 코트를 본다
-    const want = V(me.x * 0.65 + 0.75, 2.4, me.z - 5.0);
+    const zv = this.viewZoom;
+    const want = V(me.x * 0.65 + 0.75, 0.6 + 1.8 * zv, me.z - 5.0 * zv);
     const look = V(me.x * 0.3 + 0.3 + (sh.p.x - me.x) * 0.06, 0.6, me.z + 7.0);
     const k = 1 - Math.exp(-dt * 3);
     this.camPos.lerp(want, k); this.camLook.lerp(look, k);
