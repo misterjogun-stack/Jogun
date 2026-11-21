@@ -1,7 +1,7 @@
 // 화면 조작, 점수판, 입력(카메라·마우스·키보드)을 묶고 매 프레임 경기를 진행한다.
 import { Match, DT, SHOT_NAME } from "./game.js";
 import { PoseTracker } from "./tracking.js";
-import { sfx, initAudio, setSound } from "./audio.js";
+import { sfx, initAudio, setVolume, haptic } from "./audio.js";
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -16,9 +16,18 @@ const QUAL = {
 };
 const opts = {
   name: store.get("name", "JOGUN"), diff: store.get("diff", "easy"), points: store.get("points", 11), games: store.get("games", 1),
-  hand: store.get("hand", "right"), sens: store.get("sens", 1), quality: store.get("quality", "auto"), sound: store.get("sound", true),
+  hand: store.get("hand", "right"), sens: store.get("sens", 1), quality: store.get("quality", "auto"), vol: store.get("vol", 1),
+  pip: store.get("pip", "m"), ui: store.get("ui", "m"), shake: store.get("shake", "on"),
 };
-setSound(opts.sound);
+setVolume(opts.vol);
+let tracker = null;
+// 화면 크기: 카메라 화면 크기, 글자·버튼 크기
+function applyLayout() {
+  document.body.dataset.pip = opts.pip;
+  document.body.dataset.ui = opts.ui;
+  requestAnimationFrame(() => { if (tracker) sizePip(); });
+}
+applyLayout();
 
 const FLAG = {
   KOR: `<svg viewBox="0 0 36 24"><rect width="36" height="24" fill="#fff"/><g transform="rotate(-33.7 18 12)"><circle cx="18" cy="12" r="6" fill="#0047a0"/><path d="M12 12a6 6 0 0 1 12 0a3 3 0 0 1-6 0a3 3 0 0 0-6 0z" fill="#cd2e3a"/></g><g fill="#000"><g transform="rotate(-56.3 7 6)"><rect x="4" y="4.6" width="6" height="0.8"/><rect x="4" y="5.8" width="6" height="0.8"/><rect x="4" y="7" width="6" height="0.8"/></g><g transform="rotate(56.3 29 6)"><rect x="26" y="4.6" width="2.6" height="0.8"/><rect x="29.4" y="4.6" width="2.6" height="0.8"/><rect x="26" y="5.8" width="6" height="0.8"/><rect x="26" y="7" width="2.6" height="0.8"/><rect x="29.4" y="7" width="2.6" height="0.8"/></g><g transform="rotate(56.3 7 18)"><rect x="4" y="16.6" width="6" height="0.8"/><rect x="4" y="17.8" width="2.6" height="0.8"/><rect x="7.4" y="17.8" width="2.6" height="0.8"/><rect x="4" y="19" width="6" height="0.8"/></g><g transform="rotate(-56.3 29 18)"><rect x="26" y="16.6" width="2.6" height="0.8"/><rect x="29.4" y="16.6" width="2.6" height="0.8"/><rect x="26" y="17.8" width="2.6" height="0.8"/><rect x="29.4" y="17.8" width="2.6" height="0.8"/><rect x="26" y="19" width="2.6" height="0.8"/><rect x="29.4" y="19" width="2.6" height="0.8"/></g></g></svg>`,
@@ -38,7 +47,7 @@ catch (e) { loading.textContent = "이 기기에서는 3D 화면을 켤 수 없�
 world.setPlayerName(opts.name);
 
 // ── 경기 ──
-let tracker = null, pointerAim = 0.5, paused = true, timeScale = 1;
+let pointerAim = 0.5, paused = true, timeScale = 1;
 const matchOpts = { diff: opts.diff, points: opts.points, games: opts.games, getAim: () => match.auto ? (match.autoAim ?? 0.5) : tracker && tracker.visible(performance.now() / 1000) ? tracker.aim : pointerAim };
 const match = new Match(matchOpts, onEvent);
 match.placeForServe("me", true);
@@ -94,10 +103,18 @@ function onEvent(type, d) {
       banner("", "READY", "", "me", 850); sfx.whistle();
       setTimeout(() => { if (match.phase !== "idle") banner("", "PLAY!", "", "me", 700); }, 900);
       updateScore(); break;
-    case "swing": sfx.swoosh(); break;
+    case "swing": sfx.swoosh(d.power || 1); break;
     case "hit": {
       world.hitFx(d.pos, d.by, d.type);
-      if (d.type === "smash") sfx.smash(); else sfx.hit(Math.min(1, 0.5 + d.speed / 250));
+      const smash = d.type === "smash", mine = d.by === "me";
+      sfx.hit({ power: Math.min(1, 0.45 + d.speed / 260), smash, x: d.pos.x, far: !mine });
+      // 타격감: 아주 짧게 멈춤(히트 스톱) + 화면 흔들림 + 번쩍임 + 진동
+      if (mine || smash) {
+        hitStop = smash ? 0.11 : mine ? 0.05 : 0;
+        if (opts.shake === "on") world.shake = Math.max(world.shake, smash ? 0.45 : 0.14);
+        if (smash) flash(mine ? "lime" : "red");
+        haptic(smash ? [30, 20, 50] : 18);
+      }
       $("speedVal").textContent = Math.round(d.speed);
       if (d.by === "me") {
         flashShot(d.type);
@@ -105,9 +122,9 @@ function onEvent(type, d) {
       } else if (d.type === "smash") floater(d.pos, "SMASH!", "#ff8094", 1);
       break;
     }
-    case "perfect": floater({ ...d.pos, y: d.pos.y + 0.55 }, "PERFECT!", "#7cc4ff", 0.95); break;
+    case "perfect": floater({ ...d.pos, y: d.pos.y + 0.55 }, "PERFECT!", "#7cc4ff", 0.95); sfx.perfect(); break;
     case "land":
-      sfx.land();
+      sfx.land(d.x, d.z > 6.7);
       if (!d.net) { world.landMark(d.x, d.z, d.in); floater({ x: d.x, y: 0.1, z: d.z }, d.in ? "IN" : "OUT", d.in ? "#8dffb0" : "#ff8094", 0.9); }
       break;
     case "net": sfx.net(); break;
@@ -116,7 +133,7 @@ function onEvent(type, d) {
       updateScore();
       const mine = d.winner === "me";
       world.cheer = mine ? 1.6 : 0.7;
-      sfx.point(mine); sfx.crowd(mine ? 1 : 0.5);
+      sfx.point(mine); if (mine) sfx.cheer(d.gameWon ? 1.4 : 1); else sfx.aww();
       const k = d.matchWon ? "MATCH" : d.gameWon ? "GAME" : "POINT";
       banner(k, nameOf(d.winner), REASON[d.reason] || "", d.winner, d.gameWon ? 2200 : 1500);
       if (!d.gameWon) {
@@ -192,13 +209,32 @@ function bindSeg(id, key, after) {
     store.set(key, opts[key]); sync(); after && after();
   });
   sync();
+  syncers.push(sync);
   return sync;
 }
+const syncers = [];
 bindSeg("diffSeg", "diff"); bindSeg("ptsSeg", "points"); bindSeg("gamesSeg", "games"); bindSeg("handSeg", "hand");
 const syncSens2 = bindSeg("sensSeg2", "sens", () => { syncSens(); if (tracker) tracker.opts.sens = opts.sens; });
 const syncSens = bindSeg("sensSeg", "sens", () => { syncSens2(); if (tracker) tracker.opts.sens = opts.sens; });
 bindSeg("qualSeg", "quality", () => location.reload());
-bindSeg("soundSeg", "sound", () => setSound(opts.sound));
+for (const id of ["volSeg", "volSeg2"]) bindSeg(id, "vol", () => { setVolume(opts.vol); syncAll(); initAudio(); sfx.hit({ power: 0.8 }); });
+for (const id of ["pipSeg", "pipSeg2"]) bindSeg(id, "pip", () => { applyLayout(); syncAll(); });
+for (const id of ["uiSeg", "uiSeg2"]) bindSeg(id, "ui", () => { applyLayout(); syncAll(); });
+bindSeg("shakeSeg2", "shake");
+function syncAll() { syncers.forEach((f) => f()); }
+// 전체 화면 (지원하는 브라우저에서만 보인다)
+const fsOk = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+for (const id of ["fsBtn", "fsBtn2"]) {
+  const b = $(id); if (!b) continue;
+  b.hidden = !fsOk;
+  b.addEventListener("click", async () => {
+    try {
+      if (document.fullscreenElement || document.webkitFullscreenElement) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else await (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement);
+    } catch {}
+  });
+}
+$("pipSize").addEventListener("click", (e) => { e.stopPropagation(); const order = ["s", "m", "l"]; opts.pip = order[(order.indexOf(opts.pip) + 1) % 3]; store.set("pip", opts.pip); applyLayout(); syncAll(); });
 $("nameInput").value = opts.name;
 
 function begin() {
@@ -208,6 +244,7 @@ function begin() {
   if (tracker) { tracker.opts.hand = opts.hand; tracker.opts.sens = opts.sens; }
   $("startOverlay").hidden = true; $("overOverlay").hidden = true;
   paused = false;
+  sfx.ambience(true);
   match.start();
   updateScore();
   if (innerHeight > innerWidth) setTimeout(() => banner("", "", "휴대폰을 가로로 돌려 세우면 더 넓게 보여요", "me", 2600), 2600);
@@ -233,9 +270,9 @@ $("startCam").addEventListener("click", async () => {
   btn.disabled = false;
 });
 $("startMouse").addEventListener("click", () => { initAudio(); begin(); });
-function pause() { if (match.phase === "idle") return; paused = true; $("pauseOverlay").hidden = false; }
+function pause() { if (match.phase === "idle") return; paused = true; sfx.ambience(false); $("pauseOverlay").hidden = false; }
 $("pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); pause(); });
-$("resumeBtn").addEventListener("click", () => { $("pauseOverlay").hidden = true; paused = false; last = performance.now(); });
+$("resumeBtn").addEventListener("click", () => { $("pauseOverlay").hidden = true; paused = false; sfx.ambience(true); last = performance.now(); });
 $("restartBtn").addEventListener("click", () => { $("pauseOverlay").hidden = true; match.phase = "idle"; paused = true; match.placeForServe("me", true); $("startOverlay").hidden = false; });
 $("againBtn").addEventListener("click", () => { $("overOverlay").hidden = true; begin(); });
 $("menuBtn").addEventListener("click", () => { $("overOverlay").hidden = true; $("startOverlay").hidden = false; });
@@ -253,22 +290,39 @@ function endMatch(winner) {
   $("stSpeed").textContent = Math.round(match.stats.topSpeed);
   $("stPerfect").textContent = match.stats.perfects;
   $("overOverlay").hidden = false;
-  if (win) { world.cheer = 2.2; sfx.crowd(1.4); }
+  sfx.ambience(false);
+  if (win) { world.cheer = 2.2; sfx.cheer(1.6); }
 }
 
 // ── 크기와 루프 ──
 function resize() { world.resize(innerWidth, innerHeight); if (tracker) sizePip(); }
 window.addEventListener("resize", resize);
 resize();
-let last = performance.now(), acc = 0, firstFrame = true;
+let last = performance.now(), acc = 0, firstFrame = true, hitStop = 0;
+const prevMove = { me: { lunge: 0, speed: 0 }, ai: { lunge: 0, speed: 0 } };
+let flashTimer = null;
+function flash(kind) {
+  const f = $("flash"); f.className = "show " + kind;
+  clearTimeout(flashTimer); flashTimer = setTimeout(() => (f.className = ""), 90);
+}
+// 운동화 끽 소리: 런지를 시작하거나 빠르게 달리다 멈출 때
+function footsteps() {
+  for (const side of ["me", "ai"]) {
+    const e = match.ent(side), pv = prevMove[side];
+    if ((e.lunge > 0.35 && pv.lunge <= 0.35) || (pv.speed > 3 && e.speed < 1.2)) sfx.squeak(e.x, side === "ai");
+    pv.lunge = e.lunge; pv.speed = e.speed;
+  }
+}
 function frame(now) {
   const nowS = now / 1000, dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (tracker) { const sw = tracker.detect(nowS); if (sw) doSwing(sw); }
-  if (!paused) {
+  if (hitStop > 0) hitStop -= dt;
+  else if (!paused) {
     acc += dt * timeScale;
     let n = 0;
-    while (acc >= DT && n < 2400) { match.step(); acc -= DT; n++; }
+    while (acc >= DT && n < 2400 && hitStop <= 0) { match.step(); acc -= DT; n++; }
+    footsteps();
   }
   const arm = tracker && tracker.visible(nowS) ? tracker.arm : null;
   world.update(match, dt, nowS, arm);

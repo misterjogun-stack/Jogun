@@ -41,8 +41,25 @@ body { background: var(--night); color: var(--ink); font-family: var(--body); ov
 .glass { background: var(--glass); border: 1px solid var(--edge); border-radius: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
 /* 왼쪽 위: 손 인식 화면, 속도 */
-.left { position: fixed; z-index: 5; top: max(16px, env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); width: var(--pipw); display: flex; flex-direction: column; gap: 14px; pointer-events: none; }
-.pip .lab { font: 700 0.92rem var(--cond); letter-spacing: 0.08em; margin: 0 0 6px 4px; }
+/* 왼쪽 위 묶음: [손 인식 화면 + 속도] [점수판] */
+.tl { position: fixed; z-index: 5; top: max(16px, env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); display: flex; align-items: flex-start; gap: 22px; flex-wrap: wrap; max-width: calc(100% - 120px); pointer-events: none; }
+.left { width: var(--pipw); display: flex; flex-direction: column; gap: 14px; }
+body:not(.cam) .left, body[data-pip="off"] .left { width: calc(var(--pipw) * 0.72); }
+body:not(.cam) .speed, body[data-pip="off"] .speed { width: 100%; }
+body[data-pip="off"] .pip { display: none; }
+body[data-pip="s"] { --pipw: clamp(96px, 12vw, 190px); }
+body[data-pip="l"] { --pipw: clamp(200px, 32vw, 520px); }
+/* 글자·버튼 크기 */
+body[data-ui="s"] .hud { zoom: 0.8; }
+body[data-ui="l"] .hud { zoom: 1.25; }
+body[data-ui="xl"] .hud { zoom: 1.5; }
+.pip .lab { font: 700 0.92rem var(--cond); letter-spacing: 0.08em; margin: 0 0 6px 4px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pip .lab span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mini { flex: none; white-space: nowrap; pointer-events: auto; font: 700 0.75rem var(--body); color: var(--ink); background: rgba(10,14,28,0.7); border: 1px solid var(--edge); border-radius: 8px; padding: 3px 8px; cursor: pointer; }
+#flash { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity 0.28s ease-out; }
+#flash.show { opacity: 1; transition: none; }
+#flash.lime { background: radial-gradient(ellipse at center, rgba(216,255,106,0) 35%, rgba(216,255,106,0.42)); }
+#flash.red { background: radial-gradient(ellipse at center, rgba(255,77,109,0) 35%, rgba(255,77,109,0.38)); }
 .pip canvas { display: block; width: 100%; aspect-ratio: 5 / 4; border-radius: 14px; border: 2px solid rgba(220, 232, 255, 0.75); background: #0b1020; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
 .speed { padding: 10px 16px 12px; width: 72%; }
 .speed span { display: block; font: 700 0.8rem var(--cond); letter-spacing: 0.1em; }
@@ -51,8 +68,7 @@ body { background: var(--night); color: var(--ink); font-family: var(--body); ov
 
 /* 점수판 */
 .board {
-  position: fixed; z-index: 5; top: max(22px, calc(env(safe-area-inset-top, 0px) + 6px));
-  left: calc(max(16px, env(safe-area-inset-left, 0px)) + var(--pipw) + 32px);
+  margin-top: 6px;
   display: flex; align-items: stretch; overflow: hidden; border-radius: 8px;
   background: rgba(8, 12, 24, 0.86); border: 1px solid rgba(255,255,255,0.14);
 }
@@ -69,7 +85,6 @@ body { background: var(--night); color: var(--ink); font-family: var(--body); ov
 .set span { font: 700 1.05rem var(--cond); letter-spacing: 0.06em; }
 .set b { font: 700 1.3rem var(--cond); font-variant-numeric: tabular-nums; }
 
-body:not(.cam) .board { left: calc(max(16px, env(safe-area-inset-left, 0px)) + var(--pipw) * 0.72 + 24px); }
 .pause { position: fixed; z-index: 5; top: max(16px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); width: 62px; height: 62px; display: grid; place-items: center; cursor: pointer; color: var(--ink); }
 .pause svg { width: 28px; height: 28px; }
 
@@ -125,14 +140,13 @@ input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-
   .row svg { width: 26px; height: 17px; }
   .row .nm { font-size: 1.02rem; } .row .pt { font-size: 1.35rem; }
   .set { padding: 0 10px; } .set span { font-size: 0.85rem; } .set b { font-size: 1.05rem; }
-  .speed { padding: 6px 10px 8px; width: 100%; } .speed b { font-size: 1.8rem; }
+  .speed { padding: 6px 10px 8px; } .speed b { font-size: 1.8rem; }
+  .tl { gap: 14px; }
   .pause { width: 48px; height: 48px; }
   .shots { gap: 8px; } .shot { width: clamp(64px, 9vw, 100px); }
-  body:not(.cam) .board { left: calc(max(16px, env(safe-area-inset-left, 0px)) + var(--pipw) + 20px); }
   .floater { font-size: 1.5rem; }
 }
 @media (max-width: 640px) {
-  .board { left: auto; right: max(12px, env(safe-area-inset-right, 0px)); top: calc(max(16px, env(safe-area-inset-top, 0px)) + 56px); }
   .steps { grid-template-columns: 1fr; }
   .opts { grid-template-columns: 1fr; }
   .shots { top: auto; bottom: 74px; transform: none; }
@@ -144,8 +158,10 @@ input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-
 <canvas id="gl" aria-label="3D 배드민턴 경기장"></canvas>
 <video id="cam" playsinline muted></video>
 
+<div id="flash"></div>
+<div class="tl hud">
 <div class="left">
-  <div class="pip" id="pipBox" hidden><p class="lab">HAND TRACKING</p><canvas id="pip"></canvas></div>
+  <div class="pip" id="pipBox" hidden><p class="lab"><span>HAND TRACKING</span><button class="mini" id="pipSize" aria-label="카메라 화면 크기 바꾸기">크기</button></p><canvas id="pip"></canvas></div>
   <div class="speed glass"><span>SPEED</span><b id="speedVal">0</b><small>km/h</small></div>
 </div>
 
@@ -156,10 +172,11 @@ input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-
   </div>
   <div class="set"><span id="setNo">SET 1</span><b id="setScore">0 - 0</b></div>
 </div>
+</div>
 
-<button class="pause glass" id="pauseBtn" aria-label="일시정지"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></svg></button>
+<button class="pause glass hud" id="pauseBtn" aria-label="일시정지"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></svg></button>
 
-<div class="shots" id="shots">
+<div class="shots hud" id="shots">
   <button class="shot glass" data-shot="smash" aria-label="스매시">
     <svg viewBox="0 0 100 100" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M70 12 A34 34 0 0 1 88 52" stroke="#7cc4ff" stroke-width="3" opacity="0.85"/><g fill="#e8eeff"><circle cx="46" cy="24" r="7"/><path d="M40 33 L54 33 L62 56 L56 58 L52 48 L50 66 L58 90 L51 92 L43 72 L36 92 L29 90 L38 64 L38 48 L30 60 L25 57Z"/><path d="M53 34 L68 18 L72 21 L58 40Z"/></g><g stroke="#e8eeff" stroke-width="2.5"><line x1="70" y1="19" x2="80" y2="8"/><ellipse cx="84" cy="5" rx="6" ry="4" transform="rotate(-40 84 5)"/></g></svg>SMASH</button>
   <button class="shot glass" data-shot="clear" aria-label="클리어">
@@ -169,7 +186,7 @@ input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-
 </div>
 
 <div id="banner"><div class="k" id="bannerK">POINT</div><div class="v" id="bannerV"></div><div class="s" id="bannerS"></div></div>
-<div id="hint" class="glass" hidden></div>
+<div id="hint" class="glass hud" hidden></div>
 <div id="floaters"></div>
 
 <div class="overlay" id="startOverlay">
@@ -188,11 +205,15 @@ input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-
       <span>경기</span><div class="seg" id="gamesSeg"><button data-v="1">1게임</button><button data-v="3">3게임 (2선승)</button></div>
       <span>라켓 손</span><div class="seg" id="handSeg"><button data-v="right">오른손</button><button data-v="left">왼손</button></div>
       <span>휘두름 감도</span><div class="seg" id="sensSeg"><button data-v="1.3">둔하게</button><button data-v="1">보통</button><button data-v="0.75">예민하게</button></div>
+      <span>소리 크기</span><div class="seg" id="volSeg"><button data-v="0">끄기</button><button data-v="0.5">작게</button><button data-v="1">보통</button><button data-v="1.5">크게</button></div>
+      <span>카메라 화면</span><div class="seg" id="pipSeg"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button><button data-v="off">숨기기</button></div>
+      <span>글자·버튼 크기</span><div class="seg" id="uiSeg"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button><button data-v="xl">아주 크게</button></div>
       <span>화질</span><div class="seg" id="qualSeg"><button data-v="auto">자동</button><button data-v="high">높음</button><button data-v="mid">보통</button><button data-v="low">낮음</button></div>
     </div>
     <div class="actions">
       <button class="big" id="startCam">카메라로 시작</button>
       <button class="big ghost" id="startMouse">마우스·터치로 하기</button>
+      <button class="big ghost" id="fsBtn">전체 화면</button>
     </div>
     <div class="msgline" id="startMsg" role="status"></div>
   </div>
@@ -202,13 +223,17 @@ input[type="text"] { justify-self: start; font: 700 1.05rem var(--cond); letter-
   <div class="card glass">
     <h2>PAUSE</h2>
     <div class="opts">
-      <span>소리</span><div class="seg" id="soundSeg"><button data-v="on">켜기</button><button data-v="off">끄기</button></div>
+      <span>소리 크기</span><div class="seg" id="volSeg2"><button data-v="0">끄기</button><button data-v="0.5">작게</button><button data-v="1">보통</button><button data-v="1.5">크게</button></div>
+      <span>카메라 화면</span><div class="seg" id="pipSeg2"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button><button data-v="off">숨기기</button></div>
+      <span>글자·버튼 크기</span><div class="seg" id="uiSeg2"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button><button data-v="xl">아주 크게</button></div>
+      <span>화면 흔들림</span><div class="seg" id="shakeSeg2"><button data-v="on">켜기</button><button data-v="off">끄기</button></div>
       <span>휘두름 감도</span><div class="seg" id="sensSeg2"><button data-v="1.3">둔하게</button><button data-v="1">보통</button><button data-v="0.75">예민하게</button></div>
     </div>
     <p class="sub">마우스로 할 때는 화면에서 빠르게 휘두르거나 오른쪽 기술 카드를 눌러요. 키보드는 스페이스(CLEAR), X(SMASH), Z(DROP).</p>
     <div class="actions">
       <button class="big" id="resumeBtn">계속하기</button>
       <button class="big ghost" id="restartBtn">처음 화면으로</button>
+      <button class="big ghost" id="fsBtn2">전체 화면</button>
     </div>
   </div>
 </div>
