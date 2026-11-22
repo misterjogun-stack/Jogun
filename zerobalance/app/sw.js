@@ -2,7 +2,7 @@
    - 항상 인터넷에서 새 파일을 먼저 받고(최신 유지), 받은 것을 저장해 둔다.
    - 인터넷이 끊기면 저장해 둔 파일로 연다.
    - 기록(매출·급여)은 여기와 상관없이 브라우저 저장소에 있어요. */
-const CACHE='zerobalance-v2';
+const CACHE='zerobalance-v3';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon-32.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});

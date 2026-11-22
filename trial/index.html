@@ -434,7 +434,7 @@ const wordLightImg=new Image();wordLightImg.src=WORDMARK_LIGHT;
 /* ── 체험판 ── 마감일(이날 밤 12시까지 사용 가능). tools/make_trial.py 로 바꿔요 */
 const TRIAL_END='2026-11-24',TRIAL_LABEL='11월 24일(화)';
 const trialOver=()=>{const [y,m,d]=TRIAL_END.split('-').map(Number);return Date.now()>=new Date(y,m-1,d+1).getTime()};
-const APP_NAME='ZeroBalance',APP_KO='제로밸런스',APP_VERSION='2.0 체험판',IG='soowan_jg',IG_DM='https://ig.me/m/soowan_jg',IG_PROFILE='https://www.instagram.com/soowan_jg/';
+const APP_NAME='ZeroBalance',APP_KO='제로밸런스',APP_VERSION='2.1 체험판',IG='soowan_jg',IG_DM='https://ig.me/m/soowan_jg',IG_PROFILE='https://www.instagram.com/soowan_jg/';
 const CH=[['cash','현금'],['cashReceipt','현금영수증'],['card','카드'],['account','계좌'],['naverPay','네이버페이'],['naverDeposit','네이버예약금'],['kakaoPay','카카오페이'],['local','지역상품권']];
 const RECEIPT_CH=['cashReceipt','card','naverPay','naverDeposit','kakaoPay','local']; // 발행세액공제 대상 추정
 const TABS=[['home','홈','home'],['input','입력','edit'],['pay','급여','users'],['tax','세금','receipt'],['more','더보기','grid']];
