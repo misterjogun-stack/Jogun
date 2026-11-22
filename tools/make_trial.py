@@ -52,11 +52,11 @@ rep("if('serviceWorker' in navigator&&(location.protocol==='https:'||location.ho
     "try{if('serviceWorker' in navigator)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{})}catch(e){}")
 
 # 3) 체험판 설정
-rep("const APP_NAME='ZeroBalance',APP_KO='제로밸런스',APP_VERSION='2.0',",
+rep("const APP_NAME='ZeroBalance',APP_KO='제로밸런스',APP_VERSION='2.1',",
     f"/* ── 체험판 ── 마감일(이날 밤 12시까지 사용 가능). tools/make_trial.py 로 바꿔요 */\n"
     f"const TRIAL_END='{end}',TRIAL_LABEL='{end_label}';\n"
     "const trialOver=()=>{const [y,m,d]=TRIAL_END.split('-').map(Number);return Date.now()>=new Date(y,m-1,d+1).getTime()};\n"
-    "const APP_NAME='ZeroBalance',APP_KO='제로밸런스',APP_VERSION='2.0 체험판',")
+    "const APP_NAME='ZeroBalance',APP_KO='제로밸런스',APP_VERSION='2.1 체험판',")
 
 # 4) 맨 위 체험판 띠
 rep("  const head_=`<header class=\"top\"><div class=\"wrap\">${",
