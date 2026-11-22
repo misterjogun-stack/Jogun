@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#0A1330}
+body{font-family:Pretendard,"Noto Sans CJK KR",sans-serif;color:#fff;-webkit-font-smoothing:antialiased}
+#bg{position:absolute;inset:0;background:radial-gradient(1200px 900px at 80% 10%,#1E3A8A 0%,rgba(30,58,138,0) 60%),radial-gradient(900px 900px at 0% 100%,#132B6B 0%,rgba(19,43,107,0) 60%),linear-gradient(180deg,#0B1534,#08102A)}
+#grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:60px 60px}
+.layer{position:absolute;inset:0}
+/* 1. 첫 장면 */
+#hook{display:flex;flex-direction:column;justify-content:center;padding:0 96px 160px}
+#hook .eb{font-size:40px;font-weight:700;color:#8FB0FF;margin-bottom:34px;letter-spacing:-.5px}
+#hook .h{font-size:118px;line-height:1.16;font-weight:800;letter-spacing:-4px}
+#hook .h em{font-style:normal;color:#7EA2FF}
+#calc{position:absolute;right:90px;top:420px;width:200px;height:200px;border-radius:44px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.12);display:grid;place-items:center}
+/* 폰 */
+#phone{position:absolute;left:50%;top:268px;width:600px;margin-left:-300px;height:1010px;border-radius:72px 72px 0 0;background:#05091A;padding:20px 20px 0;box-shadow:0 40px 120px rgba(0,0,0,.55),0 0 0 2px rgba(255,255,255,.10) inset;
+  -webkit-mask-image:linear-gradient(180deg,#000 82%,transparent 100%);mask-image:linear-gradient(180deg,#000 82%,transparent 100%)}
+#screen{position:relative;width:560px;height:990px;border-radius:54px 54px 0 0;overflow:hidden;background:#F4F6FA}
+#screen img{position:absolute;left:0;top:0;width:560px;display:none;transform-origin:50% 0}
+#tag{position:absolute;left:50%;top:1176px;transform:translateX(-50%);white-space:nowrap;background:rgba(8,16,42,.78)!important;padding:10px 18px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);font-size:24px;font-weight:600;color:#DCE6FF}
+#ring{position:absolute;border:5px solid #7EA2FF;border-radius:28px;box-shadow:0 0 0 10px rgba(126,162,255,.18)}
+/* 정산 이미지 */
+#settle{position:absolute;left:50%;top:300px;width:640px;margin-left:-320px;border-radius:30px;overflow:hidden;box-shadow:0 50px 120px rgba(0,0,0,.6)}
+#settle img{display:block;width:100%}
+/* 자막 */
+#sub{position:absolute;left:0;right:0;bottom:460px;text-align:center}
+#sub .ln{font-size:72px;font-weight:800;letter-spacing:-2.5px;line-height:1.22;text-shadow:0 4px 24px rgba(0,0,0,.5)}
+#sub .ln b{color:#8FB0FF;font-weight:800}
+#sub span{opacity:0}
+/* 마지막 */
+#cta{display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:120px;text-align:center}
+#cta .mk{width:300px;margin-bottom:34px;filter:drop-shadow(0 20px 50px rgba(43,103,248,.45))}
+#cta .wm{width:520px;margin-bottom:56px}
+#cta .t1{font-size:54px;font-weight:700;color:#C9D6F5;letter-spacing:-1.5px}
+#cta .t2{font-size:96px;font-weight:800;letter-spacing:-3.5px;margin-top:10px;line-height:1.15}
+#cta .btn{margin-top:64px;padding:34px 60px;border-radius:999px;background:#fff;color:#0B1534;font-size:50px;font-weight:800;letter-spacing:-1.5px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+#cta .ig{margin-top:34px;font-size:34px;color:#A9B9DD;font-weight:600}
+#fade{position:absolute;inset:0;background:#0A1330;opacity:0;pointer-events:none}
+</style></head><body>
+<div id="bg"></div><div id="grid"></div>
+
+<div class="layer" id="hook">
+  <div class="eb" id="hookEb">미용실 원장님,</div>
+  <div class="h" id="hookH"></div>
+</div>
+
+<div id="phone"><div id="screen"></div></div>
+<div id="ring"></div>
+<div id="tag">화면 속 숫자는 예시예요</div>
+<div id="settle"><img src="cap/settle.png"></div>
+
+<div class="layer" id="cta">
+  <img class="mk" src="cap/zb-mark-glossy.png" id="mk">
+  <img class="wm" src="cap/zb-wordmark.png" id="wm">
+  <div class="t1">미용실 매출 · 급여 · 세금 마감</div>
+  <div class="t2">하루 세 칸이면 끝</div>
+  <div class="btn">프로필 링크에서 무료로 써 보기</div>
+  <div class="ig">@soowan_jg</div>
+</div>
+
+<div id="sub"></div>
+<div id="fade"></div>
+
+<script>
+const DUR=21;window.DUR=DUR;
+const $=s=>document.querySelector(s);
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lin=(t,a,b)=>cl((t-a)/(b-a),0,1);
+const eo=x=>1-Math.pow(1-x,3);            // ease out
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+
+/* 화면 이미지 */
+const IMGS=[];for(let i=0;i<20;i++)IMGS.push('day_'+String(i).padStart(3,'0'));IMGS.push('home','excel_full');
+const scr=$('#screen'),EL={};
+for(const n of IMGS){const im=document.createElement('img');im.src='cap/'+n+'.png';scr.appendChild(im);EL[n]=im}
+
+/* 첫 장면 제목: 글자마다 span */
+const HOOK=[['오늘 마감,',''],['아직도',''],['계산기',''],['두드리세요?','']];
+const hookH=$('#hookH');const hookSpans=[];
+hookH.innerHTML=HOOK.map(([l])=>'<div>'+[...l].map(c=>`<span style="opacity:0">${c===' '?'&nbsp;':c}</span>`).join('')+'</div>').join('');
+hookH.querySelectorAll('span').forEach(s=>hookSpans.push(s));
+// '계산기'는 파란색
+[...hookH.children[2].children].forEach(s=>s.style.color='#7EA2FF');
+
+/* 자막 큐: [시작, 끝, 줄1, 줄2] */
+const CUES=[
+  [3.5,7.9,'카드·현금·계좌','<b>세 칸</b>만 넣으면'],
+  [8.1,11.9,'남는 돈과 세금이','<b>바로</b> 계산돼요'],
+  [12.1,15.1,'직원 정산은','<b>이미지 한 장</b>으로'],
+  [15.3,18.0,'세무사에게 보낼','<b>엑셀</b>까지'],
+];
+/* 글자 찍히는 시점 (소리도 같은 공식) */
+const typeDur=N=>cl(N*0.03,0.45,0.8);
+const sub=$('#sub');
+const cueEls=CUES.map(([a,b,l1,l2])=>{
+  const d=document.createElement('div');d.style.display='none';
+  const mk=h=>{const tmp=document.createElement('div');tmp.innerHTML=h;const out=document.createElement('div');out.className='ln';
+    const walk=(node,parent)=>{for(const ch of node.childNodes){if(ch.nodeType===3){for(const c of ch.textContent){const s=document.createElement('span');s.textContent=c;parent.appendChild(s)}}else{const e=document.createElement(ch.tagName);parent.appendChild(e);walk(ch,e)}}};
+    walk(tmp,out);return out};
+  d.appendChild(mk(l1));d.appendChild(mk(l2));sub.appendChild(d);
+  const spans=[...d.querySelectorAll('span')];return {d,spans,a,b}});
+const HOOK_T0=0.35;
+window.CHAR_TIMES=(()=>{const out=[];
+  {const N=hookSpans.length,D=1.1;for(let i=0;i<N;i++)if(hookSpans[i].textContent.trim())out.push(HOOK_T0+D*i/N)}
+  for(const c of cueEls){const N=c.spans.length,D=typeDur(N);c.spans.forEach((s,i)=>{if(s.textContent.trim())out.push(c.a+D*i/N)})}
+  return out})();
+window.HITS=[3.25,8.0,12.0,15.2,18.05]; // 장면 바뀔 때 '톡'
+
+window.seek=function(t){
+  /* 첫 장면 */
+  const hookOut=lin(t,3.0,3.4);
+  $('#hook').style.opacity=1-hookOut;$('#hook').style.transform=`translateY(${-60*eio(hookOut)}px)`;
+  $('#hookEb').style.opacity=lin(t,0.05,0.35);
+  {const N=hookSpans.length,D=1.1;hookSpans.forEach((s,i)=>{s.style.opacity=t>=HOOK_T0+D*i/N?1:0})}
+
+  /* 폰 */
+  const pin=eo(lin(t,3.15,3.75)),pout=eio(lin(t,17.85,18.35));
+  const ph=$('#phone');ph.style.opacity=pin*(1-pout);
+  ph.style.transform=`translateY(${(1-pin)*500+pout*120}px)`;
+  let cur='day_000';
+  if(t<8.0){const k=Math.floor(cl(lin(t,3.9,7.3),0,1)*19+1e-9);cur='day_'+String(k).padStart(3,'0')}
+  else cur='home';
+  // 정산 이미지가 나오는 동안 폰은 뒤로 물러나고, 15.2초부터 엑셀 화면
+  if(t>=15.2)cur='excel_full';
+  for(const n of IMGS){EL[n].style.display=n===cur?'block':'none'}
+  // 홈: 위쪽 남는 돈 쪽으로 살짝 확대
+  const hz=cur==='home'?1+0.06*eio(lin(t,8.3,11.5)):1;
+  EL.home.style.transform=`scale(${hz})`;
+  // 엑셀: 올해 누적 화면을 아래로 쭉 내려 '세무사에게 보낼 엑셀' 카드까지
+  const CS=560/390,CARD_Y=2168.7*CS,TARGET=470;
+  EL.excel_full.style.transform=`translateY(${-(CARD_Y-TARGET)*eio(lin(t,15.45,16.4))}px)`;
+  const settleIn=eo(lin(t,12.0,12.55)),settleOut=eio(lin(t,14.85,15.25));
+  ph.style.filter=`brightness(${1-0.55*settleIn*(1-settleOut)})`;
+  const se=$('#settle');se.style.opacity=settleIn*(1-settleOut);
+  se.style.transform=`translateY(${(1-settleIn)*260-settleOut*80}px) rotate(${-2.5*(1-settleOut)}deg) scale(${0.94+0.06*settleIn})`;
+
+  /* 강조 테두리: 홈의 남는 돈 · 엑셀 카드 */
+  const ring=$('#ring');let ro=0;
+  const sc=560/780; // 캡처 1px(2x) → 화면 px
+  const px=(x,y,w,h)=>{ring.style.left=(240+20+x*sc)+'px';ring.style.top=(268+20+y*sc)+'px';ring.style.width=w*sc+'px';ring.style.height=h*sc+'px'};
+  const dpx=(x,y,w,h)=>{ring.style.left=(240+20+x)+'px';ring.style.top=(268+20+y)+'px';ring.style.width=w+'px';ring.style.height=h+'px'};
+  if(t>=8.9&&t<12.0){const z=1+0.06*eio(lin(t,8.3,11.5));dpx(280-(280-14*CS)*z,(140*CS)*z,(362*CS)*z,(86*CS)*z);ro=lin(t,8.9,9.25)*(1-lin(t,11.7,12.0))}
+  else if(t>=16.4&&t<18.0){dpx(16*CS-6,TARGET-8,358*CS+12,112.5*CS+16);ro=lin(t,16.4,16.7)*(1-lin(t,17.7,18.0))}
+  ring.style.opacity=ro;
+  $('#tag').style.opacity=lin(t,3.9,4.3)*(1-lin(t,17.7,18.0));
+
+  /* 자막 */
+  for(const c of cueEls){
+    const on=t>=c.a&&t<c.b;c.d.style.display=on?'block':'none';
+    if(on){const N=c.spans.length,D=typeDur(N);c.spans.forEach((s,i)=>{s.style.opacity=t>=c.a+D*i/N?1:0})}
+    c.d.style.opacity=1-lin(t,c.b-0.18,c.b);
+  }
+
+  /* 마지막 장면 */
+  const ci=eo(lin(t,18.1,18.7));
+  const cta=$('#cta');cta.style.opacity=ci;cta.style.transform=`translateY(${(1-ci)*80}px)`;
+  $('#mk').style.transform=`scale(${0.85+0.15*eo(lin(t,18.1,18.9))})`;
+  /* 처음 장면으로 이어지게 */
+  $('#fade').style.opacity=lin(t,20.35,20.95);
+};
+seek(0);
+</script></body></html>

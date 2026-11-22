@@ -1,0 +1,12 @@
+const {chromium}=require('playwright');
+(async()=>{const O=process.argv[2];const b=await chromium.launch();
+const pg=await (await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2})).newPage();
+await pg.goto('http://localhost:8765/app/?sample=1');await pg.waitForTimeout(700);
+await pg.evaluate(()=>{const a=window.__app;a.state.sample=false;a.ui.tab='tax';a.ui.taxView='year';a.render(false)});await pg.waitForTimeout(300);
+await pg.evaluate(()=>{document.querySelector('.tabbar').style.display='none'});
+await pg.screenshot({path:O+'/excel_full.png',fullPage:true});
+const r=await pg.evaluate(()=>{const e=document.querySelector('main [data-act=exportTax]').closest('.card').getBoundingClientRect();return {y:e.top+scrollY,h:e.height,H:document.documentElement.scrollHeight}});
+console.log(JSON.stringify(r));
+await pg.evaluate(()=>{const a=window.__app;a.ui.tab='home';a.render(false)});await pg.waitForTimeout(300);
+const h=await pg.evaluate(()=>{const e=document.querySelector('.hero .big').getBoundingClientRect();const g=document.querySelector('.hero h2').getBoundingClientRect();return {y:g.top,b:e.bottom}});
+console.log('home',JSON.stringify(h));await b.close()})();
