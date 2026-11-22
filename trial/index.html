@@ -153,6 +153,7 @@ h1,h2,h3{margin:0}
 .inp::placeholder{color:#B4BCC7;font-weight:500}
 .inp:focus{outline:0;border-color:var(--pri);background:#fff;box-shadow:0 0 0 4px rgba(47,107,255,.12)}
 .inp.txt,textarea.inp,select.inp{text-align:left;font-weight:500}
+select.inp,select.inp:focus{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235F6B7A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:40px;cursor:pointer}
 textarea.inp{min-height:96px;resize:vertical;line-height:1.55}
 input[type=file].inp{font-size:14px;padding:10px}
 button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
@@ -455,7 +456,32 @@ const ym=d=>d.getFullYear()+'-'+pad(d.getMonth()+1);
 const shiftMonth=(k,d)=>{const [y,m]=k.split('-').map(Number);return ym(new Date(y,m-1+d,1))};
 const daysIn=k=>{const [y,m]=k.split('-').map(Number);return new Date(y,m,0).getDate()};
 const mlabel=k=>{const [y,m]=k.split('-');return y+'년 '+Number(m)+'월'};
-const parseMoney=s=>Math.round(Number(String(s).replace(/[^\d]/g,''))||0);
+/* 금액 읽기: '1,200,000원' · '12만' · '1억 2천만' · '12.5만' 모두 알아듣는다. 마이너스는 0원(환불은 그날 매출에서 빼고 넣기) */
+const MU={'억':1e8,'만':1e4,'천':1e3,'백':100};
+function parseMoney(v){
+  let t=String(v==null?'':v).replace(/[\s,원₩]/g,'');
+  if(!t||/^[-−–]/.test(t))return 0;
+  t=t.replace(/[^\d.억만천백]/g,'');
+  if(!/[억만천백]/.test(t)){const x=Number(t.replace(/\.(?=.*\.)/g,''));return isFinite(x)?Math.round(x):0}
+  let total=0,small=0,num=null;
+  for(const m of t.matchAll(/(\d+(?:\.\d+)?)|([억만천백])/g)){
+    if(m[1]!=null){if(num!=null)small+=num;num=Number(m[1]);continue}
+    const u=MU[m[2]];
+    if(u>=1e4){const b=small+(num==null?0:num);total+=(b||1)*u;small=0}else small+=(num==null?1:num)*u;
+    num=null;
+  }
+  if(num!=null)small+=num;
+  return Math.round(total+small);
+}
+/* 칸에서 나갈 때 한 번 알려 줄 말 (없으면 빈 문자열) */
+function moneyWarn(v){
+  const t=String(v==null?'':v).replace(/[\s,원₩]/g,'');if(!t)return '';
+  if(/^[-−–]/.test(t))return '마이너스는 넣을 수 없어서 0원으로 두었어요. 환불·취소는 그날 매출에서 빼고 넣어 주세요.';
+  if(/[^\d.억만천백]/.test(t))return '숫자가 아닌 글자는 빼고 '+wonT(parseMoney(v))+'으로 넣었어요. 맞는지 확인해 주세요.';
+  if(/\./.test(t)&&!/[억만천백]/.test(t))return '금액은 원 단위라서 소수점은 반올림했어요 ('+wonT(parseMoney(v))+').';
+  if(/[억만천백]/.test(t))return wonT(parseMoney(v))+'으로 넣었어요.';
+  return '';
+}
 const parseNum=s=>parseFloat(String(s).replace(/[^\d.]/g,''))||0;
 /* 짧은 금액: 17,380,000 → 1,738만 */
 const man=v=>{v=Math.round(n(v));const a=Math.abs(v);if(a>=100000000)return (Math.round(v/10000000)/10)+'억';if(a>=10000)return fmt(Math.round(v/10000))+'만';return fmt(v)};
@@ -523,11 +549,22 @@ try{localStorage.removeItem('misiryo-gemini-v1')}catch(e){}
 const EMPTY={sales:{},purchases:[],expenses:[],pay:{}};
 const M=k=>state.months[k]||EMPTY;
 function getMonth(k){k=k||ui.month;return state.months[k]||(state.months[k]={sales:{},purchases:[],expenses:[],pay:{}})}
-let saveT;
+let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(flush,200)}
 let storeOK=true,storeWarned=false;
+/* 같은 기기에서 앱을 두 창(탭)으로 열어도 기록이 사라지지 않게:
+   lastRaw = 이 창이 마지막으로 읽거나 쓴 저장 내용. 저장 직전에 다른 창이 그 사이 저장했으면 먼저 합친다. */
+let lastRaw=null,overwrite=false;
+try{lastRaw=localStorage.getItem(KEY)}catch(e){}
+function readStored(raw){try{const o=JSON.parse(raw||'null');return o&&o.v===1?deepMerge(defaults(),o):null}catch(e){return null}}
 function flush(){
-  try{localStorage.setItem(KEY,JSON.stringify(state));storeOK=true}
+  clearTimeout(saveT);saveT=null;
+  try{
+    if(!overwrite){const raw=localStorage.getItem(KEY);
+      if(raw&&raw!==lastRaw){const R=readStored(raw);if(R&&!R.sample&&!state.sample)state=mergeState(state,R).state}}
+    overwrite=false;
+    const st=state.stamp||{},old=Date.now()-90*DAY_MS;for(const u in st)if(u[0]==='d'&&u[1]===':'&&st[u]<old)delete st[u];
+    const out=JSON.stringify(state);localStorage.setItem(KEY,out);lastRaw=out;storeOK=true}
   catch(e){storeOK=false;if(!storeWarned){storeWarned=true;try{toast('저장하지 못했어요. 개인정보 보호 모드이거나 저장 공간이 부족할 수 있어요. 지금 백업해 두세요.')}catch(_){}}}
   askPersist();
 }
@@ -555,12 +592,46 @@ function activeDayCount(){let c=0;for(const k of Object.keys(state.months)){cons
 function backupDue(){if(!hasData())return false;const a=activeDayCount();if(!(a>=5||(state.staff.length>=1&&a>=2)))return false;return daysSince(meta.lastBackup)>=14}
 function installDue(){return IS_IOS&&!isStandalone()&&daysSince(meta.installLater)>=7}
 window.addEventListener('pagehide',flush);
+window.addEventListener('storage',e=>{
+  if(e.storageArea&&e.storageArea!==localStorage)return;
+  if(e.key===LOCKKEY||e.key===null){lock=lockLoad();if(!lock&&ui.locked){ui.locked=false}}
+  if(e.key===METAKEY||e.key===null)meta=metaLoad();
+  if(e.key!==KEY&&e.key!==null)return;
+  const raw=e.key===null?null:e.newValue;
+  if(raw===lastRaw)return;
+  const R=readStored(raw);
+  if(!R){/* 다른 창에서 전부 지웠다 */state=defaults();lastRaw=raw}
+  else if(saveT){/* 이 창에도 아직 저장 안 된 입력이 있으면 합쳐서 저장 */lastRaw=raw;state=mergeState(state,R).state;flush()}
+  else{state=R;lastRaw=raw}
+  ensureLegacyCH();ui.pendingRestore=null;
+  const a=document.activeElement;
+  if(a&&a.matches&&a.matches('input,textarea,select')&&!document.hidden){live()}else render(true);
+});
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){flush();ui.hiddenAt=Date.now();if(lock&&!ui.locked&&n(lock.after)===0)lockNow();return}
+  checkDay();
   if(lock&&!ui.locked&&ui.hiddenAt&&Date.now()-ui.hiddenAt>=n(lock.after)*1000)lockNow();
 });
-window.addEventListener('pageshow',e=>{if(e.persisted&&lock&&!ui.locked)lockNow()});
+window.addEventListener('pageshow',e=>{checkDay();if(e.persisted&&lock&&!ui.locked)lockNow()});
 
+let lastToday='';
+/* 자정·월말을 넘겨 다시 보면 '오늘'과 '이번 달'로 맞춘다. 일부러 다른 날짜를 보고 있었으면 그대로 둔다.
+   입력 중이면 기다렸다가 나중에 (입력하던 칸이 다른 날짜로 들어가지 않게). */
+function checkDay(){
+  const t=todayStr();if(!lastToday){lastToday=t;return}
+  if(t===lastToday)return;
+  const a=document.activeElement;if(a&&a.matches&&a.matches('input,textarea,select'))return;
+  const pt=lastToday;lastToday=t;
+  const onDay=ui.tab==='input'&&ui.inSub==='day'&&!ui.view;
+  if(onDay&&ui.day&&ui.day!==pt)return;/* 일부러 다른 날짜를 보고 있었다 */
+  const wasToday=onDay&&(!ui.day||ui.day===pt);
+  if(ui.month===pt.slice(0,7)&&t.slice(0,7)!==ui.month){ui.month=t.slice(0,7);ui.copyOpen=false;ui.copySel=null}
+  if(ui.day===pt)ui.day=t;
+  if(ui.locked||ui.modal)return;
+  render(true);if(wasToday)toast('날짜가 바뀌어서 오늘('+dayLabel(t)+')로 맞췄어요')
+}
+setInterval(checkDay,30000);
+window.addEventListener('focus',checkDay);
 const ui={locked:false,pinIn:'',lockMsg:'',lockForgot:0,tab:'home',inSub:'day',day:'',moreAll:false,pendingRestore:null,month:ym(new Date()),view:null,open:{},sub:'save',modal:null,confirmDel:null,confirmReset:false};
 
 /* ---------- 일별 입력 ---------- */
@@ -644,9 +715,14 @@ function mergeState(L0,R0){
     // 날짜별
     m.days={};
     for(const ds of new Set([...Object.keys(a.days),...Object.keys(b.days)])){
-      const x=a.days[ds],y=b.days[ds],w=pick('day:'+ds,!!x,!!y,x,y),v=w==='L'?x:y;
+      const x=a.days[ds],y=b.days[ds],w=pick('day:'+ds,!!x,!!y,x,y);let v=w==='L'?x:y;
+      /* 양쪽 다 그날 기록이 있으면 칸(결제수단)마다 더 최근에 고친 쪽을 남긴다 */
+      if(x&&y&&!same(x,y)){const fk=[...new Set([...Object.keys(x),...Object.keys(y)])];
+        if(fk.some(c=>Ls['d:'+ds+':'+c]||Rs['d:'+ds+':'+c])){v={};
+          for(const c of fk){const tl=n(Ls['d:'+ds+':'+c]),tr=n(Rs['d:'+ds+':'+c]),src=tl>tr?x:tr>tl?y:(w==='L'?x:y);if(n(src[c]))v[c]=src[c]}
+          if(!Object.keys(v).length)v=null}}
       if(v)m.days[ds]=v;
-      if(w==='R'&&!same(x,y)){if(!x)sum.newDay++;else if(!y)sum.delDay++;else sum.upDay++}
+      if(!same(x,v)&&(w==='R'||(x&&y))){if(!x)sum.newDay++;else if(!v)sum.delDay++;else sum.upDay++}
     }
     // 월 화면 직접 입력분 + 손님 수
     const ma={man:manualOf(a),custs:a.custs||0},mb={man:manualOf(b),custs:b.custs||0};
@@ -767,9 +843,13 @@ function calcStaff(st,key){
     total:gross-ded,cost:gross,employer,tip:0,tipTax:0,tipHome:0,sales:0,net:0,base:0,incentive:0,
     wh:tax33+itax+ltax};
 }
+/* 직원 근무 기간: from(입사한 달)·to(마지막으로 일한 달). 비어 있으면 제한 없음.
+   이 기간 밖의 달에는 인건비·세금·올해 누적에 넣지 않는다. */
+const staffOn=(st,k)=>(!st.from||k>=st.from)&&(!st.to||k<=st.to);
+const staffIn=k=>state.staff.filter(st=>staffOn(st,k));
 function laborOf(key){
   let pay=0,er=0,tip=0,wh=0;
-  for(const st of state.staff){const r=calcStaff(st,key);pay+=r.cost;er+=r.employer;tip+=r.tip;wh+=r.wh}
+  for(const st of staffIn(key)){const r=calcStaff(st,key);pay+=r.cost;er+=r.employer;tip+=r.tip;wh+=r.wh}
   return {pay,er,tip,wh,total:pay+er};
 }
 
@@ -812,7 +892,7 @@ function target(el){
 function setPath(o,path,v){const p=path.split('.');for(let i=0;i<p.length-1;i++){o=o[p[i]]||(o[p[i]]={})}o[p[p.length-1]]=v}
 function getPath(o,path){return path.split('.').reduce((a,k)=>a==null?undefined:a[k],o)}
 function commit(el){
-  if(el.dataset.scope==='day'){const ds=pickDay();setDayVal(ds,el.dataset.path,parseMoney(el.value));stamp('day:'+ds);save();return}
+  if(el.dataset.scope==='day'){const ds=pickDay();setDayVal(ds,el.dataset.path,parseMoney(el.value));stamp('day:'+ds);stamp('d:'+ds+':'+el.dataset.path);save();return}
   if(el.dataset.scope==='staff'&&/^tiers\./.test(el.dataset.path||'')){const st=state.staff.find(x=>x.id===el.dataset.id);if(st&&!(Array.isArray(st.tiers)&&st.tiers.length))st.tiers=DEFAULT_TIERS.map(x=>({...x}))}
   const t=target(el);if(!t)return;
   const ty=el.dataset.t;let v=el.value;
@@ -1090,7 +1170,7 @@ function vHome(){
   <div class="tiles">
     <div class="tile">${I('trend')}<div class="tl">총매출</div><div class="tv num">${manW(t.sales)}</div><div class="td ${dl==null?'':dl>=0?'up':'dn'}">${dl==null?'전월 기록 없음':(dl>=0?'▲ ':'▼ ')+pc(Math.abs(dl))+' 전월 대비'}</div></div>
     <div class="tile">${I('bag')}<div class="tl">지출</div><div class="tv num">${manW(spend)}</div><div class="td">매입·경비·수수료 ${t.sales?pc(spend/t.sales*100):'-'}</div></div>
-    <div class="tile">${I('users')}<div class="tl">인건비</div><div class="tv num">${manW(t.lab.total)}</div><div class="td">직원 ${state.staff.length}명</div></div>
+    <div class="tile">${I('users')}<div class="tl">인건비</div><div class="tv num">${manW(t.lab.total)}</div><div class="td">직원 ${staffIn(ui.month).length}명</div></div>
     <div class="tile">${I('percent')}<div class="tl">세금 적립</div><div class="tv num">${manW(t.tax)}</div><div class="td">부가세 + 소득세</div></div>
   </div><div class="hfoot">세금은 입력값으로 계산한 추정치예요</div></section>`;
   if(isNow&&!state.sample){const td=dayTotal((M(k).days||{})[todayStr()]);
@@ -1318,11 +1398,12 @@ function staffCard(st){
   const k=ui.month,open=!!ui.open[st.id],r=calcStaff(st,k);
   const kindLabel=st.kind==='designer'?'디자이너':'근로자';
   const ini=esc((String(st.name||'').trim()[0])||'?');
-  let h=`<div class="card"><button class="staffhead" data-act="toggleStaff" data-id="${st.id}" aria-expanded="${open}"><span class="av ${st.kind==='designer'?'':'o'}">${ini}</span><span class="meta"><span class="nm">${esc(st.name||'이름 없음')}</span><span class="d">${kindLabel} · ${st.kind==='designer'?'입금액':'실수령'}</span></span><span class="amt num" data-live="pay:${st.id}:total"></span>${I('chev','chev')}</button>`;
+  let h=`<div class="card"><button class="staffhead" data-act="toggleStaff" data-id="${st.id}" aria-expanded="${open}"><span class="av ${st.kind==='designer'?'':'o'}">${ini}</span><span class="meta"><span class="nm">${esc(st.name||'이름 없음')}</span><span class="d">${kindLabel}${st.to&&st.to===k?` · <b style="color:var(--warn)">${Number(st.to.slice(5))}월 퇴사</b>`:''} · ${st.kind==='designer'?'입금액':'실수령'}</span></span><span class="amt num" data-live="pay:${st.id}:total"></span>${I('chev','chev')}</button>`;
   if(open){
     const inp=getMonth().pay[st.id]||{};
     h+=`<div class="hr"></div><div class="stk">`;
     h+=fld('이름',IN.text('staff','name',st.name,{id:st.id},'예) 김하나'));
+    h+=fld('입사한 달',monthSel(st))+`<p class="note" style="margin:0">이 달 전에는 인건비에 넣지 않아요.${st.to?` ${mlabel(st.to)}에 퇴사 처리했어요.`:''}</p>`;
     if(st.kind==='designer'){
       const mode=st.mode==='tier'?'tier':'rate',adv=advOpen(st);
       const showMore=ui.smore&&st.id in ui.smore?ui.smore[st.id]:CH.some(([c])=>!MAIN_CH.includes(c)&&n(getPath(inp,'sales.'+c)));
@@ -1389,18 +1470,45 @@ function staffCard(st){
       if(st.deduct==='ins')h+=P('사업주 부담 4대보험','employer','mute');
     }
     h+=`<div class="btns" style="margin-top:14px"><button class="btn sm" data-act="settle" data-id="${st.id}">${I('send')}정산내역 보내기</button>${
-      ui.confirmDel===st.id?`<button class="btn sm danger" data-act="delStaff" data-id="${st.id}">정말 삭제</button>`:`<button class="btn sm ghost" data-act="delStaff" data-id="${st.id}">직원 삭제</button>`}</div>`;
+      st.to?`<button class="btn sm ghost" data-act="staffBack" data-id="${st.id}">퇴사 취소</button>`
+      :ui.confirmDel===st.id?`<button class="btn sm danger" data-act="retire" data-id="${st.id}">${mlabel(k)}까지 일한 걸로 퇴사</button>`:`<button class="btn sm ghost" data-act="retire" data-id="${st.id}">퇴사 처리</button>`}</div>`;
+    if(ui.confirmDel===st.id&&!st.to)h+=`<p class="note" style="margin:8px 0 0">퇴사 처리해도 ${mlabel(k)}까지의 급여·인건비 기록은 그대로 남아요. 다음 달부터 목록에서 빠져요.</p>`;
+  }
+  return h+`</div>`;
+}
+/* 입사한 달 고르기 (어느 브라우저에서나 되도록 select 사용) */
+function monthSel(st){
+  const now=todayStr().slice(0,7),set=new Set();
+  for(let i=-36;i<=1;i++)set.add(shiftMonth(now,i));
+  if(st.from)set.add(st.from);
+  const opts=[...set].sort().reverse();
+  return `<select class="inp" data-scope="staff" data-path="from" data-id="${st.id}" data-rr="1" aria-label="입사한 달"><option value="">처음부터 (기간 제한 없음)</option>${opts.map(k=>`<option value="${k}" ${st.from===k?'selected':''}>${mlabel(k)}</option>`).join('')}</select>`;
+}
+/* 이 달에는 일하지 않은 직원 (아직 입사 전이거나 이미 퇴사) */
+function offStaffCard(k){
+  const off=state.staff.filter(st=>!staffOn(st,k));if(!off.length)return '';
+  const open=!!ui.offOpen;
+  let h=`<div class="card"><button class="toggle" data-act="offToggle" aria-expanded="${open}" style="margin:0">${open?'−':'+'} ${mlabel(k)}에 일하지 않은 직원 ${off.length}명 (퇴사·입사 전)</button>`;
+  if(open){
+    h+=off.map(st=>{
+      const why=st.to&&k>st.to?`${mlabel(st.to)} 퇴사`:`${mlabel(st.from)} 입사`;
+      const del=ui.confirmDel==='x:'+st.id;
+      return `<div class="hr"></div><div class="row"><span class="k"><b>${esc(st.name||'이름 없음')}</b> · ${st.kind==='designer'?'디자이너':'근로자'}<br><small class="note">${why}</small></span></div>
+      <div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="staffHere" data-id="${st.id}">${mlabel(k)}에도 일했어요</button>${del
+        ?`<button class="btn sm danger" data-act="staffDel" data-id="${st.id}">정말 완전 삭제</button>`
+        :`<button class="btn sm ghost" data-act="staffDel" data-id="${st.id}">완전 삭제</button>`}</div>${del?`<p class="note" style="margin:8px 0 0">완전 삭제하면 이 직원이 일했던 달의 인건비도 모두 사라져요. 보통은 그대로 두면 돼요.</p>`:''}`}).join('');
   }
   return h+`</div>`;
 }
 function vPay(){
   let h=`${head('급여','직원 정산','직원별로 입력하면 정산과 인건비가 자동 계산돼요.')}
-  <section class="hero"><span class="badge">${mlabel(ui.month)} 인건비 · 직원 ${state.staff.length}명</span><h2>총 인건비</h2><div class="big num" data-live="labor:total"></div>
+  <section class="hero"><span class="badge">${mlabel(ui.month)} 인건비 · 직원 ${staffIn(ui.month).length}명</span><h2>총 인건비</h2><div class="big num" data-live="labor:total"></div>
   <div class="tiles"><div class="tile">${I('wallet')}<div class="tl">직원 지급 합계</div><div class="tv sm num" data-live="labor:pay"></div></div><div class="tile">${I('shield')}<div class="tl">사업주 4대보험</div><div class="tv sm num" data-live="labor:er"></div></div></div>
   <div class="hsub" style="margin-top:12px">원천세 납부 예정 (다음 달 10일까지) · <b data-live="labor:wh" style="color:#fff"></b></div></section>
   <div class="btns" style="margin-top:14px"><button class="btn sm" data-act="addStaff" data-kind="designer">${I('plus')}디자이너</button><button class="btn sm ghost" data-act="addStaff" data-kind="worker">${I('plus')}근로자</button></div>`;
   if(!state.staff.length)h+=`<div class="card empty"><span class="ic" style="margin:0 auto 12px">${I('users')}</span><b style="display:block;font-size:16px;margin-bottom:4px">아직 등록한 직원이 없어요</b><p class="note" style="margin:0">디자이너(인센티브)와 근로자(월급·시급·일당)를 등록하면<br>정산내역을 이미지로 바로 보낼 수 있어요.</p></div>`;
-  h+=state.staff.map(staffCard).join('');
+  h+=staffIn(ui.month).map(staffCard).join('');
+  h+=offStaffCard(ui.month);
   return h+`<p class="note" style="margin:16px 0 0">원천세·4대보험 요율은 설정에서 바꿀 수 있어요. 근로소득세는 간이세액표 금액을 직접 입력해요.</p>`;
 }
 
@@ -1498,8 +1606,8 @@ function vTax(){
 
 /* 지원·절세 */
 function aidCtx(){
-  const k=ui.month,t=calcTax(k),staffN=state.staff.length;
-  const wk=state.staff.filter(s=>s.kind==='worker'&&s.deduct==='ins'&&calcStaff(s,k).pay>0&&calcStaff(s,k).pay<2700000);
+  const k=ui.month,t=calcTax(k),staffN=staffIn(k).length;
+  const wk=staffIn(k).filter(s=>s.kind==='worker'&&s.deduct==='ins'&&calcStaff(s,k).pay>0&&calcStaff(s,k).pay<2700000);
   return {k,t,staffN,wk,years:n(state.settings.years),annual:t.sales*12};
 }
 function vAid(){
@@ -1729,7 +1837,7 @@ async function backupShare(){
 document.addEventListener('input',e=>{
   const el=e.target;if(!el.dataset||!el.dataset.path)return;
   if(el.type==='checkbox'||el.tagName==='SELECT')return;
-  if(el.dataset.t==='money')fmtLive(el);
+  if(el.dataset.t==='money'&&!e.isComposing&&!/[^\d,\s]/.test(el.value))fmtLive(el);
   commit(el);live();
 });
 document.addEventListener('change',e=>{
@@ -1740,7 +1848,7 @@ document.addEventListener('change',e=>{
   if(el.type==='checkbox'||el.tagName==='SELECT'){commit(el);if(el.dataset.rr)render(true);else live()}
 });
 document.addEventListener('focusout',e=>{
-  const el=e.target;if(el.dataset&&el.dataset.t==='money'){let v=parseMoney(el.value);
+  const el=e.target;if(el.dataset&&el.dataset.t==='money'){let v=parseMoney(el.value);const w=moneyWarn(el.value);if(w){commit(el);live();toast(w)}
     /* 월 매출 칸은 '오늘 마감'에 넣은 금액을 포함한 합계라서, 그보다 적게는 둘 수 없다 */
     if(el.dataset.scope==='month'&&/^sales\./.test(el.dataset.path||'')){
       const c=el.dataset.path.slice(6),m=getMonth(),ds=Object.values(m.days||{}).reduce((t,o)=>t+n(o[c]),0);
@@ -1781,10 +1889,10 @@ document.addEventListener('click',e=>{
       else{ui.confirmDel='day:'+d.val;render(true)}break;
     case 'installLater':meta.installLater=new Date().toISOString();metaSave();render(true);break;
     case 'backupShare':backupShare();break;
-    case 'restoreYes':{const pr=ui.pendingRestore;if(pr){state=deepMerge(defaults(),pr.state);ensureLegacyCH();ui.pendingRestore=null;ui.open={};ui.day='';flush();toast('백업으로 되돌렸어요');ui.view=null;ui.tab='home';render(false)}break}
+    case 'restoreYes':{const pr=ui.pendingRestore;if(pr){overwrite=true;state=deepMerge(defaults(),pr.state);ensureLegacyCH();ui.pendingRestore=null;ui.open={};ui.day='';flush();toast('백업으로 되돌렸어요');ui.view=null;ui.tab='home';render(false)}break}
     case 'restoreNo':ui.pendingRestore=null;render(true);break;
     case 'mergeYes':{const pr=ui.pendingRestore;if(!pr||!pr.merge)break;
-      state=deepMerge(defaults(),pr.merge.state);ensureLegacyCH();ui.pendingRestore=null;ui.day='';
+      overwrite=true;state=deepMerge(defaults(),pr.merge.state);ensureLegacyCH();ui.pendingRestore=null;ui.day='';
       meta.lastMerge=new Date().toISOString();metaSave();flush();
       toast(pr.merge.changed?'합쳤어요. 이 기기에서 다시 보내면 양쪽이 똑같아져요':'이미 같은 내용이라 바뀐 게 없어요');render(true);break}
     case 'restoreAll':if(ui.pendingRestore){ui.pendingRestore.full=true;render(true)}break;
@@ -1805,7 +1913,10 @@ document.addEventListener('click',e=>{
     case 'delItem':{const m=getMonth();m[d.list]=m[d.list].filter(i=>i.id!==d.id);stamp((d.list==='purchases'?'pur:':'exp:')+ui.month);save();render(true);break}
     case 'addStaff':{
       const id=uid();
-      state.staff.push(d.kind==='designer'?{id,kind:'designer',name:'',rate:40,base:0,vat:'on',feeDeduct:true,tip:false}:{id,kind:'worker',name:'',type:'monthly',rate:0,deduct:'ins'});
+      const ns=d.kind==='designer'?{id,kind:'designer',name:'',rate:40,base:0,vat:'on',feeDeduct:true,tip:false}:{id,kind:'worker',name:'',type:'monthly',rate:0,deduct:'ins'};
+      /* 이 달보다 앞선 달에 기록이 있으면, 새 직원은 이 달부터 일한 걸로 둔다 (지난 달 인건비가 바뀌지 않게) */
+      if(Object.keys(state.months).some(x=>x<ui.month&&isActive(x)))ns.from=ui.month;
+      state.staff.push(ns);
       ui.open[id]=true;stamp('staff:'+id);save();render(true);addFocus(`[data-id="${id}"][data-path="name"]`);break}
     case 'tierAdd':case 'tierDel':{
       const st=state.staff.find(s=>s.id===d.id);if(!st)break;
@@ -1814,9 +1925,18 @@ document.addEventListener('click',e=>{
       if(d.act==='tierDel'&&t.length>2){t.splice(t.length-2,1)}
       st.tiers=t;stamp('staff:'+st.id);save();render(true);break}
     case 'toggleStaff':ui.open[d.id]=!ui.open[d.id];ui.confirmDel=null;render(true);break;
-    case 'delStaff':
-      if(ui.confirmDel===d.id){state.staff=state.staff.filter(s=>s.id!==d.id);stamp('staff:'+d.id);ui.confirmDel=null;save();render(true)}
-      else{ui.confirmDel=d.id;render(true)}break;
+    case 'retire':{const st=state.staff.find(s=>s.id===d.id);if(!st)break;
+      if(ui.confirmDel===d.id){st.to=ui.month;if(st.from&&st.from>st.to)st.from=st.to;stamp('staff:'+st.id);ui.confirmDel=null;ui.open[st.id]=false;save();toast(`${st.name||'직원'}님을 ${mlabel(ui.month)}까지 일한 걸로 퇴사 처리했어요`);render(true)}
+      else{ui.confirmDel=d.id;render(true)}break}
+    case 'staffBack':{const st=state.staff.find(s=>s.id===d.id);if(!st)break;delete st.to;stamp('staff:'+st.id);save();toast('퇴사를 취소했어요');render(true);break}
+    case 'staffHere':{const st=state.staff.find(s=>s.id===d.id);if(!st)break;const k=ui.month;
+      if(st.from&&k<st.from)st.from=k;
+      if(st.to&&k>st.to){if(k>=todayStr().slice(0,7))delete st.to;else st.to=k}
+      stamp('staff:'+st.id);ui.open[st.id]=true;save();render(true);break}
+    case 'staffDel':
+      if(ui.confirmDel==='x:'+d.id){state.staff=state.staff.filter(s=>s.id!==d.id);for(const m of Object.values(state.months))if(m.pay)delete m.pay[d.id];stamp('staff:'+d.id);ui.confirmDel=null;save();toast('직원을 완전히 지웠어요');render(true)}
+      else{ui.confirmDel='x:'+d.id;render(true)}break;
+    case 'offToggle':ui.offOpen=!ui.offOpen;ui.confirmDel=null;render(true);break;
     case 'settle':ui.modal={type:'settle',id:d.id};render(true);break;
     case 'closeModal':if(b.classList.contains('over')&&e.target!==b)break;ui.modal=null;render(true);break;
     case 'shareImg':{const st=state.staff.find(s=>s.id===d.id);if(st)shareImage(st);break}
@@ -1837,7 +1957,7 @@ document.addEventListener('click',e=>{
     case 'lockWipe':
       if(ui.lockForgot!==2){ui.lockForgot=2;render(true);break}
       try{localStorage.removeItem(KEY)}catch(e){}
-      state=defaults();lock=null;lockSave();ui.locked=false;ui.lockForgot=0;ui.tab='home';ui.view=null;flush();
+      overwrite=true;state=defaults();lock=null;lockSave();ui.locked=false;ui.lockForgot=0;ui.tab='home';ui.view=null;flush();
       render(false);toast('기록을 지우고 잠금을 풀었어요. 백업 파일이 있으면 더보기에서 되돌릴 수 있어요.');break;
     case 'pinSet':pinSet();break;
     case 'pinChange':ui.pinChange=true;render(true);break;
@@ -1851,13 +1971,13 @@ document.addEventListener('click',e=>{
     case 'fbSend':fbSend();break;
     case 'goFb':ui.tab='more';ui.view=null;render(false);setTimeout(()=>{const el=$('#fb');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},30);break;
     case 'sample':if(anyData()){toast('이미 기록이 있어서 예시를 불러오지 않았어요.');break}loadSample();render(false);break;
-    case 'clearSample':state.months={};state.staff=[];state.settings.shop='';state.sample=false;state.stamp={};save();render(false);break;
+    case 'clearSample':overwrite=true;state.months={};state.staff=[];state.settings.shop='';state.sample=false;state.stamp={};save();render(false);break;
     case 'backupCopy':copyText(backupJSON());markBackup();break;
     case 'restore':{
       const box=$('#restoreBox');const r=prepImport(box?box.value:'');
       if(r){ui.pendingRestore=r;render(true)}else toast('백업 내용을 읽을 수 없어요. 전체를 다시 복사해 붙여넣어 주세요.');break}
     case 'reset':
-      if(ui.confirmReset){state=defaults();ui.confirmReset=false;ui.open={};ui.view=null;ui.modal=null;save();toast('모든 데이터를 지웠어요');render(false)}
+      if(ui.confirmReset){overwrite=true;state=defaults();ui.confirmReset=false;ui.open={};ui.view=null;ui.modal=null;save();toast('모든 데이터를 지웠어요');render(false)}
       else{ui.confirmReset=true;render(true)}break;
   }
 });
@@ -1865,10 +1985,11 @@ document.addEventListener('keydown',e=>{
   if(ui.locked&&!ui.lockForgot){if(/^\d$/.test(e.key)){e.preventDefault();pinPress(e.key)}else if(e.key==='Backspace'){e.preventDefault();pinPress('back')}return}
   if(e.key==='Escape'&&ui.modal){ui.modal=null;render(true)}});
 
-window.__app={get lock(){return lock},pinHash,pinPress,lockNow,calcYear,canon,mergeState,prepImport,stamp,setDayVal,delDay,parseBackup,backupJSON,get meta(){return meta},safetyCards,pickDay,todayStr,drawSettlePng:st=>{const c=drawSettle(st);return c?c.toDataURL('image/png'):null},get state(){return state},ui,calcStaff,calcTax,laborOf,salesTotal,incomeTaxAnnual,settleData,render,loadSample,getMonth};
+window.__app={parseMoney,moneyWarn,staffOn,staffIn,checkDay,flush,get lastRaw(){return lastRaw},get lock(){return lock},pinHash,pinPress,lockNow,calcYear,canon,mergeState,prepImport,stamp,setDayVal,delDay,parseBackup,backupJSON,get meta(){return meta},safetyCards,pickDay,todayStr,drawSettlePng:st=>{const c=drawSettle(st);return c?c.toDataURL('image/png'):null},get state(){return state},ui,calcStaff,calcTax,laborOf,salesTotal,incomeTaxAnnual,settleData,render,loadSample,getMonth};
 try{const q=new URLSearchParams(location.search);
   if(q.has('sample')){if(!anyData()){loadSample();ui.tab='home'}history.replaceState(null,'',location.pathname)}}catch(e){}
 ui.locked=!!lock;
+lastToday=todayStr();
 render(false);
 /* 체험판: 오프라인 저장을 쓰지 않는다 (사이트를 지우면 바로 못 쓰게) */
 try{if('serviceWorker' in navigator)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{})}catch(e){}
