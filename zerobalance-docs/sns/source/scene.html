@@ -34,7 +34,8 @@ body{font-family:Pretendard,"Noto Sans CJK KR",sans-serif;color:#fff;-webkit-fon
 #cta .wm{width:520px;margin-bottom:56px}
 #cta .t1{font-size:54px;font-weight:700;color:#C9D6F5;letter-spacing:-1.5px}
 #cta .t2{font-size:96px;font-weight:800;letter-spacing:-3.5px;margin-top:10px;line-height:1.15}
-#cta .btn{margin-top:64px;padding:34px 60px;border-radius:999px;background:#fff;color:#0B1534;font-size:50px;font-weight:800;letter-spacing:-1.5px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+#cta .btn{margin-top:64px;padding:38px 64px;border-radius:44px;display:flex;flex-direction:column;gap:10px;background:#fff;color:#0B1534;font-size:50px;font-weight:800;letter-spacing:-1.5px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+#cta .b1{font-size:60px;letter-spacing:-2px}#cta .b2{font-size:36px;font-weight:700;color:#3C4A66;letter-spacing:-1px}
 #cta .ig{margin-top:34px;font-size:34px;color:#A9B9DD;font-weight:600}
 #fade{position:absolute;inset:0;background:#0A1330;opacity:0;pointer-events:none}
 </style></head><body>
@@ -48,14 +49,14 @@ body{font-family:Pretendard,"Noto Sans CJK KR",sans-serif;color:#fff;-webkit-fon
 <div id="phone"><div id="screen"></div></div>
 <div id="ring"></div>
 <div id="tag">화면 속 숫자는 예시예요</div>
-<div id="settle"><img src="cap/settle.png"></div>
+<div id="settle"><img src="cap/settle_soft.png"></div>
 
 <div class="layer" id="cta">
   <img class="mk" src="cap/zb-mark-glossy.png" id="mk">
   <img class="wm" src="cap/zb-wordmark.png" id="wm">
   <div class="t1">미용실 매출 · 급여 · 세금 마감</div>
   <div class="t2">하루 세 칸이면 끝</div>
-  <div class="btn">프로필 링크에서 무료로 써 보기</div>
+  <div class="btn"><span class="b1">댓글에 ‘마감’ 남기면</span><span class="b2">무료 체험 링크를 DM으로 보내 드려요</span></div>
   <div class="ig">@soowan_jg</div>
 </div>
 
@@ -71,7 +72,7 @@ const eo=x=>1-Math.pow(1-x,3);            // ease out
 const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
 
 /* 화면 이미지 */
-const IMGS=[];for(let i=0;i<20;i++)IMGS.push('day_'+String(i).padStart(3,'0'));IMGS.push('home','excel_full');
+const IMGS=[];for(let i=0;i<20;i++)IMGS.push('day_'+String(i).padStart(3,'0'));IMGS.push('home','excel_soft');
 const scr=$('#screen'),EL={};
 for(const n of IMGS){const im=document.createElement('img');im.src='cap/'+n+'.png';scr.appendChild(im);EL[n]=im}
 
@@ -122,14 +123,14 @@ window.seek=function(t){
   if(t<8.0){const k=Math.floor(cl(lin(t,3.9,7.3),0,1)*19+1e-9);cur='day_'+String(k).padStart(3,'0')}
   else cur='home';
   // 정산 이미지가 나오는 동안 폰은 뒤로 물러나고, 15.2초부터 엑셀 화면
-  if(t>=15.2)cur='excel_full';
+  if(t>=15.2)cur='excel_soft';
   for(const n of IMGS){EL[n].style.display=n===cur?'block':'none'}
   // 홈: 위쪽 남는 돈 쪽으로 살짝 확대
   const hz=cur==='home'?1+0.06*eio(lin(t,8.3,11.5)):1;
   EL.home.style.transform=`scale(${hz})`;
   // 엑셀: 올해 누적 화면을 아래로 쭉 내려 '세무사에게 보낼 엑셀' 카드까지
   const CS=560/390,CARD_Y=2168.7*CS,TARGET=470;
-  EL.excel_full.style.transform=`translateY(${-(CARD_Y-TARGET)*eio(lin(t,15.45,16.4))}px)`;
+  EL.excel_soft.style.transform=`translateY(${-(CARD_Y-TARGET)*eio(lin(t,15.45,16.4))}px)`;
   const settleIn=eo(lin(t,12.0,12.55)),settleOut=eio(lin(t,14.85,15.25));
   ph.style.filter=`brightness(${1-0.55*settleIn*(1-settleOut)})`;
   const se=$('#settle');se.style.opacity=settleIn*(1-settleOut);

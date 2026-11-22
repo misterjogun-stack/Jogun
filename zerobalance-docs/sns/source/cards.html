@@ -33,7 +33,7 @@ p.d{font-size:34px;line-height:1.55;color:#5F6B7A;letter-spacing:-.6px;font-weig
 .list div{display:flex;gap:22px;align-items:center;font-size:38px;font-weight:700;letter-spacing:-1px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:28px;padding:30px 36px}
 .list b{flex:none;width:56px;height:56px;border-radius:50%;background:#2B67F8;display:grid;place-items:center;font-size:30px}
 .cta{position:absolute;left:72px;right:72px;bottom:120px;z-index:2}
-.btn{display:inline-block;padding:32px 56px;border-radius:999px;background:#fff;color:#0B1534;font-size:44px;font-weight:800;letter-spacing:-1.2px}
+.btn{display:inline-block;padding:34px 56px;border-radius:40px;background:#fff;color:#0B1534;font-size:44px;font-weight:800;letter-spacing:-1.2px}
 .small{font-size:26px;color:#8FA3CF;margin-top:30px;line-height:1.5}
 .swipe{position:absolute;left:72px;bottom:84px;font-size:30px;font-weight:700;color:#A9B9DD;z-index:2}
 .settle{position:absolute;width:540px;border-radius:28px;overflow:hidden;box-shadow:0 40px 90px rgba(10,20,50,.28)}
@@ -80,7 +80,7 @@ p.d{font-size:34px;line-height:1.55;color:#5F6B7A;letter-spacing:-.6px;font-weig
 <!-- 4 남는 돈·세금 -->
 <section class="c light" id="c4">
   <div class="pg">4 / 6</div>
-  <div class="txt"><span class="num">02</span><h2><em>남는 돈</em>과 <em>세금</em>이 바로</h2><p class="d" style="margin-top:22px">지출·인건비·수수료를 빼고<br>부가세·소득세로 모아 둘 돈까지 계산해요.</p></div>
+  <div class="txt"><span class="num">02</span><h2><em>남는 돈</em>과 <em>세금</em>이 바로</h2><p class="d" style="margin-top:22px">이번 달 남는 돈과<br>모아 둘 세금을 한눈에.</p></div>
   <div class="phone" style="left:280px;top:620px"><div class="s" style="height:900px"><img src="cap/home.png"></div></div>
   <div class="ex" style="left:400px;top:1250px">화면 속 숫자는 예시예요</div>
 </section>
@@ -88,9 +88,9 @@ p.d{font-size:34px;line-height:1.55;color:#5F6B7A;letter-spacing:-.6px;font-weig
 <!-- 5 직원 정산·엑셀 -->
 <section class="c light" id="c5">
   <div class="pg">5 / 6</div>
-  <div class="txt"><span class="num">03</span><h2>직원 정산과<br><em>세무사 엑셀</em>까지</h2><p class="d" style="margin-top:22px">인센티브·4대보험·3.3%를 계산해 이미지로 보내고,<br>1년 기록은 엑셀 한 파일로 세무사에게.</p></div>
-  <div class="settle" style="left:80px;top:660px;transform:rotate(-3deg)"><img src="cap/settle.png"></div>
-  <div class="xcard" style="left:450px;top:1060px"><span class="ic"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#2B67F8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></span><div><b>세무사에게 보낼 엑셀</b><span>월별 요약 · 직원 급여 · 지출 내역 · 날짜별 매출</span></div></div>
+  <div class="txt"><span class="num">03</span><h2>직원 정산과<br><em>세무사 엑셀</em>까지</h2><p class="d" style="margin-top:22px">직원 정산은 이미지 한 장으로,<br>세무사 자료는 엑셀 한 파일로.</p></div>
+  <div class="settle" style="left:80px;top:660px;transform:rotate(-3deg)"><img src="cap/settle_soft.png"></div>
+  <div class="xcard" style="left:450px;top:1060px"><span class="ic"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#2B67F8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></span><div><b>세무사에게 보낼 엑셀</b><span>버튼 한 번으로</span></div></div>
   <div class="ex" style="left:690px;top:1250px">화면 속 숫자는 예시예요</div>
 </section>
 
@@ -103,7 +103,7 @@ p.d{font-size:34px;line-height:1.55;color:#5F6B7A;letter-spacing:-.6px;font-weig
       <div><b>2</b>비밀번호 잠금으로 직원에게 안 보이게</div>
       <div><b>3</b>백업 파일로 폰을 바꿔도 그대로</div>
     </div></div>
-  <div class="cta"><div class="btn">프로필 링크에서 무료로 써 보기</div>
-    <div class="small">문의·개선 제안은 DM @soowan_jg<br>세금은 입력한 숫자로 계산한 추정치예요. 신고 전에는 세무사와 확인하세요.</div></div>
+  <div class="cta"><div class="btn"><span style="display:block;font-size:54px;letter-spacing:-1.8px">댓글에 ‘마감’ 남기면</span><span style="display:block;font-size:32px;font-weight:700;color:#3C4A66;margin-top:8px">무료 체험 링크를 DM으로 보내 드려요</span></div>
+    <div class="small">문의·개선 제안 DM @soowan_jg<br>세금은 입력한 숫자로 계산한 추정치예요. 신고 전에는 세무사와 확인하세요.</div></div>
 </section>
 </body></html>

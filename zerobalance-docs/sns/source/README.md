@@ -8,3 +8,5 @@
 4. `python3 sound.py` → `ffmpeg -i sfx.wav -af loudnorm=I=-20:TP=-2 sfx_n.wav`
 5. `ffmpeg -framerate 30 -i frames/f%05d.png -i sfx_n.wav -c:v libx264 -crf 17 -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart ../zerobalance-reel.mp4`
 6. 카드뉴스: `node cards.js $PWD ..`
+
+흐림 처리: `settle_soft.png`(정산 계산 줄), `excel_soft.png`(엑셀 카드 말고 전부)는 `cap.js`·`cap2.js`로 찍은 원본을 PIL GaussianBlur로 흐리게 만든 것.
