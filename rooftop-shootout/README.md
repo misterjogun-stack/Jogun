@@ -12,8 +12,9 @@
 ## 모드
 
 - **연습 상대와 한 판**: '동네 형'(성공률 약 60%)과 대결. 어디서나 동작.
-- **친구랑 대결**: 4자리 방 코드로 둘이 실시간 대결. claude.ai 아티팩트로 열었을 때만 동작
-  (페이지의 실시간 room 기능 사용, 두 사람 모두 로그인 필요). 상대가 던진 공은 파란 공으로 내 화면에 보인다.
+- **친구랑 대결**: 4자리 방 코드나 초대 링크(`주소#코드`)로 둘이 실시간 대결. 상대가 던진 공은 파란 공으로 내 화면에 보인다.
+  - Vercel 같은 일반 주소: 두 폰을 WebRTC로 직접 연결(PeerJS, `vendor/peerjs.min.js` 1.5.4). 처음 연결 중개만 PeerJS 공개 서버(0.peerjs.com)를 쓴다.
+  - claude.ai 아티팩트: 페이지의 실시간 room 기능을 쓴다(두 사람 모두 로그인 필요).
 
 ## 파일
 
@@ -25,5 +26,11 @@
 cd rooftop-shootout
 { printf '<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n</head>\n<body>\n'; cat game.html; printf '\n</body>\n</html>\n'; } > index.html
 ```
+
+- `vendor/peerjs.min.js` — 친구 대결용 PeerJS(npm `peerjs@1.5.4` 의 dist 파일)
+
+## Vercel 배포
+
+`rooftop-shootout` 폴더를 그대로 정적 사이트로 올린다(빌드 없음, 프레임워크 없음, Root Directory = `rooftop-shootout`).
 
 그래픽(코트·골대·공)과 효과음은 모두 코드로 그리고 합성한다. 외부 파일은 Google Fonts 두 개(Black Han Sans, IBM Plex Sans KR)뿐.

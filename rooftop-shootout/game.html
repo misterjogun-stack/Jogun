@@ -177,7 +177,7 @@ label.lbl{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.04em}
         <button class="btn primary" type="submit">입장</button>
       </form>
       <p class="status" id="fStatus"><i></i><span id="fStatusTxt">친구를 기다리는 중…</span></p>
-      <p class="note">친구도 이 페이지를 열고 같은 코드를 넣으면 바로 3, 2, 1 시작이에요. 두 사람 모두 claude.ai에 로그인해 있어야 해요.</p>
+      <p class="note" id="friendLead">친구도 이 페이지를 열고 같은 코드를 넣으면 바로 3, 2, 1 시작이에요.</p>
     </div>
   </section>
 
@@ -227,7 +227,7 @@ const cleanNick = s => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f-
 const G = 9.8, BR = 0.12, RIM_R = 0.23, RIM_Y = 3.05, HZ = 4.2;
 const BOARD_Z = HZ + 0.38, BOARD_W = 1.8, BOARD_H = 1.05, BOARD_B = 2.9;
 const CAM_Y = 1.55, CAM_Z = -3.2, Z0 = -0.6, Y0 = 0.75, POLE_Z = HZ + 1.3;
-const ROUND = 30, MOVE_AT = 20, FLIGHT = 1.25, RACK_X = 0.78;
+const ROUND = 30, MOVE_AT = 20, FLIGHT = 1.25, RACK_X = 0.62;
 
 const stage = $('stage'), cv = $('cv'), ctx = cv.getContext('2d');
 let W = 400, H = 760, DPR = 1, F = 700, HOR = 380, bg = null, towerLight = null;
@@ -500,10 +500,10 @@ function stepBall(b, dt) {
   if (!b.scored && !b.missed && py >= RIM_Y && b.y < RIM_Y && b.vy < 0 && Math.hypot(b.x - hx, b.z - HZ) < RIM_R - 0.015) { b.scored = true; onScore(b); }
   if (b.scored && b.y < RIM_Y && b.y > 2.5) { b.vx *= 0.94; b.vz *= 0.94; b.x += (hx - b.x) * 0.04; }
   // a miss is final once the ball is below the net
-  if (!b.scored && !b.missed && b.vy < 0 && b.y < 2.35 && b.t > 0.4) { b.missed = true; onMiss(b); }
+  if (!b.scored && !b.missed && b.vy < 0 && b.y < 2.35 && b.t > 0.4) { b.missed = true; b.missT = b.t; onMiss(b); }
   // floor
   if (b.y < BR) { b.y = BR; if (b.vy < -0.7) onFloor(b, -b.vy); b.vy = -b.vy * 0.55; b.vx *= 0.82; b.vz *= 0.82; }
-  if (b.t > 3.2) b.dead = true;
+  if (b.t > 3.2 || (b.missed && b.t - b.missT > 0.8)) b.dead = true;
 }
 
 /* ---------- events ---------- */
@@ -583,7 +583,7 @@ function drawBall(x, y, z, rot, kind, alpha) {
   ctx.restore();
 }
 function ballKind(b) { return b.owner === 'cpu' || b.owner === 'op' ? 'op' : 'me'; }
-function ballAlpha(b) { const base = b.owner === 'op' || b.owner === 'cpu' ? 0.92 : 1; return base * clamp((3.2 - b.t) / 0.4, 0, 1); }
+function ballAlpha(b) { const base = b.owner === 'op' || b.owner === 'cpu' ? 0.92 : 1; const gone = b.missed ? clamp(1 - (b.t - b.missT - 0.15) / 0.6, 0, 1) : 1; return base * gone * clamp((3.2 - b.t) / 0.4, 0, 1); }
 
 function drawPoleBoard() {
   const hx = S.hx;
@@ -856,6 +856,7 @@ cv.addEventListener('pointercancel', e => { if (S.drag && S.drag.id === e.pointe
 
 $('btnCpu').addEventListener('click', () => { Sound.ensure(); saveNick(); S.vs = 'cpu'; S.op.name = '동네 형'; startCountdown(); });
 $('btnFriend').addEventListener('click', () => { Sound.ensure(); saveNick(); enterFriend(); });
+window.addEventListener('hashchange', () => { const m = /^#([A-Za-z0-9]{4})$/.exec(location.hash || ''); if (room && m && S.mode !== 'play' && S.mode !== 'count') { leaveFriend(); enterFriend(m[1].toUpperCase()); } });
 $('btnBack').addEventListener('click', goTitle);
 $('btnHome').addEventListener('click', goTitle);
 $('btnAgain').addEventListener('click', () => {
@@ -873,65 +874,190 @@ function paintMute() { $('mute').innerHTML = Sound.muted ? ICON_OFF : ICON_ON; $
 $('mute').addEventListener('click', () => { Sound.ensure(); Sound.toggle(); paintMute(); });
 paintMute(); updateBestNote();
 
-/* ---------- friend match over the page's live room ---------- */
+/* ---------- friend match ----------
+   Inside claude.ai the page's live room carries each player's state.
+   Anywhere else (Vercel) two phones connect directly over WebRTC (PeerJS);
+   the adapter below makes both look the same to the game. */
 let room = null, roomTried = false;
-const net = { code: null, myRound: 0, opp: null, oppPeer: null, seen: new Set(), meReady: false, shots: [], shotId: 0 };
+const net = { code: null, myRound: 0, opp: null, oppPeer: null, seen: new Set(), meReady: false, shots: [], shotId: 0, joining: false };
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function newCode() { let s = ''; for (let i = 0; i < 4; i++) s += CODE_CHARS[(Math.random() * CODE_CHARS.length) | 0]; return s; }
 function pres(patch) { if (room) room.presence(patch).catch(() => {}); }
 function num(v) { return typeof v === 'number' && isFinite(v) ? v : 0; }
 
+function claudeTransport(r) {
+  return { kind: 'claude', presence: p => r.presence(p), peers: () => r.peers(), onPeers: (cb, err) => r.onPeers(cb, err),
+    host: async () => 'ok', join: async () => 'ok', leave() {} };
+}
+function peerTransport() {
+  const PFX = 'rooftop-shootout-v1-';
+  const opts = Object.assign({ debug: 0 }, window.__PEER_OPTS || {});
+  let peer = null, conn = null, theirs = null, label = 'a', cbs = [], lastSeen = 0;
+  const mine = {};
+  setInterval(() => {
+    if (conn && conn.open) { try { conn.send({ t: 'k' }); } catch (e) {} }
+    if (theirs && Date.now() - lastSeen > 7000) { theirs = null; try { conn && conn.close(); } catch (e) {} conn = null; fire(); }
+  }, 2000);
+  window.addEventListener('pagehide', () => { if (conn && conn.open) { try { conn.send({ t: 'bye' }); } catch (e) {} } });
+  const fire = () => cbs.slice().forEach(f => { try { f(); } catch (e) {} });
+  const send = () => { if (conn && conn.open) { try { conn.send({ t: 'p', s: mine }); } catch (e) {} } };
+  function wire(c) {
+    conn = c;
+    c.on('open', () => { lastSeen = Date.now(); send(); fire(); });
+    c.on('data', d => {
+      if (conn !== c || !d) return;
+      lastSeen = Date.now();
+      if (d.t === 'p' && d.s && typeof d.s === 'object') { theirs = d.s; fire(); }
+      else if (d.t === 'bye') { theirs = null; try { c.close(); } catch (e) {} conn = null; fire(); }
+    });
+    c.on('close', () => { if (conn === c) { conn = null; theirs = null; fire(); } });
+    c.on('error', () => {});
+  }
+  function destroy() {
+    try { conn && conn.close(); } catch (e) {}
+    try { peer && peer.destroy(); } catch (e) {}
+    peer = null; conn = null; theirs = null;
+  }
+  return {
+    kind: 'peer',
+    presence(p) { for (const k in p) { if (p[k] === null) delete mine[k]; else mine[k] = p[k]; } send(); return Promise.resolve(); },
+    peers() {
+      const list = [{ peer: label, sameTab: true, kind: 'viewer', presence: mine }];
+      if (conn && conn.open && theirs) list.push({ peer: label === 'a' ? 'b' : 'a', sameTab: false, kind: 'viewer', presence: theirs });
+      return list;
+    },
+    onPeers(cb) { cbs.push(cb); return () => { cbs = cbs.filter(f => f !== cb); }; },
+    host(code) {
+      destroy(); label = 'a';
+      return new Promise(res => {
+        let done = false; const fin = v => { if (!done) { done = true; res(v); } };
+        const me = peer = new window.Peer(PFX + code.toLowerCase(), opts);
+        me.on('open', () => fin('ok'));
+        me.on('connection', c => {
+          if (conn && conn.open) { c.on('open', () => { try { c.close(); } catch (e) {} }); return; }
+          wire(c);
+        });
+        me.on('error', e => fin(e && e.type === 'unavailable-id' ? 'taken' : 'fail'));
+        me.on('disconnected', () => { if (peer === me && !me.destroyed) { try { me.reconnect(); } catch (e) {} } });
+        setTimeout(() => fin('fail'), 12000);
+      });
+    },
+    join(code) {
+      destroy(); label = 'b';
+      return new Promise(res => {
+        let done = false; const fin = v => { if (!done) { done = true; res(v); } };
+        const me = peer = new window.Peer(opts);
+        me.on('open', () => {
+          const c = me.connect(PFX + code.toLowerCase(), { reliable: true, serialization: 'json' });
+          wire(c); c.on('open', () => fin('ok'));
+        });
+        me.on('error', e => fin(e && e.type === 'peer-unavailable' ? 'nohost' : 'fail'));
+        setTimeout(() => fin('fail'), 15000);
+      });
+    },
+    leave() { destroy(); fire(); }
+  };
+}
+function loadScript(src) {
+  return new Promise(res => { const s = document.createElement('script'); s.src = src; s.onload = () => res(true); s.onerror = () => res(false); document.head.appendChild(s); });
+}
+
 (async () => {
-  try { if (window.claude && typeof window.claude.use === 'function') room = await window.claude.use('room'); } catch (e) { room = null; }
+  const inClaude = !!(window.claude && typeof window.claude.use === 'function');
+  try {
+    if (inClaude) { const r = await window.claude.use('room'); if (r) room = claudeTransport(r); }
+    else if (window.Peer || await loadScript('vendor/peerjs.min.js')) { if (window.Peer) room = peerTransport(); }
+  } catch (e) { room = null; }
   roomTried = true;
   if (room) {
     room.onPeers(() => { if (S.vs === 'friend') syncFriend(); }, () => { room = null; friendAvail(); });
     pres({ g: 'hoop1', nick: myName(), code: null, ready: false });
+    const lead = $('friendLead');
+    lead.textContent = room.kind === 'peer'
+      ? '친구는 초대 링크를 열거나 같은 주소에서 코드를 넣으면 돼요. 연결되면 바로 3, 2, 1 시작이에요.'
+      : '친구도 이 페이지를 열고 같은 코드를 넣으면 바로 3, 2, 1 시작이에요. 두 사람 모두 claude.ai에 로그인해 있어야 해요.';
+    $('btnCopy').textContent = room.kind === 'peer' ? '초대 링크 보내기' : '코드 복사';
   }
   friendAvail();
+  const m = /^#([A-Za-z0-9]{4})$/.exec(location.hash || '');
+  if (room && m) { enterFriend(m[1].toUpperCase()); }
 })();
 function friendAvail() {
   const n = $('friendNote');
   if (room) { n.hidden = true; $('btnFriend').disabled = false; return; }
   n.hidden = false;
-  n.textContent = roomTried ? '친구 대결은 claude.ai에 로그인한 상태로 이 페이지를 열면 할 수 있어요. 지금은 연습 상대와 해 보세요.' : '친구 대결 연결을 준비하는 중…';
+  n.textContent = !roomTried ? '친구 대결 연결을 준비하는 중…'
+    : (window.claude ? '친구 대결은 claude.ai에 로그인한 상태로 이 페이지를 열면 할 수 있어요. 지금은 연습 상대와 해 보세요.'
+      : '친구 대결 연결을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.');
   $('btnFriend').disabled = true;
 }
 friendAvail();
 
 function renderCode() {
   const box = $('codeBox'); box.textContent = '';
-  for (const ch of net.code) { const s = document.createElement('span'); s.textContent = ch; box.appendChild(s); }
+  for (const ch of net.code || '') { const s = document.createElement('span'); s.textContent = ch; box.appendChild(s); }
 }
 function setStatus(txt, warn) { $('fStatusTxt').textContent = txt; $('fStatus').classList.toggle('warn', !!warn); }
-function enterFriend() {
+function resetNet(code) { net.code = code; net.myRound = 0; net.meReady = true; net.opp = null; net.oppPeer = null; net.seen = new Set(); net.shots = []; }
+function clearHash() { try { if (location.hash) history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
+
+async function enterFriend(joinCode) {
   if (!room) return;
   S.vs = 'friend'; S.mode = 'wait';
-  net.code = newCode(); net.myRound = 0; net.meReady = true; net.opp = null; net.oppPeer = null; net.seen = new Set(); net.shots = [];
-  renderCode(); $('codeLead').textContent = '이 코드를 친구에게 알려 주세요'; $('joinCode').value = '';
-  setStatus('친구를 기다리는 중…');
-  pres({ g: 'hoop1', nick: myName(), code: net.code, ready: true, phase: 'wait', start: 0, score: 0, mult: 1, shots: [] });
+  $('joinCode').value = '';
   show('scrFriend');
+  if (joinCode) { clearHash(); return joinRoom(joinCode); }
+  let code = newCode();
+  resetNet(code); renderCode();
+  $('codeLead').textContent = '이 코드를 친구에게 알려 주세요';
+  pres({ g: 'hoop1', nick: myName(), code, ready: true, phase: 'wait', start: 0, score: 0, mult: 1, shots: [] });
+  if (room.kind !== 'peer') { setStatus('친구를 기다리는 중…'); return; }
+  setStatus('방을 여는 중…');
+  for (let tries = 0; tries < 3; tries++) {
+    const r = await room.host(code);
+    if (net.code !== code) return; // user moved on
+    if (r === 'ok') { setStatus('친구를 기다리는 중…'); return; }
+    if (r !== 'taken') break;
+    code = newCode(); resetNet(code); renderCode(); pres({ code });
+  }
+  setStatus('연결 서버에 닿지 못했어요. 잠시 뒤 다시 열어 주세요.', true);
+}
+async function joinRoom(c) {
+  resetNet(c); renderCode();
+  $('codeLead').textContent = '이 방에 들어가는 중이에요';
+  pres({ g: 'hoop1', nick: myName(), code: c, ready: true, phase: 'wait', start: 0, score: 0, mult: 1, shots: [] });
+  if (room.kind !== 'peer') { setStatus('방장을 찾는 중…'); return; }
+  setStatus('연결하는 중…');
+  const r = await room.join(c);
+  if (net.code !== c) return;
+  if (r === 'ok') { $('codeLead').textContent = '이 방에 들어왔어요'; return; }
+  setStatus(r === 'nohost' ? '그 코드의 방이 없어요. 친구가 방을 열어 뒀는지 확인해 주세요.' : '연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.', true);
 }
 function leaveFriend() {
   if (S.vs !== 'friend') return;
   net.code = null; net.meReady = false; net.opp = null; net.oppPeer = null;
   pres({ code: null, ready: false, phase: 'idle' });
+  if (room && room.kind === 'peer') room.leave();
 }
 $('joinForm').addEventListener('submit', e => {
   e.preventDefault();
   const c = $('joinCode').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
   if (c.length !== 4) { setStatus('코드 4자리를 모두 넣어 주세요', true); return; }
-  net.code = c; net.myRound = 0; net.meReady = true; net.opp = null; net.oppPeer = null; net.seen = new Set();
-  renderCode(); $('codeLead').textContent = '이 방에 들어왔어요';
-  setStatus('방장을 찾는 중…');
-  pres({ code: c, ready: true, phase: 'wait', start: 0, score: 0, mult: 1, shots: [] });
+  if (c === net.code) return;
+  joinRoom(c);
 });
 $('joinCode').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4); });
 $('btnCopy').addEventListener('click', () => {
-  const txt = net.code || '';
-  const done = () => { $('btnCopy').textContent = '복사했어요'; setTimeout(() => { $('btnCopy').textContent = '코드 복사'; }, 1500); };
-  try { navigator.clipboard.writeText(txt).then(done, () => selectCode()); } catch (err) { selectCode(); }
+  const code = net.code || '';
+  const isPeer = room && room.kind === 'peer';
+  const link = location.origin + location.pathname + '#' + code;
+  const txt = isPeer ? link : code;
+  const done = msg => { $('btnCopy').textContent = msg; setTimeout(() => { $('btnCopy').textContent = isPeer ? '초대 링크 보내기' : '코드 복사'; }, 1600); };
+  if (isPeer && navigator.share) {
+    navigator.share({ title: '옥상 슛아웃', text: `옥상 슛아웃 한 판 붙자! 방 코드 ${code}`, url: link }).catch(() => {});
+    return;
+  }
+  try { navigator.clipboard.writeText(txt).then(() => done(isPeer ? '링크를 복사했어요' : '복사했어요'), () => selectCode()); } catch (err) { selectCode(); }
 });
 function selectCode() { try { const r = document.createRange(); r.selectNodeContents($('codeBox')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} $('btnCopy').textContent = '코드를 길게 눌러 복사하세요'; }
 
