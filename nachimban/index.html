@@ -38,11 +38,11 @@
 }
 :root[data-theme="dark"]{--desk:#1C1C1B}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;overflow-x:hidden}
 body{margin:0;background:var(--desk);background-image:var(--noise);color:var(--ink);font:16px/1.6 var(--sans);letter-spacing:-.01em;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 button{font:inherit;color:inherit;cursor:pointer}
 textarea{font:inherit;color:inherit}
-.wrap{max-width:520px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(40px + env(safe-area-inset-bottom,0px));min-height:100dvh;position:relative}
+.wrap{max-width:520px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(40px + env(safe-area-inset-bottom,0px));min-height:100dvh;position:relative;overflow:hidden}
 .topbar{display:flex;justify-content:space-between;align-items:center;min-height:44px;margin-bottom:22px}
 .chip-btn{display:inline-flex;align-items:center;gap:8px;background:var(--paper);background-image:var(--noise);border:0;border-radius:14px;padding:9px 14px;font:17px var(--kr);box-shadow:0 1px 2px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.06)}
 .chip-btn svg{width:18px;height:18px}
@@ -104,12 +104,18 @@ p{margin:0 0 10px}
 .mini i{aspect-ratio:1;border:1.5px solid var(--ink);display:block}
 .mini i.on{background:var(--ink)}
 .mini i.cur{border-width:2.5px;box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--ink)}
-.qtext{font:27px/1.45 var(--kr);word-break:keep-all;margin:4px 0 0;min-height:118px}
+.qtext{font:26px/1.45 var(--kr);word-break:keep-all;margin:4px 0 0}
 .opts{display:flex;flex-direction:column}
 .opt{display:flex;gap:14px;align-items:flex-start;width:100%;text-align:left;background:none;border:0;border-bottom:2px dashed var(--rule);padding:18px 2px;font:21px/1.45 var(--kr);word-break:keep-all}
 .opt:last-child{border-bottom:0}
 .opt:active .box{background:rgba(0,0,0,.05)}
-.qfoot{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.qfoot{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.qhint{font:15px var(--kr);color:var(--muted);margin:14px 0 2px;display:flex;align-items:center;gap:10px}
+.qhint:after{content:"";flex:1;border-top:2px dotted var(--rule)}
+.qnext{margin-top:14px}
+.qnext small{font:15px var(--kr);opacity:.7;margin-left:4px}
+.btn[disabled]{opacity:.3;box-shadow:none;cursor:default}
+.opt{padding:14px 2px;font-size:19.5px}
 .link{background:none;border:0;color:var(--muted);font:15px var(--sans);text-decoration:underline;text-underline-offset:4px;padding:10px 2px}
 
 /* 질문 (쓰기) */
@@ -164,49 +170,50 @@ var AX = [
   {a:'I', b:'W', an:'나', bn:'우리'},
   {a:'D', b:'J', an:'의미', bn:'즐거움'}
 ];
-/* 각 질문: [상황, 첫 번째 축(a)을 고르는 답, 두 번째 축(b)을 고르는 답] */
+/* 각 질문: [상황, [첫 번째 방향(a) 보기 2개], [두 번째 방향(b) 보기 2개]] · 해당하는 걸 모두 체크 */
 var BANK = [
   [ // 자유 F / 안정 S
-    ['월급은 같아요. 한 곳은 출근 시간이 자유롭지만 매달 일이 들쭉날쭉하고, 다른 곳은 매일 같은 시간에 같은 일을 해요.','들쭉날쭉해도 내 시간을 내가 정하는 곳','매일 비슷해도 예측할 수 있는 곳'],
-    ['3년 동안 모은 돈이 통장에 있어요.','6개월 쉬면서 미뤄 둔 하고 싶은 걸 해 본다','손대지 않고 계속 모아 둔다'],
-    ['여행 첫날, 숙소에 도착했는데 짜 둔 계획표가 사라졌어요.','오히려 좋다. 발길 닿는 대로 다닌다','불안하다. 일단 계획부터 다시 짠다'],
-    ['아무 연고 없는 도시에서 1년 살아 볼 기회가 생겼어요.','간다. 이런 기회 또 없다','지금 내 자리를 지킨다'],
-    ['10년 다닌 단골 가게가 문을 닫았어요.','이참에 새로운 곳들을 돌아다녀 본다','비슷한 곳을 찾아 다시 정착한다'],
-    ['"누가 내 하루를 대신 정해 줬으면 좋겠다"는 생각이 들 때가 있나요?','거의 없다. 내가 정하는 게 좋다','가끔 있다. 그게 편할 것 같다'],
-    ['5년 뒤의 내 모습을 떠올려 보면','잘 안 그려져서 오히려 설렌다','어느 정도 그려져서 안심이 된다']
+    ['새 일자리를 고른다면, 끌리는 조건은?', ['출근 시간을 내가 정할 수 있다','매달 새로운 일이 생긴다'], ['월급날과 금액이 늘 정확하다','하는 일이 분명하게 정해져 있다']],
+    ['3년 동안 모은 돈이 통장에 있어요. 하고 싶은 건?', ['6개월 쉬면서 미뤄 둔 걸 해 본다','가 보고 싶던 나라로 길게 떠난다'], ['손대지 않고 계속 모아 둔다','집이나 노후처럼 오래 갈 곳에 넣어 둔다']],
+    ['여행 첫날, 짜 둔 계획표가 사라졌어요. 드는 생각은?', ['오히려 좋다. 발길 닿는 대로 다닌다','현지 사람에게 물어 아무 데나 가 본다'], ['불안하다. 계획부터 다시 짠다','일단 유명한 곳부터 확실하게 간다']],
+    ['아무 연고 없는 도시에서 1년 살아 볼 기회가 생겼어요.', ['간다. 이런 기회 또 없다','1년 뒤 거기 눌러앉아도 괜찮다'], ['지금 내 자리를 지킨다','가더라도 돌아올 자리부터 확실히 해 둔다']],
+    ['10년 다닌 단골 가게가 문을 닫았어요.', ['이참에 새로운 곳들을 돌아다녀 본다','단골 없이 그때그때 고르는 것도 좋다'], ['비슷한 곳을 찾아 다시 정착한다','한동안 허전하고 아쉽다']],
+    ['평소의 나에게 해당하는 건?', ['같은 길로만 다니면 금방 지루해진다','갑자기 떠나는 여행이 설렌다'], ['정해진 루틴이 있어야 하루가 편하다','일정이 자꾸 바뀌면 지친다']],
+    ['5년 뒤의 내 모습을 떠올려 보면', ['잘 안 그려져서 오히려 설렌다','지금과 전혀 다른 일을 하고 있어도 좋다'], ['어느 정도 그려져서 안심이 된다','지금보다 조금 더 단단해져 있으면 좋겠다']]
   ],
   [ // 성취 A / 여유 R
-    ['일요일 저녁 7시. 내일은 다시 일하는 날이에요.','다음 주에 해낼 일을 정리하면 마음이 놓인다','남은 주말을 끝까지 꽉 쥐고 쉰다'],
-    ['열심히 한 일로 크게 칭찬을 받았어요. 제일 먼저 드는 생각은','다음엔 더 잘하고 싶다','이제 좀 쉬어도 되겠다'],
-    ['하루에 2시간이 더 생긴다면','미뤄 둔 공부나 일을 한다','낮잠, 산책, 아무것도 안 하기'],
-    ['친구가 "너 요즘 너무 바쁘다"고 말해요.','솔직히 그런 내가 좋다','맞다. 좀 줄여야겠다'],
-    ['연봉이 30% 오르는 대신 일주일에 6일 일하는 자리를 제안받았어요.','해 본다. 지금이 기회다','거절한다. 지금 내 시간이 더 소중하다'],
-    ['아무것도 안 하고 하루가 끝났을 때','왠지 찜찜하고 아깝다','꽤 괜찮은 하루였다'],
-    ['누군가 나를 보고 해 줬으면 하는 말은','"정말 대단하다"','"참 편안해 보인다"']
+    ['일요일 저녁 7시. 내일은 다시 일하는 날이에요.', ['다음 주에 해낼 일을 정리한다','이번 주 목표를 세우면 오히려 설렌다'], ['남은 주말을 끝까지 꽉 쥐고 쉰다','일 생각은 월요일 아침에 한다']],
+    ['열심히 한 일로 크게 칭찬을 받았어요. 드는 생각은?', ['다음엔 더 잘하고 싶다','다음 목표가 바로 떠오른다'], ['이제 좀 쉬어도 되겠다','오늘은 맛있는 거 먹으며 즐긴다']],
+    ['하루에 2시간이 더 생긴다면 하고 싶은 건?', ['미뤄 둔 공부나 자격증 준비','일을 조금 더 해서 앞서 나가기'], ['낮잠, 아무것도 안 하기','천천히 동네 산책하기']],
+    ['친구가 "너 요즘 너무 바쁘다"고 말해요.', ['솔직히 그런 내가 좋다','바쁜 만큼 뭔가 쌓이고 있다고 느낀다'], ['맞다. 좀 줄여야겠다','언제 제대로 쉬었는지 기억이 안 난다']],
+    ['연봉이 30% 오르는 대신 일주일에 6일 일하는 자리를 제안받았어요.', ['해 본다. 지금이 기회다','몇 년만 바짝 하면 된다고 생각한다'], ['거절한다. 지금 내 시간이 더 소중하다','돈보다 저녁이 있는 삶이 먼저다']],
+    ['아무것도 안 하고 하루가 끝났을 때', ['왠지 찜찜하고 아깝다','내일은 두 배로 해야겠다고 생각한다'], ['꽤 괜찮은 하루였다','이런 날이 가끔 꼭 필요하다']],
+    ['누군가 나를 보고 해 줬으면 하는 말은?', ['"정말 대단하다"','"어떻게 그걸 다 해냈어?"'], ['"참 편안해 보인다"','"너랑 있으면 마음이 놓여"']]
   ],
   [ // 나 I / 우리 W
-    ['정말 기쁜 소식이 생겼어요.','혼자 조용히 몇 번이고 곱씹는다','바로 누군가에게 전화한다'],
-    ['인생이 걸린 중요한 결정을 앞두고 있어요.','결국 내 마음이 가는 대로 정한다','가까운 사람들 생각을 꼭 들어 본다'],
-    ['주말 이틀 중 딱 하루만 쓸 수 있다면','오롯이 나만을 위한 하루','소중한 사람과 함께하는 하루'],
-    ['정말 하고 싶은 일인데 가족이 말려요.','그래도 한다. 내 인생이니까','한 번 더 생각해 본다'],
-    ['생일에 가장 받고 싶은 건','혼자 마음대로 쓸 수 있는 시간과 돈','사람들이 모여서 축하해 주는 자리'],
-    ['많이 지쳤을 때 나를 다시 일으키는 건','혼자 생각을 정리하는 시간','누군가의 "괜찮아" 한마디'],
-    ['내가 잘 살고 있다는 기준은','내가 나에게 만족하는가','내 사람들이 행복한가']
+    ['정말 기쁜 소식이 생겼어요.', ['혼자 조용히 몇 번이고 곱씹는다','나에게 작은 선물을 한다'], ['바로 누군가에게 전화한다','사람들을 불러 같이 축하한다']],
+    ['인생이 걸린 중요한 결정을 앞두고 있어요.', ['결국 내 마음이 가는 대로 정한다','혼자 노트에 적어 보며 정리한다'], ['가까운 사람들 생각을 꼭 들어 본다','내 결정이 가족에게 미칠 영향부터 본다']],
+    ['주말에 딱 하루만 쓸 수 있다면 하고 싶은 건?', ['혼자 카페에서 책이나 영화','혼자 드라이브나 산책'], ['소중한 사람과 맛있는 밥','친구들과 시끌벅적하게 놀기']],
+    ['정말 하고 싶은 일인데 가족이 말려요.', ['그래도 한다. 내 인생이니까','설득보다 결과로 보여 준다'], ['한 번 더 생각해 본다','가족이 이해할 때까지 이야기한다']],
+    ['생일에 받고 싶은 건?', ['혼자 마음대로 쓸 수 있는 하루','내가 직접 고른 갖고 싶던 물건'], ['사람들이 모여 축하해 주는 자리','정성 들여 쓴 손편지']],
+    ['많이 지쳤을 때 나를 다시 일으키는 건?', ['혼자 생각을 정리하는 시간','아무도 없는 곳에서 푹 자기'], ['누군가의 "괜찮아" 한마디','친한 사람과 실컷 수다 떨기']],
+    ['내가 잘 살고 있다는 기준은?', ['내가 나에게 만족하는가','남 눈치 안 보고 내 방식대로 사는가'], ['내 사람들이 행복한가','힘들 때 부를 사람이 있는가']]
   ],
   [ // 의미 D / 즐거움 J
-    ['일을 고를 때 더 중요한 건','이 일이 누군가에게 도움이 되는가','하는 동안 내가 재미있는가'],
-    ['영화를 다 보고 나면','무슨 이야기를 하고 싶었을까 곱씹는다','재밌었으면 그걸로 충분하다'],
-    ['갑자기 보너스 50만 원이 생겼어요.','오래 남을 배움이나 경험에 쓴다','맛있는 거, 갖고 싶던 거에 쓴다'],
-    ['친한 친구와 밤새 이야기할 수 있다면','사는 게 뭔지, 진지한 이야기','웃긴 이야기, 쓸데없는 이야기'],
-    ['내 인생을 한 줄로 남긴다면','"의미 있게 살았다"','"참 재밌게 살았다"'],
-    ['똑같은 하루가 반복돼 지칠 때','내가 왜 이걸 하는지 이유를 다시 찾는다','새로운 재미를 하나 만든다'],
-    ['휴대폰 사진첩에 가장 많은 건','남겨 두고 싶은 장면과 글귀','맛있는 음식과 웃긴 순간']
+    ['일을 고를 때 중요한 건?', ['이 일이 누군가에게 도움이 되는가','오래 해도 부끄럽지 않은 일인가'], ['하는 동안 내가 재미있는가','같이 일하는 분위기가 즐거운가']],
+    ['영화를 다 보고 나면', ['무슨 이야기를 하고 싶었을까 곱씹는다','기억에 남는 대사를 적어 둔다'], ['재밌었으면 그걸로 충분하다','바로 다음 볼 영화를 고른다']],
+    ['갑자기 보너스 50만 원이 생겼어요.', ['오래 남을 배움이나 경험에 쓴다','도움이 필요한 곳에 일부를 보탠다'], ['맛있는 거 먹으러 간다','갖고 싶던 걸 산다']],
+    ['친한 친구와 밤새 이야기할 수 있다면', ['사는 게 뭔지, 진지한 이야기','앞으로 어떻게 살고 싶은지'], ['웃긴 이야기, 쓸데없는 이야기','요즘 빠진 드라마나 게임 이야기']],
+    ['내 인생을 한 줄로 남긴다면, 마음에 드는 문장은?', ['"의미 있게 살았다"','"누군가에게 힘이 되었다"'], ['"참 재밌게 살았다"','"후회 없이 놀았다"']],
+    ['똑같은 하루가 반복돼 지칠 때', ['내가 왜 이걸 하는지 이유를 다시 찾는다','처음 시작했던 마음을 떠올린다'], ['새로운 재미를 하나 만든다','친구를 불러 기분 전환을 한다']],
+    ['휴대폰 사진첩에 많은 건?', ['남겨 두고 싶은 장면과 글귀','일이나 공부를 기록한 사진'], ['맛있는 음식','웃긴 순간과 캡처한 짤']]
   ]
 ];
+var ORDERS = [['a0','b0','a1','b1'],['b0','a0','b1','a1'],['a0','b1','b0','a1'],['b1','a1','a0','b0']];
 var QS = [];
 for (var j=0;j<7;j++) for (var x=0;x<4;x++){
   var b = BANK[x][j];
-  QS.push({id:x+'-'+j, ax:x, q:b[0], a:b[1], b:b[2], swap:((j*3+x)%2===1)});
+  QS.push({id:x+'-'+j, ax:x, q:b[0], opt:{a0:b[1][0], a1:b[1][1], b0:b[2][0], b1:b[2][1]}, order:ORDERS[(j+x)%4]});
 }
 
 var POLE = {
@@ -244,7 +251,7 @@ var ASK = [
 ];
 
 /* ───────── 저장 ───────── */
-var KEY = 'nachimban2_state', HKEY = 'nachimban2_history';
+var KEY = 'nachimban3_state', HKEY = 'nachimban2_history';
 function load(k, d){ try{ var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 function fresh(){ return {step:'intro', qi:0, ans:{}, notes:{}, runId:null}; }
@@ -274,10 +281,17 @@ function toast(msg){ var t = document.getElementById('toast'); t.textContent = m
 function siteUrl(){ return location.origin + location.pathname.replace(/index\.html$/, ''); }
 function opposite(code){ return code.split('').map(function(c,i){ return c === AX[i].a ? AX[i].b : AX[i].a; }).join(''); }
 function score(ans){
+  // 방향마다 체크한 보기 수를 세서 비율을 내고, 같으면 질문별로 어느 쪽을 더 많이 골랐는지로 정해요
   var pct = [], code = '';
   AX.forEach(function(ax, x){
-    var n = 0; for (var j=0;j<7;j++) if (ans[x+'-'+j] === 'a') n++;
-    pct.push(Math.round(n/7*100)); code += n >= 4 ? ax.a : ax.b;
+    var na = 0, nb = 0, wa = 0, wb = 0;
+    for (var j=0;j<7;j++){
+      var sel = ans[x+'-'+j] || [], ca = 0, cb = 0;
+      sel.forEach(function(k){ if (k[0] === 'a') ca++; else cb++; });
+      na += ca; nb += cb; if (ca > cb) wa++; else if (cb > ca) wb++;
+    }
+    pct.push(na + nb ? Math.round(na/(na+nb)*100) : 50);
+    code += na > nb ? ax.a : nb > na ? ax.b : (wa >= wb ? ax.a : ax.b);
   });
   return {code:code, pct:pct};
 }
@@ -301,7 +315,7 @@ function vIntro(){
   var h = top(H.length ? '<button class="chip-btn" data-act="history">지난 기록 '+H.length+'</button>' : '');
   var inner = '<div class="script">find me</div>'
     + '<h1>나를 찾는<br>체크리스트</h1>'
-    + '<p class="lead">질문 28개에 둘 중 하나만 고르세요. 지금의 내가 무엇을 가장 중요하게 여기는지, 16가지 유형 중 하나로 알려 줘요.</p>'
+    + '<p class="lead">질문 28개에 해당하는 걸 모두 체크하세요. 지금의 내가 무엇을 가장 중요하게 여기는지, 16가지 유형 중 하나로 알려 줘요.</p>'
     + '<hr class="dots">'
     + '<ul class="list">'
     + '<li>'+box()+'자유와 안정 중, 나는 어느 쪽일까</li>'
@@ -325,20 +339,19 @@ function vIntro(){
 
 function vQuestion(){
   var q = QS[S.qi];
-  var first = q.swap ? 'b' : 'a', second = q.swap ? 'a' : 'b';
-  var sel = S.ans[q.id];
+  var sel = S.ans[q.id] || [];
   var mini = '';
   for (var i=0;i<QS.length;i++) mini += '<i class="'+(S.ans[QS[i].id] ? 'on' : '')+(i===S.qi ? ' cur' : '')+'"></i>';
   var inner = '<div class="qhead"><span class="qno">Q.'+String(S.qi+1).padStart(2,'0')+'</span><span class="qof">'+(S.qi+1)+' / '+QS.length+'</span></div>'
     + '<div class="mini" aria-hidden="true">'+mini+'</div>'
     + '<hr class="dots">'
     + '<p class="qtext">'+esc(q.q)+'</p>'
-    + '<hr class="dots thin" style="margin:16px 0 4px">'
-    + '<div class="opts" role="group" aria-label="답 고르기">'
-    + '<button class="opt" data-act="pick" data-v="'+first+'" aria-pressed="'+(sel===first)+'">'+box(sel===first)+'<span>'+esc(q[first])+'</span></button>'
-    + '<button class="opt" data-act="pick" data-v="'+second+'" aria-pressed="'+(sel===second)+'">'+box(sel===second)+'<span>'+esc(q[second])+'</span></button>'
+    + '<p class="qhint">해당하는 걸 모두 체크해 주세요</p>'
+    + '<div class="opts" role="group" aria-label="해당하는 걸 모두 고르기">'
+    + q.order.map(function(k){ var on = sel.indexOf(k) >= 0; return '<button class="opt" data-act="toggle" data-v="'+k+'" aria-pressed="'+on+'">'+box(on)+'<span>'+esc(q.opt[k])+'</span></button>'; }).join('')
     + '</div>'
-    + '<div class="qfoot"><button class="link" data-act="prevq"'+(S.qi===0?' style="visibility:hidden"':'')+'>이전 질문</button><span class="small muted">정답은 없어요. 먼저 끌리는 쪽으로</span></div>';
+    + '<button class="btn qnext" data-act="nextq"'+(sel.length ? '' : ' disabled')+'>'+(S.qi < QS.length-1 ? '다음' : '마지막 질문으로')+(sel.length ? ' <small>('+sel.length+'개 체크)</small>' : '')+'</button>'
+    + '<div class="qfoot"><button class="link" data-act="prevq"'+(S.qi===0?' style="visibility:hidden"':'')+'>이전 질문</button><button class="link" data-act="noneq">해당하는 게 없어요</button></div>';
   return top() + '<div class="fade">' + sheet(inner) + '</div>';
 }
 
@@ -445,6 +458,10 @@ function storeSnap(snap){
   if (H.length > 30) H.length = 30;
   save(HKEY, H);
 }
+function nextQ(){
+  if (S.qi < QS.length - 1){ S.qi++; persist(); render(); window.scrollTo(0,0); }
+  else go('ask');
+}
 function showIntro(){ ui.view = 'intro'; ui.snap = null; render(); window.scrollTo(0,0); }
 function snapNow(){ return ui.view === 'snap' && ui.snap ? ui.snap : currentSnap(); }
 
@@ -462,16 +479,22 @@ app.addEventListener('click', function(e){
     case 'restart':
       if (S.step === 'result' || confirm('지금까지 고른 답을 지우고 처음부터 할까요? (지난 기록은 남아 있어요)')){ S = fresh(); S.runId = 'r'+Date.now().toString(36); go('q'); }
       break;
-    case 'pick':
-      if (busy) return; busy = true;
-      var q = QS[S.qi]; S.ans[q.id] = b.dataset.v; persist();
-      app.querySelectorAll('.opt').forEach(function(o){ var on = o === b; o.setAttribute('aria-pressed', on); o.querySelector('.box').classList.toggle('on', on); });
-      setTimeout(function(){
-        busy = false;
-        if (S.qi < QS.length - 1){ S.qi++; persist(); render(); }
-        else go('ask');
-      }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 80 : 380);
+    case 'toggle':
+      var q = QS[S.qi], sel = (S.ans[q.id] || []).slice(), v = b.dataset.v, at = sel.indexOf(v);
+      if (at >= 0) sel.splice(at, 1); else sel.push(v);
+      if (sel.length) S.ans[q.id] = sel; else delete S.ans[q.id];
+      persist();
+      b.setAttribute('aria-pressed', at < 0); b.querySelector('.box').classList.toggle('on', at < 0);
+      var nb = app.querySelector('.qnext');
+      nb.disabled = !sel.length;
+      nb.innerHTML = (S.qi < QS.length-1 ? '다음' : '마지막 질문으로') + (sel.length ? ' <small>('+sel.length+'개 체크)</small>' : '');
+      var mi = app.querySelectorAll('.mini i')[S.qi]; if (mi) mi.classList.toggle('on', !!sel.length);
       break;
+    case 'nextq':
+      if (!(S.ans[QS[S.qi].id] || []).length) return;
+      nextQ(); break;
+    case 'noneq':
+      S.ans[QS[S.qi].id] = []; nextQ(); break;
     case 'prevq': if (S.qi > 0){ S.qi--; persist(); render(); } break;
     case 'backq': S.qi = QS.length - 1; go('q'); break;
     case 'finish':
@@ -511,7 +534,8 @@ app.addEventListener('input', function(e){
 });
 document.addEventListener('keydown', function(e){
   if (ui.view || S.step !== 'q' || e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.key === '1' || e.key === '2'){ var o = app.querySelectorAll('.opt')[+e.key-1]; if (o) o.click(); }
+  if (/^[1-4]$/.test(e.key)){ var o = app.querySelectorAll('.opt')[+e.key-1]; if (o) o.click(); }
+  else if (e.key === 'Enter' && !(e.target && e.target.tagName === 'BUTTON')){ var n = app.querySelector('.qnext'); if (n && !n.disabled) n.click(); }
 });
 
 /* ───────── 내보내기 ───────── */
