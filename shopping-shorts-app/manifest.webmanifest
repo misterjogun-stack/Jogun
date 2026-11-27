@@ -1,0 +1,16 @@
+{
+  "name": "쇼핑쇼츠 따라하기",
+  "short_name": "쇼츠따라하기",
+  "description": "쇼핑쇼츠를 준비부터 30일 기록까지 순서대로 따라 하는 체크리스트 교재",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#d9262c",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

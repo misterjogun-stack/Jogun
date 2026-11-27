@@ -1,0 +1,1184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>쇼핑쇼츠 따라하기</title>
+<meta name="description" content="쇼핑쇼츠를 준비부터 30일 기록까지 순서대로 따라 하는 체크리스트 교재">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#d9262c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="쇼츠따라하기">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: 한 줄로 내려가는 교재. 위에서부터 차례대로. 큰 단계 번호 + 체크박스 + 막히면 펼치는 도움말 */
+:root{
+  --bg:#ffffff;
+  --paper:#f6f4f4;
+  --ink:#1b1718;
+  --muted:#6b6264;
+  --line:#e6dfe0;
+  --red:#d9262c;
+  --red-soft:#fde9e9;
+  --red-ink:#a8151b;
+  --green:#1f8a4c;
+  --green-soft:#e3f4ea;
+  --amber:#a86400;
+  --amber-soft:#fff3dc;
+  --display:"Black Han Sans","Noto Sans KR",system-ui,sans-serif;
+  --body:"Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151213;--paper:#1f1b1c;--ink:#f3eeef;--muted:#a99fa1;--line:#352e30;
+    --red:#ff5a5f;--red-soft:#3a1a1c;--red-ink:#ff8a8e;--green:#4cc982;--green-soft:#173525;
+    --amber:#f0b04a;--amber-soft:#3a2c12;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151213;--paper:#1f1b1c;--ink:#f3eeef;--muted:#a99fa1;--line:#352e30;
+  --red:#ff5a5f;--red-soft:#3a1a1c;--red-ink:#ff8a8e;--green:#4cc982;--green-soft:#173525;
+  --amber:#f0b04a;--amber-soft:#3a2c12;color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.7;word-break:keep-all;overflow-wrap:anywhere}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 80px}
+h1,h2,h3{font-family:var(--display);font-weight:400;line-height:1.25;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:var(--red-ink)}
+:focus-visible{outline:3px solid var(--red);outline-offset:2px;border-radius:6px}
+
+/* 상단 고정 바 */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--bg);border-bottom:1px solid var(--line)}
+.topbar .wrap{padding-block:10px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.prog{flex:1 1 220px;min-width:0}
+.prog-row{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);gap:8px}
+.prog-row b{color:var(--ink)}
+.bar{height:10px;background:var(--paper);border-radius:99px;overflow:hidden;margin-top:4px;border:1px solid var(--line)}
+.bar i{display:block;height:100%;width:0;background:var(--red);border-radius:99px;transition:width .3s}
+.btn{font:inherit;font-weight:700;font-size:15px;border:0;border-radius:12px;padding:10px 16px;cursor:pointer;background:var(--red);color:#fff;white-space:nowrap}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn.small{font-size:14px;padding:7px 12px;border-radius:10px}
+.save{font-size:13px;color:var(--muted);width:100%}
+
+/* 표지 */
+.cover{padding-block:36px 8px}
+.kicker{font-size:14px;font-weight:700;color:var(--red-ink);letter-spacing:.04em}
+.cover h1{font-size:clamp(40px,9vw,68px);margin-top:6px}
+.cover h1 span{color:var(--red)}
+.cover .lead{font-size:18px;margin-top:14px;max-width:38em}
+.goal{margin-top:20px;display:flex;flex-wrap:wrap;gap:10px}
+.goal div{flex:1 1 180px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.goal small{display:block;color:var(--muted);font-size:13px}
+.goal strong{font-size:20px;font-variant-numeric:tabular-nums}
+
+/* 목차 */
+.toc{margin-top:26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.toc a{display:block;text-decoration:none;color:var(--ink);border:1.5px solid var(--line);border-radius:14px;padding:12px 14px}
+.toc a b{display:block;font-family:var(--display);font-weight:400;font-size:20px}
+.toc a span{font-size:14px;color:var(--muted)}
+.toc a:hover{border-color:var(--red)}
+
+/* 파트 */
+.part{margin-top:56px;scroll-margin-top:90px}
+.part-head{border-top:4px solid var(--ink);padding-top:14px}
+.part-head .tag{font-size:14px;font-weight:700;color:var(--red-ink)}
+.part-head h2{font-size:clamp(30px,6vw,42px);margin-top:2px}
+.part-head p{color:var(--muted);margin-top:6px}
+
+/* 단계 */
+.step{margin-top:28px;display:grid;grid-template-columns:56px 1fr;gap:0 16px;scroll-margin-top:90px}
+.num{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-size:26px;background:var(--ink);color:var(--bg);position:relative}
+.step.done .num{background:var(--green)}
+.step.done .num::after{content:"✓";position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--green);color:#fff;font-size:13px;display:grid;place-items:center;border:2px solid var(--bg);font-family:var(--body);font-weight:900}
+.step-body{min-width:0;padding-bottom:22px;border-bottom:1px dashed var(--line)}
+.step h3{font-size:26px;padding-top:10px}
+.why{margin-top:8px;color:var(--muted);font-size:15.5px}
+.why b{color:var(--ink)}
+.howto{margin:14px 0 0;padding-left:1.4em}
+.howto li{margin-top:6px}
+.howto li::marker{font-weight:900;color:var(--red-ink)}
+.checks{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.chk{display:flex;gap:12px;align-items:flex-start;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer}
+.chk input{appearance:none;flex:none;width:24px;height:24px;margin:2px 0 0;border:2px solid var(--muted);border-radius:7px;background:var(--bg);cursor:pointer;display:grid;place-items:center}
+.chk input:checked{background:var(--green);border-color:var(--green)}
+.chk input:checked::after{content:"✓";color:#fff;font-weight:900;font-size:15px;line-height:1}
+.chk:has(input:checked){background:var(--green-soft);border-color:transparent}
+.chk:has(input:checked) span{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--green)}
+.chk span{min-width:0}
+
+.box{margin-top:14px;border-radius:12px;padding:12px 14px;font-size:15.5px}
+.box.tip{background:var(--amber-soft)}
+.box.tip::before{content:"팁";font-weight:900;color:var(--amber);margin-right:8px}
+.box.warn{background:var(--red-soft)}
+.box.warn::before{content:"주의";font-weight:900;color:var(--red-ink);margin-right:8px}
+.box.ex{background:var(--paper);border:1px solid var(--line)}
+.box.ex::before{content:"예시";font-weight:900;color:var(--muted);margin-right:8px}
+details{margin-top:12px;border:1.5px solid var(--line);border-radius:12px}
+summary{cursor:pointer;padding:10px 14px;font-weight:700;font-size:15.5px}
+details > div{padding:0 14px 14px;font-size:15.5px}
+details ul,details ol{margin:6px 0 0;padding-left:1.3em}
+.copyline{display:flex;gap:8px;align-items:stretch;margin-top:10px;flex-wrap:wrap}
+.copyline code{flex:1 1 240px;min-width:0;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-family:var(--body);font-size:15px;white-space:pre-wrap}
+.cost{width:100%;border-collapse:collapse;font-size:15px;margin-top:12px}
+.cost td,.cost th{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+.cost th{font-size:13px;color:var(--muted);font-weight:700}
+.cost td:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto}
+
+.sub{margin-top:40px;font-family:var(--display);font-size:22px;color:var(--red-ink)}
+.reset{margin-top:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px}
+.reset p{flex:1 1 240px}
+
+/* 대본 만들기 도구 */
+.tool{margin-top:16px;border:2px solid var(--ink);border-radius:16px;padding:16px}
+.tool h4{margin:0;font-size:18px}
+.field{margin-top:12px}
+.field label{display:block;font-weight:700;font-size:15px}
+.field small{display:block;color:var(--muted);font-size:13.5px}
+.field input,.field textarea{width:100%;font:inherit;font-size:16px;margin-top:4px;padding:9px 11px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+.field textarea{min-height:52px;resize:vertical}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 12px}
+.out{margin-top:16px;background:var(--paper);border-radius:12px;padding:14px;white-space:pre-wrap;font-size:16px;min-height:60px}
+.meter{margin-top:8px;font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-weight:700;font-size:13px}
+.pill.ok{background:var(--green-soft);color:var(--green)}
+.pill.long{background:var(--red-soft);color:var(--red-ink)}
+
+/* 30일 */
+.days{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}
+.day{font:inherit;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:8px 0;cursor:pointer;text-align:center;font-variant-numeric:tabular-nums}
+.day b{display:block;font-size:20px;line-height:1.2}
+.day small{font-size:12px;color:var(--muted)}
+.day.on{background:var(--green);border-color:var(--green);color:#fff}
+.day.on small{color:#fff}
+.money{margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px}
+.money .big{font-family:var(--display);font-size:30px;font-variant-numeric:tabular-nums}
+.money .bar{height:14px;background:var(--bg)}
+.money .bar i{background:var(--green)}
+.log{width:100%;min-width:640px;border-collapse:collapse;margin-top:14px;font-size:14.5px}
+.log th{font-size:13px;color:var(--muted);text-align:left;padding:6px 4px;border-bottom:2px solid var(--line)}
+.log td{padding:4px;border-bottom:1px solid var(--line)}
+.log td:first-child{font-weight:700;width:44px;font-variant-numeric:tabular-nums}
+.log input{width:100%;font:inherit;font-size:14.5px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums}
+
+.fix{margin-top:14px;display:grid;gap:10px}
+.fix div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:12px;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px}
+.fix b{display:block}
+.fix span{color:var(--muted);font-size:15px}
+@media (max-width:520px){
+  body{font-size:16px}
+  .step{grid-template-columns:44px 1fr;gap:0 12px}
+  .num{width:44px;height:44px;font-size:21px}
+  .step h3{font-size:22px;padding-top:6px}
+  .fix div{grid-template-columns:1fr;gap:2px}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="prog">
+      <div class="prog-row"><span>내 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span>개 완료 · <b id="pPct">0%</b></span></div>
+      <div class="bar"><i id="pBar"></i></div>
+    </div>
+    <button class="btn" id="nextBtn" type="button">다음 할 일 보기 →</button>
+    <div class="save" id="saveState">체크한 내용은 이 기기(이 브라우저)에 자동 저장돼요.</div>
+  </div>
+</div>
+
+<main class="wrap">
+
+<header class="cover">
+  <div class="kicker">『쇼핑쇼츠 끝내기』를 그대로 따라 하는 교재</div>
+  <h1>쇼핑쇼츠<br><span>따라하기</span></h1>
+  <p class="lead">위에서부터 한 칸씩 내려가면서 하면 돼요. 한 가지를 끝내면 네모 칸을 눌러 체크하세요. 체크한 건 자동으로 저장돼요. 어디까지 했는지 모르겠으면 맨 위의 <b>“다음 할 일 보기”</b>를 누르세요.</p>
+  <div class="goal">
+    <div><small>첫 번째 목표</small><strong>쿠팡 판매금액 15만 원</strong></div>
+    <div><small>방법</small><strong>하루 1개 · 30일</strong></div>
+    <div><small>하루에 쓰는 시간</small><strong>처음엔 3시간쯤</strong></div>
+  </div>
+  <nav class="toc" aria-label="목차">
+    <a href="#part0"><b>0. 먼저 읽기</b><span>이 일이 뭔지, 단어 뜻</span></a>
+    <a href="#part1"><b>1. 준비하기</b><span>딱 한 번만 해요 (8단계)</span></a>
+    <a href="#part2"><b>2. 영상 1개 만들기</b><span>매일 반복해요 (16단계)</span></a>
+    <a href="#part3"><b>3. 30일 기록장</b><span>올린 날 체크 · 숫자 적기</span></a>
+    <a href="#part4"><b>4. 막혔을 때</b><span>고치는 법 · 하면 안 되는 것</span></a>
+  </nav>
+</header>
+
+<!-- ============ PART 0 ============ -->
+<section class="part" id="part0">
+  <div class="part-head">
+    <div class="tag">PART 0</div>
+    <h2>먼저 읽기</h2>
+    <p>5분이면 돼요. 이걸 알고 시작하면 덜 헷갈려요.</p>
+  </div>
+
+  <article class="step" data-step>
+    <div class="num">!</div>
+    <div class="step-body">
+      <h3>우리가 하는 일은 이거예요</h3>
+      <ol class="howto">
+        <li>쿠팡에서 파는 물건을 소개하는 <b>짧은 세로 영상(릴스)</b>을 만들어요.</li>
+        <li>영상을 본 사람이 댓글을 달면, 쿠팡 링크가 <b>DM으로 자동으로</b> 가요.</li>
+        <li>그 사람이 링크를 누르고 <b>24시간 안에</b> 쿠팡에서 뭐든 사면, 나한테 수수료가 생겨요. 내가 소개한 물건이 아니어도 돼요.</li>
+        <li>얼굴도, 목소리도, 카메라도 필요 없어요. 영상은 중국 앱(샤오홍슈·틱톡)에서 가져와 잘게 잘라 쓰고, 목소리는 AI(TTS)로 만들어요.</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p0-a"><span>무슨 일인지 이해했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step>
+    <div class="num">!</div>
+    <div class="step-body">
+      <h3>미리 알아둘 세 가지</h3>
+      <ol class="howto">
+        <li><b>처음 1~2주는 조회수가 300쯤에서 멈춰요.</b> 정상이에요. 인스타가 새 계정을 시험하는 기간이에요. 그만두지만 않으면 돼요.</li>
+        <li><b>쿠팡은 판매금액이 15만 원을 넘어야 돈이 보여요.</b> 그 전에는 매출이 찍혀도 정산 화면이 0원이에요. 그리고 돈은 두 달 뒤(1월 실적 → 3월 15일)에 들어와요.</li>
+        <li><b>올린 영상은 절대 지우지 않아요.</b> 조회수가 안 나와도 그냥 두고 다음 걸 올려요.</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p0-b"><span>세 가지를 기억할게요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step>
+    <div class="num">?</div>
+    <div class="step-body">
+      <h3>단어장</h3>
+      <p class="why">교재에 나오는 어려운 말이에요. 모르는 말이 나오면 여기로 돌아오세요.</p>
+      <details>
+        <summary>단어 뜻 펼쳐보기</summary>
+        <div>
+          <ul>
+            <li><b>릴스</b>: 인스타그램의 짧은 세로 영상</li>
+            <li><b>소재</b>: 영상에서 소개할 물건</li>
+            <li><b>소스</b>: 편집에 쓸 영상 조각(재료)</li>
+            <li><b>후킹</b>: 첫 1~3초에 사람이 넘기지 않고 멈추게 만드는 장면이나 말</li>
+            <li><b>CTA</b>: “댓글에 ○○ 남겨주세요”처럼 행동을 하게 만드는 마지막 말</li>
+            <li><b>TTS</b>: 글자를 넣으면 AI가 읽어주는 목소리</li>
+            <li><b>쿠키작업</b>: 내 계정이 어떤 주제인지 인스타에게 알려주려고, 비슷한 영상에 좋아요·댓글·저장을 하는 일</li>
+            <li><b>벤치마킹</b>: 요즘 잘 되는 영상을 보고 따라 할 점을 찾는 것</li>
+            <li><b>도달 콘텐츠</b>: 조회수와 팔로워를 모으는 영상(방법·정보 소개)</li>
+            <li><b>전환 콘텐츠</b>: 링크를 누르게 만드는 영상(물건 하나 소개)</li>
+            <li><b>대가성 문구</b>: “수수료를 받아요”라고 알리는 문장. 안 쓰면 수익을 다 뺏겨요</li>
+            <li><b>클릭률</b>: 본 사람 중에 링크를 누른 비율</li>
+            <li><b>전환율</b>: 링크를 누른 사람 중에 실제로 산 비율</li>
+          </ul>
+        </div>
+      </details>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p0-c"><span>단어장이 어디 있는지 알아요</span></label>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ============ PART 1 ============ -->
+<section class="part" id="part1">
+  <div class="part-head">
+    <div class="tag">PART 1 · 딱 한 번만</div>
+    <h2>준비하기</h2>
+    <p>하루 이틀이면 끝나요. 순서대로 하세요. 앱 메뉴 이름은 업데이트 때문에 조금 다를 수 있어요.</p>
+  </div>
+
+  <article class="step" data-step id="s1-1">
+    <div class="num">1</div>
+    <div class="step-body">
+      <h3>내 주제를 하나 정해요</h3>
+      <p class="why"><b>왜?</b> 인스타는 한 주제만 올리는 계정을 더 많은 사람에게 보여줘요. 이것저것 섞으면 아무한테도 안 보여줘요.</p>
+      <ol class="howto">
+        <li>아래 중에서 <b>내가 매일 하는 일</b>과 가장 가까운 걸 하나 고르세요.<br><b>살림 · 요리 · 육아</b>(가장 추천) / 패션 · 뷰티 · 건강·운동</li>
+        <li>종이나 메모장에 크게 적어두세요. 예: “내 주제 = 살림”</li>
+        <li>앞으로 한참 동안은 이 주제만 올려요.</li>
+      </ol>
+      <div class="box warn">여행, 재테크·자기계발, 의료·보험·코인은 고르지 마세요. 팔 물건이 없거나 법 문제가 생기기 쉬워요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p1-1a"><span>주제 하나를 골랐어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-1b"><span>메모장에 적어뒀어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s1-2">
+    <div class="num">2</div>
+    <div class="step-body">
+      <h3>인스타 본계정을 만들어요</h3>
+      <p class="why"><b>왜?</b> 영상을 올리고 돈을 버는 계정이에요. 처음 만들 때 설정을 해둬야 나중에 고생을 안 해요.</p>
+      <ol class="howto">
+        <li>휴대폰 인스타그램 앱에서 새 계정을 만들어요.</li>
+        <li>이름은 <b>“닉네임 ㅣ 주제 키워드”</b> 모양으로 지어요. 한번 정하면 바꾸지 않아요.</li>
+        <li>설정에서 <b>프로페셔널 계정</b>(크리에이터)으로 바꿔요. 그래야 영상마다 조회수·시청시간을 볼 수 있어요.</li>
+        <li>설정 → 보안에서 <b>2단계 인증</b>을 켜요. 3분이면 돼요.</li>
+        <li>페이스북, 쓰레드와 <b>연결하지 않아요</b>. 이미 연결됐으면 끊어요.</li>
+      </ol>
+      <div class="box ex">홍길동 ㅣ 살림 주방 꿀팁</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p1-2a"><span>새 계정을 만들고 이름을 정했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-2b"><span>프로페셔널 계정으로 바꿨어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-2c"><span>2단계 인증을 켰어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-2d"><span>페이스북·쓰레드 연결을 끊었어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s1-3">
+    <div class="num">3</div>
+    <div class="step-body">
+      <h3>프로필을 꾸며요</h3>
+      <p class="why"><b>왜?</b> 내 프로필에 들어온 사람은 3초 안에 “팔로우할까 말까”를 정해요.</p>
+      <ol class="howto">
+        <li>소개 한 줄에는 <b>나를 소개하지 말고</b>, 이 계정을 보면 <b>뭘 얻는지</b> 써요.</li>
+        <li>하이라이트(동그라미)를 2~3개 만들어요. 아무것도 없으면 버려진 계정처럼 보여요.</li>
+        <li>프로필 링크 칸은 비워두세요. 6단계에서 채워요.</li>
+      </ol>
+      <div class="box ex">✗ “○○맘입니다” ✗ “일상을 기록해요” → ○ “매일 쓰는 살림템, 써보고 좋은 것만 알려드려요”</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p1-3a"><span>소개 한 줄을 썼어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-3b"><span>하이라이트를 2개 이상 만들었어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s1-4">
+    <div class="num">4</div>
+    <div class="step-body">
+      <h3>구경용 계정(눈팅계정)과 기록표를 만들어요</h3>
+      <p class="why"><b>왜?</b> 본계정으로 여기저기 구경하면 인스타가 내 주제를 헷갈려요. 구경은 다른 계정으로 해요.</p>
+      <ol class="howto">
+        <li>인스타 계정을 하나 더 만들어요. 이름은 아무거나 괜찮아요.</li>
+        <li>구글 시트(또는 엑셀)를 열고 맨 윗줄에 이렇게 적어요.<br><b>계정 이름 · 팔로워 수 · 영상 링크 · 올린 날짜 · 댓글 수 · 무슨 물건 · 예전에 돌았던 소재인지</b></li>
+        <li>구경용 계정으로 내 주제와 같은 계정을 팔로우하고, 시트에 한 줄씩 적어요. 목표는 언젠가 1,000개예요. 오늘은 10개만 해도 돼요.</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p1-4a"><span>구경용 계정을 만들었어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-4b"><span>기록표(벤치시트)를 만들었어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-4c"><span>비슷한 계정 10개를 적었어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s1-5">
+    <div class="num">5</div>
+    <div class="step-body">
+      <h3>쿠팡 파트너스에 가입해요</h3>
+      <p class="why"><b>왜?</b> 쿠팡 링크를 만들고 수수료를 받으려면 필요해요.</p>
+      <ol class="howto">
+        <li><a href="https://partners.coupang.com/" target="_blank" rel="noopener">partners.coupang.com</a>에 들어가 쿠팡 아이디로 가입해요.</li>
+        <li><b>내 정보 → 웹사이트 목록</b>에 내 인스타 주소를 넣어요. 유튜브·틱톡·클립·인포크링크 주소도 생기면 모두 넣어요.</li>
+        <li>아래 대가성 문구를 프로필이나 게시물에 넣은 화면을 <b>캡처</b>해서 승인 신청에 첨부해요.</li>
+        <li><b>쿠팡 인플루언서 등록</b>도 신청해두세요. 뽑힐지는 쿠팡이 정하지만, 미리 해두면 손해가 없어요.</li>
+      </ol>
+      <div class="copyline"><code id="disclaimer">이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</code><button class="btn ghost small" type="button" data-copy="disclaimer">복사</button></div>
+      <div class="box warn">승인이 거절되는 이유는 거의 두 가지예요. ① 대가성 문구가 없음 ② 적어 넣은 주소에서 활동이 안 보임. 자세한 방법은 책 부록③을 보세요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p1-5a"><span>쿠팡 파트너스에 가입했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-5b"><span>웹사이트 목록에 내 주소를 넣었어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-5c"><span>대가성 문구 캡처를 첨부해 신청했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-5d"><span>쿠팡 인플루언서 등록을 신청했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s1-6">
+    <div class="num">6</div>
+    <div class="step-body">
+      <h3>인포크링크로 링크 진열대와 자동 DM을 만들어요</h3>
+      <p class="why"><b>왜?</b> 물건마다 링크가 따로 생겨요. 링크를 한곳에 모아두고, 댓글 단 사람에게 DM이 저절로 가게 하려고 써요.</p>
+      <ol class="howto">
+        <li>인포크링크에 가입하고 인스타 계정을 연결해요.</li>
+        <li>내 인포크링크 주소를 인스타 <b>프로필 링크</b> 칸에 넣어요.</li>
+        <li>인포크링크 페이지에 대가성 문구를 넣어요.</li>
+        <li><b>댓글을 달면 DM이 자동으로 가는 기능</b>을 켜요. 키워드는 나중에 영상마다 정해요.</li>
+      </ol>
+      <div class="box tip">세팅 화면 순서는 책 부록② “DM 자동화 세팅 가이드”를 보면서 따라 누르세요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p1-6a"><span>인포크링크에 가입하고 인스타를 연결했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-6b"><span>프로필 링크에 넣었어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-6c"><span>인포크링크 페이지에 대가성 문구를 넣었어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-6d"><span>댓글 → 자동 DM 기능을 켜봤어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s1-7">
+    <div class="num">7</div>
+    <div class="step-body">
+      <h3>프로그램 5개를 준비해요</h3>
+      <p class="why"><b>왜?</b> 영상 찾기, 목소리, 편집, 글자 지우기에 하나씩 써요. 장비는 필요 없어요. 휴대폰과 노트북만 있으면 돼요.</p>
+      <div class="scroll">
+        <table class="cost">
+          <tr><th>프로그램</th><th>무엇에 쓰나</th><th>비용(책 기준)</th></tr>
+          <tr><td><b>샤오홍슈</b> + 다운로더</td><td>영상 재료 찾기·저장. <b>꼭 휴대폰으로 가입</b>(PC로 하면 막힐 수 있어요)</td><td>무료</td></tr>
+          <tr><td><b>일레븐랩스</b></td><td>대본을 AI 목소리로 바꾸기(타입캐스트도 가능)</td><td>약 $22/월</td></tr>
+          <tr><td><b>브루(Vrew)</b></td><td>목소리 속도를 1.1~1.2배로 빠르게</td><td>무료</td></tr>
+          <tr><td><b>캡컷</b> Pro</td><td>편집·자동 자막</td><td>월 23,900원<br>(연간 할인 때 9,900원대)</td></tr>
+          <tr><td><b>Vmake</b></td><td>중국어 자막·워터마크 지우기</td><td>월 14,000원</td></tr>
+        </table>
+      </div>
+      <div class="box tip">가격은 2026년 8월 기준이에요. 가입할 때 한 번 더 확인하세요. 돈이 부담되면 무료 버전으로 시작해도 돼요. 시간이 조금 더 걸릴 뿐이에요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p1-7a"><span>휴대폰으로 샤오홍슈에 가입했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-7b"><span>샤오홍슈 다운로더를 찾아뒀어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-7c"><span>일레븐랩스(또는 타입캐스트)에 가입했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-7d"><span>브루를 설치했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-7e"><span>캡컷을 설치했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-7f"><span>Vmake에 가입했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s1-8">
+    <div class="num">8</div>
+    <div class="step-body">
+      <h3>다른 앱 계정도 만들어요</h3>
+      <p class="why"><b>왜?</b> 같은 영상을 여러 곳에 올리면 낚싯대를 여러 개 던지는 것과 같아요. 만드는 건 한 번, 올리는 곳만 늘어나요.</p>
+      <ol class="howto">
+        <li>유튜브, 틱톡, 네이버 클립 계정을 만들어요. 이름과 주제는 인스타와 똑같이 맞춰요.</li>
+        <li>각 프로필에 인포크링크 주소를 넣어요.</li>
+        <li>만든 주소를 쿠팡 파트너스 웹사이트 목록에도 추가해요(5단계).</li>
+      </ol>
+      <div class="box tip">여기는 DM 자동 발송이 안 돼요. 그래서 이 앱들에 올릴 때는 마지막 말을 “프로필 링크에서 확인하세요”로 바꿔요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p1-8a"><span>유튜브 채널을 만들었어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-8b"><span>틱톡 계정을 만들었어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-8c"><span>네이버 클립을 만들었어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p1-8d"><span>쿠팡 파트너스에 새 주소를 추가했어요</span></label>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ============ PART 2 ============ -->
+<section class="part" id="part2">
+  <div class="part-head">
+    <div class="tag">PART 2 · 매일 반복</div>
+    <h2>영상 1개 만들기</h2>
+    <p>하루에 하나씩 이 순서대로 만들어요. 처음엔 3시간 넘게 걸리지만, 할수록 빨라져요. (소재 2시간 · 대본 1시간 · 편집 30분)</p>
+  </div>
+
+  <div class="reset">
+    <p>새 영상을 시작할 때 아래 버튼을 누르면 PART 2 체크가 모두 지워져요. 3부 30일 기록장의 체크는 그대로 남아요.</p>
+    <button class="btn ghost small" type="button" id="resetBtn">새 영상 시작하기 (체크 지우기)</button>
+    <span id="resetAsk" hidden>정말 지울까요? <button class="btn small" type="button" id="resetYes">네, 지워요</button> <button class="btn ghost small" type="button" id="resetNo">아니요</button></span>
+  </div>
+
+  <h3 class="sub">틈날 때마다: 계정 키우기</h3>
+
+  <article class="step" data-step id="s2-a">
+    <div class="num">A</div>
+    <div class="step-body">
+      <h3>쿠키작업 하루 10번</h3>
+      <p class="why"><b>왜?</b> 인스타에게 “나는 사람이고, 이 주제 계정이에요”라고 알려주는 일이에요. 이걸 안 하면 조회수가 100에서 멈춰요.</p>
+      <ol class="howto">
+        <li><b>본계정</b>으로, <b>휴대폰</b>에서 해요.</li>
+        <li>내 주제와 비슷한 계정을 팔로우해요.</li>
+        <li>그 계정 영상을 <b>끝까지 보고</b>, 좋아요·저장·공유를 하고, <b>정성 있는 댓글</b>을 달아요.</li>
+        <li>탐색 탭에서 내 주제 게시물은 “관심 있음”, 아닌 건 “관심 없음”을 눌러요.</li>
+        <li>여기까지가 1번(1세트)이에요. <b>아침 3번, 점심 3번, 저녁 4번</b>처럼 나눠서 해요.</li>
+      </ol>
+      <div class="box warn">좋아요만 100번 연속으로 누르면 스팸 계정이 돼요. 맞팔·선팔도 하지 마세요. 진짜 사람처럼 천천히 해요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-a1"><span>아침 3세트</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-a2"><span>점심 3세트</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-a3"><span>저녁 4세트</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-b">
+    <div class="num">B</div>
+    <div class="step-body">
+      <h3>구경용 계정으로 기록표 채우기</h3>
+      <p class="why"><b>왜?</b> 많이 봐야 “이건 예전에 돌았던 거네”를 알아볼 수 있어요. 그래야 새 소재를 먼저 잡아요.</p>
+      <ol class="howto">
+        <li>구경용 계정으로 비슷한 계정을 더 찾아 팔로우하고 기록표에 적어요.</li>
+        <li>잘 된 영상은 저장하고 링크를 적어요.</li>
+        <li>예전에 터졌던 영상은 “예전에 돌았던 소재” 칸에 따로 표시해요. 나중에 소재가 없을 때 써요.</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-b1"><span>오늘도 기록표에 새 계정·영상을 적었어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <h3 class="sub">영상 만들기 순서</h3>
+
+  <article class="step" data-step id="s2-1">
+    <div class="num">1</div>
+    <div class="step-body">
+      <h3>소개할 물건(소재)을 찾아요</h3>
+      <p class="why"><b>왜?</b> 영상이 잘 되느냐는 소재가 제일 많이 정해요. 시간을 가장 많이 써도 되는 단계예요.</p>
+      <ol class="howto">
+        <li>기록표에서 <b>팔로워가 적은 계정부터</b> 봐요.</li>
+        <li><b>올린 지 48시간 안</b>인데 <b>댓글이 500개 넘는</b> 영상을 찾아요.</li>
+        <li>그 물건이 <b>예전에 돌았던 소재</b>면 버리고 다시 찾아요. <b>처음 나온 소재</b>면 골라요.</li>
+        <li>못 찾겠으면: 네이버 데이터랩 → 쇼핑인사이트 → 인기검색어, 또는 아이템스카우트 → 인기키워드에서 찾아요.</li>
+        <li>그래도 없으면: 한 달 넘게 안 보인, 예전에 터졌던 소재를 써요.</li>
+      </ol>
+      <details>
+        <summary>좋은 소재인지 확인하는 8가지</summary>
+        <div>
+          <ol>
+            <li>내 주제와 맞나요?</li>
+            <li><b>쓰기 전과 쓴 후가 화면으로 보이나요?</b> (가장 중요해요. 성분이 좋다·오래 쓴다·싸다는 화면에 안 보여요)</li>
+            <li>그 불편이 자주 생기나요?</li>
+            <li>부담 없이 누를 만한 가격인가요?</li>
+            <li>영상 재료를 10개 이상 구할 수 있나요?</li>
+            <li>저작권 거르기(2단계)를 통과하나요?</li>
+            <li>48시간 안 · 댓글 500개 넘는 비슷한 영상이 있나요? (없으면 아직 아무도 안 한 걸 수도 있어요)</li>
+            <li>의료·보험·코인 같은 피해야 할 물건이 아닌가요?</li>
+          </ol>
+        </div>
+      </details>
+      <div class="box tip">고른 영상에서 가져오는 건 <b>물건(소재)</b>이나 <b>말하는 순서(대본 구조)</b> 중 하나만이에요. 둘 다 가져오면 똑같은 영상이 돼요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-1a"><span>48시간 안 · 댓글 500개 이상 영상을 찾았어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-1b"><span>예전에 돈 소재가 아닌지 확인했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-1c"><span>8가지 확인을 통과했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-2">
+    <div class="num">2</div>
+    <div class="step-body">
+      <h3>영상 재료(소스)를 10개 이상 모아요</h3>
+      <p class="why"><b>왜?</b> 한 조각을 1~2초씩만 써요. 20초 영상이면 조각이 20개쯤 필요해요. 재료가 많을수록 편집이 쉽고 다른 영상과 덜 겹쳐요.</p>
+      <ol class="howto">
+        <li>찾은 영상을 구글 제미나이에 넣고 “이 제품 이름이 뭐야?”라고 물어봐요.</li>
+        <li>제품 이름을 파파고 같은 번역기로 <b>중국어</b>로 바꿔요.</li>
+        <li>휴대폰 샤오홍슈(또는 틱톡)에 중국어로 검색해요.</li>
+        <li>검색이 안 되면 제품이 잘 보이는 장면을 캡처해서 샤오홍슈 <b>이미지 검색</b>을 해요.</li>
+        <li>다운로더로 영상을 <b>10개 이상</b> 저장해요.</li>
+      </ol>
+      <details open>
+        <summary>이런 영상은 버려요 (하나라도 걸리면 X)</summary>
+        <div>
+          <ol>
+            <li>올린 계정 위치가 <b>한국이나 서양</b></li>
+            <li><b>서양 사람</b>이 나옴</li>
+            <li>얼굴이 화면 가득 나옴</li>
+            <li>화질이 낮음</li>
+            <li>이미 너무 흔한 물건</li>
+            <li><b>아기</b>가 나옴</li>
+          </ol>
+        </div>
+      </details>
+      <div class="box warn">중국 앱 영상도 남이 만든 거라 저작권 문제가 생길 수 있어요. 책도 “100% 안전하지 않다”고 해요. 그래서 꼭 ① 1~2초씩만 ② 순서를 섞고 ③ 내 목소리·자막을 얹고 ④ 원래 자막·워터마크를 지워요. 네 가지를 다 해야 해요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-2a"><span>제품 이름을 중국어로 바꿔 검색했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-2b"><span>버려야 할 영상은 뺐어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-2c"><span>영상 재료를 10개 이상 저장했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-3">
+    <div class="num">3</div>
+    <div class="step-body">
+      <h3>물건을 9가지 질문으로 살펴봐요</h3>
+      <p class="why"><b>왜?</b> 좋은 대본의 80%는 여기서 나와요. 답을 먼저 적어두면 대본에 쓸 문장이 이미 생겨요. 모은 영상을 보면서 답해요.</p>
+      <ol class="howto">
+        <li><b>이 물건이 해결하는 문제 딱 하나는?</b></li>
+        <li>그걸 <b>숫자·시간·돈</b>으로 말하면? (예: 2주 → 한 달)</li>
+        <li>다른 물건보다 나은 점은?</li>
+        <li>이걸 쓰는 사람은 자기를 어떤 사람이라고 생각할까?</li>
+        <li>이게 없을 때 어떤 기분일까? (예: 청소했는데 또 더러워지는 허무함)</li>
+        <li>누구한테 칭찬받고 싶을까?</li>
+        <li>이걸 추천할 자격 있는 사람은 누구? (예: 시공 기사, 요리사)</li>
+        <li>선물 받으면 좋아할 사람은?</li>
+        <li>이걸 모르면 손해 보는 사람들은?</li>
+      </ol>
+      <div class="box tip">9개 모두 답하되, 대본에는 <b>1~4개만</b> 넣어요. 다 넣으면 설명만 길어져요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-3a"><span>9가지 질문에 답을 적었어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-3b"><span>대본에 넣을 1~4개를 골랐어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-4">
+    <div class="num">4</div>
+    <div class="step-body">
+      <h3>빈칸을 채워 대본을 써요</h3>
+      <p class="why"><b>왜?</b> 대본이 링크를 누르게 만들어요. 아래 칸을 채우면 대본이 자동으로 만들어져요. 길이는 <b>20초</b>예요. 사람들은 평균 11초만 보니까 중요한 말은 앞에 둬요.</p>
+      <ol class="howto">
+        <li>모은 영상 중에 <b>가장 눈길을 끄는 장면</b>을 먼저 골라요. 첫 문장은 그 장면에 맞춰 써요.</li>
+        <li><b>물건은 딱 하나만</b> 소개해요.</li>
+        <li><b>제품 이름은 끝까지 말하지 않아요.</b> “이거”, “이것만”이라고 해요. 궁금한 사람은 댓글을 달게 돼요.</li>
+      </ol>
+
+      <div class="tool" id="scriptTool">
+        <h4>대본 빈칸 채우기</h4>
+        <div class="field"><label for="sc-hook">① 첫 문장 (멈추게 하기)</label><small>예: 여러분 다이소 가면 이건 무조건 사오세요.</small><textarea id="sc-hook" data-sc="hook"></textarea></div>
+        <div class="field"><label for="sc-sit">② 언제 생기는 일인지 (상황)</label><small>예: 화장실 줄눈 청소하는데,</small><textarea id="sc-sit" data-sc="sit"></textarea></div>
+        <div class="field"><label for="sc-belief">③ 다들 그렇게 알고 있는 것 (“나도 그래!” 하게)</label><small>예: 락스 뿌려서 하얘지면 끝난 줄 알았거든요?</small><textarea id="sc-belief" data-sc="belief"></textarea></div>
+        <div class="field"><label for="sc-twist">④ 사실은 아니었다 (반전)</label><small>예: 근데 그건 색만 빠진 거지 곰팡이 뿌리는 그대로 살아 있대요?</small><textarea id="sc-twist" data-sc="twist"></textarea></div>
+        <div class="field"><label for="sc-feel">⑤ 감정 한 줄 (없어도 돼요)</label><small>예: 그걸 왜 이제 알았나 싶더라고요.</small><textarea id="sc-feel" data-sc="feel"></textarea></div>
+        <div class="field"><label for="sc-fix">⑥ 해결 방법 (제품 이름 말하지 않기)</label><small>예: 이것만 뿌리고 푹 불렸다가 닦아냈더니,</small><textarea id="sc-fix" data-sc="fix"></textarea></div>
+        <div class="field"><label for="sc-result">⑦ 결과를 숫자로 (전 → 후)</label><small>예: 2주면 다시 까매지던 게 한 달째 그대로예요.</small><textarea id="sc-result" data-sc="result"></textarea></div>
+        <div class="two">
+          <div class="field"><label for="sc-key">⑧ 댓글 키워드</label><small>짧고 쉬운 말. 예: 나도</small><input id="sc-key" data-sc="key"></div>
+          <div class="field"><label for="sc-gift">⑨ 링크와 같이 줄 정보</label><small>예: 청소꿀팁</small><input id="sc-gift" data-sc="gift"></div>
+        </div>
+        <div class="out" id="scOut" aria-live="polite"></div>
+        <div class="meter"><span id="scLen"></span><button class="btn ghost small" type="button" data-copy="scOut">대본 복사</button></div>
+      </div>
+
+      <div class="box warn">③④⑦의 <b>사실과 숫자는 진짜</b>여야 해요. 제품 상세페이지나 실제 후기에서 확인한 것만 써요. 하지 않은 말을 전문가가 한 것처럼 지어내거나, 효과를 부풀리면 허위광고가 될 수 있어요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-4a"><span>눈길 끄는 장면을 먼저 골랐어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-4b"><span>빈칸을 채워 대본을 만들었어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-5">
+    <div class="num">5</div>
+    <div class="step-body">
+      <h3>대본을 7가지로 검사해요</h3>
+      <p class="why"><b>왜?</b> 목소리를 만든 다음에 고치면 처음부터 다시 만들어야 해요. 지금 고쳐요.</p>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-5a"><span>첫 문장이 3초 안에 멈추게 해요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-5b"><span>눈길 끄는 장면이 준비돼 있어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-5c"><span>물건이 딱 하나예요 (자주 틀려요!)</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-5d"><span>화면을 눈길 끄는 장면으로 채울 수 있어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-5e"><span>20초 안에 끝나요 (자주 틀려요!)</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-5f"><span>마지막 말이 댓글을 달게 해요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-5g"><span>캡션·고정댓글에 넣을 말도 준비했어요 (14단계에서 만들어요)</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-6">
+    <div class="num">6</div>
+    <div class="step-body">
+      <h3>AI 목소리를 만들어요 (TTS)</h3>
+      <ol class="howto">
+        <li>일레븐랩스에 대본을 붙여 넣어요.</li>
+        <li><b>또렷한 목소리</b>를 골라요. 졸린 목소리는 안 돼요. 한번 고르면 계속 같은 목소리를 써요.</li>
+        <li>쉼표, 마침표, 느낌표를 넣어서 숨 쉬는 곳을 만들어요.</li>
+        <li>2~3번 만들어보고 가장 자연스러운 걸 저장해요.</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-6a"><span>목소리 파일을 저장했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-7">
+    <div class="num">7</div>
+    <div class="step-body">
+      <h3>브루로 목소리를 조금 빠르게 해요</h3>
+      <p class="why"><b>왜?</b> AI 목소리는 느려서 20초에 다 안 들어가요. 캡컷에서 빠르게 하면 소리가 깨져요.</p>
+      <ol class="howto">
+        <li>브루에 목소리 파일을 넣어요.</li>
+        <li>속도를 <b>1.1배 ~ 1.2배</b>로 바꿔요. 들어보고 자연스러운 쪽으로 골라요.</li>
+        <li>바뀐 파일을 저장해요.</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-7a"><span>1.1~1.2배 빠른 목소리 파일을 저장했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-8">
+    <div class="num">8</div>
+    <div class="step-body">
+      <h3>캡컷 ① 조용한 부분을 잘라내요</h3>
+      <p class="why"><b>왜?</b> 이걸 먼저 해야 영상 길이가 정해져요. 조용한 부분이 있으면 사람들이 넘겨요.</p>
+      <ol class="howto">
+        <li>캡컷에서 새 프로젝트를 만들고 <b>9:16 세로</b>로 맞춰요.</li>
+        <li>목소리 파일을 타임라인에 올려요.</li>
+        <li>소리 물결(파형)이 납작한 곳이 조용한 부분이에요. 잘라내고 붙여요.</li>
+        <li>다 자르면 한 덩어리로 묶어요 (Ctrl+G).</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-8a"><span>조용한 부분을 모두 잘랐어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-9">
+    <div class="num">9</div>
+    <div class="step-body">
+      <h3>캡컷 ② 자막을 넣어요</h3>
+      <p class="why"><b>왜?</b> 소리를 끄고 보는 사람이 많아요. 자막이 없으면 아무 말도 안 한 거예요.</p>
+      <ol class="howto">
+        <li><b>자동 캡션</b>을 눌러 자막을 만들어요.</li>
+        <li>틀린 글자를 고쳐요.</li>
+        <li>한 줄은 <b>10~12글자</b>로, <b>뜻이 끊기지 않게</b> 나눠요.</li>
+        <li>자막 위치는 <b>가운데나 위쪽</b>. 아래쪽은 가려져요.</li>
+        <li>글자에 <b>그림자</b>를 넣어요. 화려한 꾸밈은 하지 않아요.</li>
+      </ol>
+      <div class="box ex">✗ “끊을 때 / 는 문장의 의미단 / 위로” → ○ “끊을 때는 / 문장의 의미 단위로”</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-9a"><span>자동 자막을 넣고 틀린 글자를 고쳤어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-9b"><span>10~12글자, 뜻 단위로 나눴어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-9c"><span>가운데·위쪽에 그림자 넣어 배치했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-10">
+    <div class="num">10</div>
+    <div class="step-body">
+      <h3>캡컷 ③ 영상 조각을 붙여요</h3>
+      <ol class="howto">
+        <li>모은 영상 재료를 전부 캡컷에 불러와요.</li>
+        <li><b>가장 눈길 끄는 장면을 맨 앞</b>에 놓아요. 자막과 딱 안 맞아도 괜찮아요. 멈추게 하는 게 먼저예요.</li>
+        <li>조각 하나는 <b>1~2초</b>만 써요. 20초면 조각 20개쯤이에요.</li>
+        <li>자막 한 줄(최대 두 줄)이 바뀔 때 화면도 바뀌게 타이밍을 맞춰요. 끝에 짧은 자투리가 붙지 않게 해요.</li>
+        <li>캡컷의 <b>안전 영역</b> 표시를 켜고, 자막과 중요한 장면이 그 안에 들어가게 해요. 그래야 다른 앱에 올려도 안 잘려요.</li>
+      </ol>
+      <div class="box tip">이 단계에서는 중국어 자막·워터마크가 보여도 무시해요. 다음 단계에서 지워요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-10a"><span>눈길 끄는 장면을 맨 앞에 놓았어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-10b"><span>조각마다 1~2초로 맞췄어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-10c"><span>자막과 화면 바뀌는 타이밍을 맞췄어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-10d"><span>안전 영역 안에 다 들어가요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-11">
+    <div class="num">11</div>
+    <div class="step-body">
+      <h3>Vmake로 중국어 글자와 워터마크를 지워요</h3>
+      <p class="why"><b>왜?</b> 중국어가 보이면 “퍼온 영상”인 게 티가 나요. 워터마크가 있으면 인스타가 잘 안 보여줘요.</p>
+      <ol class="howto">
+        <li>캡컷에서 <b>자막과 목소리를 꺼요</b>(숨김). 영상만 켜둬요.</li>
+        <li><b>영상만</b> 내보내기 해요. (자막을 켜두면 내 자막까지 지워져요!)</li>
+        <li>Vmake에 넣어서 중국어 자막·워터마크를 지워요.</li>
+        <li>깨끗해진 영상을 다시 캡컷에 불러와요. 예전 조각들은 다른 줄로 옮겨서 꺼둬요(나중에 고칠 때 써요).</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-11a"><span>영상만 내보냈어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-11b"><span>Vmake로 지우고 다시 캡컷에 넣었어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-12">
+    <div class="num">12</div>
+    <div class="step-body">
+      <h3>마지막으로 내보내요</h3>
+      <ol class="howto">
+        <li>자막과 목소리를 다시 켜요.</li>
+        <li>원하는 장면을 골라 <b>커버</b>(썸네일)로 지정해요. 영상 맨 앞의 ‘커버’를 누르면 돼요.</li>
+        <li>처음부터 끝까지 한 번 보고, 소리와 자막이 맞는지 확인해요.</li>
+        <li>내보내기 해요.</li>
+        <li>다른 앱용으로 <b>마지막 CTA 문장을 잘라낸 버전</b>도 하나 더 내보내요.</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-12a"><span>커버를 정했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-12b"><span>인스타용 영상을 내보냈어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-12c"><span>CTA를 자른 다른 앱용 영상도 내보냈어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-13">
+    <div class="num">13</div>
+    <div class="step-body">
+      <h3>링크를 먼저 준비해요</h3>
+      <p class="why"><b>왜?</b> 영상을 먼저 올리고 링크를 나중에 하면, 사람이 제일 많이 보는 처음 몇 시간 동안 링크가 안 가요.</p>
+      <ol class="howto">
+        <li>쿠팡 파트너스 → <b>링크 생성 → 상품 링크</b>에서 물건을 검색해요.</li>
+        <li>상품 사진에 마우스를 올리고 <b>링크 생성</b>을 눌러 복사해요.</li>
+        <li>인포크링크에 링크를 올려요. <b>사진과 이름을 영상 속 물건과 똑같이</b> 맞춰요. 번호를 붙여두면 나중에 찾기 쉬워요.</li>
+        <li>자동 DM에 이 영상의 <b>댓글 키워드</b>와 보낼 말을 넣어요(아래 14단계 DM 문장을 복사해 써요).</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-13a"><span>쿠팡 링크를 만들었어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-13b"><span>인포크링크에 진열했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-13c"><span>자동 DM 키워드를 설정했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-14">
+    <div class="num">14</div>
+    <div class="step-body">
+      <h3>캡션 · 고정댓글 · DM 문장을 준비해요</h3>
+      <p class="why"><b>왜?</b> 영상만 보는 사람, 캡션을 펼치는 사람, 댓글부터 보는 사람이 다 달라요. 세 곳 모두에 “댓글 달아요”를 넣어요. 캡션에서는 <b>제품 이름을 알려주지 않아요.</b></p>
+      <div class="tool">
+        <h4>캡션 만들기</h4>
+        <p class="why">4단계에서 쓴 키워드와 정보가 자동으로 들어가요.</p>
+        <div class="field"><label for="cp-first">캡션 첫 줄 (공감 한 줄)</label><small>예: 락스로 줄눈 청소하고 끝났다고 생각했다면 꼭 보세요</small><input id="cp-first" data-sc="cfirst"></div>
+        <div class="field"><label for="cp-tags">해시태그 (내 주제 관련 몇 개)</label><small>예: #살림 #살림꿀팁 #청소꿀팁 #욕실청소</small><input id="cp-tags" data-sc="tags"></div>
+        <div class="field"><label>캡션</label></div>
+        <div class="copyline"><code id="cpOut"></code><button class="btn ghost small" type="button" data-copy="cpOut">복사</button></div>
+        <div class="field"><label>고정댓글</label></div>
+        <div class="copyline"><code id="pinOut"></code><button class="btn ghost small" type="button" data-copy="pinOut">복사</button></div>
+        <div class="field"><label>자동 DM 문장 (링크 자리에 쿠팡 링크를 넣어요)</label></div>
+        <div class="copyline"><code id="dmOut"></code><button class="btn ghost small" type="button" data-copy="dmOut">복사</button></div>
+      </div>
+      <div class="box warn"><b>대가성 문구는 세 곳에 꼭!</b> ① 캡션이나 영상 오른쪽 위에 [광고] ② 자동 DM ③ 인포크링크 페이지. 빠뜨리면 번 돈을 전부 돌려줘야 할 수 있어요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-14a"><span>캡션을 준비했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-14b"><span>고정댓글 문장을 준비했어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-14c"><span>대가성 문구 3곳을 확인했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-15">
+    <div class="num">15</div>
+    <div class="step-body">
+      <h3>아침 8시에 인스타에 올려요</h3>
+      <p class="why"><b>왜?</b> 아침 8시와 저녁 6시가 쇼핑을 제일 많이 하는 시간이에요. 그때 링크를 누르면 장바구니에 담긴 물건까지 내 수익이 될 가능성이 커요. 매일 같은 시간에 올려요.</p>
+      <ol class="howto">
+        <li>올리기 전에 13~14단계 체크가 다 됐는지 봐요.</li>
+        <li><b>릴스</b>로 올려요. (사진 여러 장이나 피드 게시물 말고 릴스!)</li>
+        <li>캡션을 붙여 넣고 올려요. 안 되면 저녁 6시에 올려요.</li>
+        <li>올리자마자 고정댓글을 달고 <b>고정</b>해요.</li>
+        <li>내가 직접 댓글 키워드를 달아서 DM이 오는지 시험해봐요.</li>
+      </ol>
+      <div class="box warn">조회수가 안 나와도 <b>지우거나 보관하지 않아요.</b> 저작권 신고가 들어온 경우만 예외예요.</div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-15a"><span>오전 8시(또는 오후 6시)에 릴스를 올렸어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-15b"><span>고정댓글을 달았어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-15c"><span>자동 DM이 가는 걸 확인했어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step id="s2-16">
+    <div class="num">16</div>
+    <div class="step-body">
+      <h3>다른 앱에도 올리고, 기록해요</h3>
+      <ol class="howto">
+        <li>12단계에서 만든 <b>CTA를 자른 영상</b>을 유튜브 쇼츠, 틱톡, 네이버 클립에 올려요.</li>
+        <li>설명에 “제품은 프로필 링크에서 확인하세요”라고 적어요.</li>
+        <li>유튜브에서는 “좋더라고요” 같은 후기 말투보다 <b>재미있는 이야기(썰)</b> 말투가 더 잘 돼요. 나중에 익숙해지면 따로 만들어봐요.</li>
+        <li>다음 날, 인스타 인사이트와 쿠팡 파트너스에서 숫자를 보고 <a href="#part3">30일 기록장</a>에 적어요.</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p2-16a"><span>유튜브·틱톡·클립에 올렸어요</span></label>
+        <label class="chk"><input type="checkbox" data-k="p2-16b"><span>30일 기록장에 오늘을 체크했어요</span></label>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ============ PART 3 ============ -->
+<section class="part" id="part3">
+  <div class="part-head">
+    <div class="tag">PART 3</div>
+    <h2>30일 기록장</h2>
+    <p>영상을 올린 날의 숫자를 눌러 초록색으로 만드세요. 숫자는 다음 날 인스타 인사이트와 쿠팡 파트너스에서 보고 적어요.</p>
+  </div>
+
+  <div class="money">
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;align-items:baseline">
+      <span>쿠팡 판매금액 합계</span>
+      <span class="big"><span id="mSum">0</span>원 <small style="font-family:var(--body);font-size:15px;color:var(--muted)">/ 150,000원</small></span>
+    </div>
+    <div class="bar"><i id="mBar"></i></div>
+    <p style="font-size:14px;color:var(--muted);margin-top:6px" id="mMsg">아래 표의 “판매금액” 칸을 모두 더한 값이에요. 쿠팡 대시보드의 누적 금액이 더 정확해요.</p>
+  </div>
+
+  <div class="days" id="days" aria-label="30일 체크"></div>
+  <p style="margin-top:10px;font-size:15px;color:var(--muted)">올린 날: <b id="dCount" style="color:var(--ink)">0</b> / 30일</p>
+
+  <div class="scroll">
+    <table class="log">
+      <thead><tr><th>날</th><th>물건</th><th>조회수</th><th>평균 시청(초)</th><th>댓글</th><th>클릭</th><th>판매금액(원)</th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ PART 4 ============ -->
+<section class="part" id="part4">
+  <div class="part-head">
+    <div class="tag">PART 4</div>
+    <h2>막혔을 때</h2>
+    <p>숫자를 보고 어디를 고칠지 찾아요. 조회수 하나만 보지 말고 다섯 가지를 같이 봐요.</p>
+  </div>
+
+  <div class="fix">
+    <div><b>조회수가 너무 낮아요</b><span>첫 1~2주는 정상이에요. 계속 낮으면 쿠키작업을 매일 했는지, 주제를 하나로 지켰는지 봐요.</span></div>
+    <div><b>보다가 금방 넘겨요 (평균 시청이 짧아요)</b><span>첫 장면과 첫 문장을 바꿔요. 더 놀라운 장면을 맨 앞에 놓아요. (대본 4단계)</span></div>
+    <div><b>댓글이 안 달려요</b><span>마지막 말(CTA)을 고쳐요. 키워드를 더 짧게, 제품 이름은 끝까지 숨겨요. (대본 4단계)</span></div>
+    <div><b>댓글은 많은데 클릭이 적어요</b><span>자동 DM이 제대로 가는지, DM 문장이 짧고 링크가 잘 보이는지 확인해요. (13~15단계)</span></div>
+    <div><b>클릭은 많은데 안 사요 (전환율이 낮아요)</b><span>대본이 아니라 <b>소재</b>가 문제예요. 영상을 보고 기대한 것과 실제 물건이 달랐다는 뜻이에요. 다른 물건을 골라요. (1단계)</span></div>
+  </div>
+
+  <article class="step" data-step style="margin-top:36px">
+    <div class="num">✗</div>
+    <div class="step-body">
+      <h3>절대 하면 안 되는 것</h3>
+      <ol class="howto">
+        <li>내 링크로 내가 사기, 가족·친구에게 사달라고 하기 (규칙 위반이에요)</li>
+        <li>연예인 영상, 의사·전문가 영상을 잘라 쓰기 (계정이 날아가고 법 문제가 생겨요)</li>
+        <li>남의 완성된 영상을 통째로 가져와 자막만 바꾸기</li>
+        <li>“이거 먹고 나았어요” 같은 효과 부풀리기, 없는 사실 지어내기</li>
+        <li>대가성 문구 빼먹기</li>
+        <li>올린 영상 지우기·보관하기</li>
+        <li>처음부터 여러 주제 섞기</li>
+      </ol>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" data-k="p4-a"><span>하면 안 되는 것을 읽었어요</span></label>
+      </div>
+    </div>
+  </article>
+
+  <article class="step" data-step>
+    <div class="num">→</div>
+    <div class="step-body">
+      <h3>잘 되면 다음은 이렇게</h3>
+      <ol class="howto">
+        <li><b>팔로워 1,000명</b>이 되면: 물건 소개(전환) 영상 비중을 늘려요. 쿠팡 인플루언서도 다시 확인해요(2,000명쯤에 뽑히는 경우가 많대요).</li>
+        <li><b>팔로워 1만 명 + 최근 10개 평균 조회수 5천</b>이 넘으면: 하루 2개로 늘려요.</li>
+        <li><b>가장 안 된 영상도 조회수 1만</b>이 넘으면: 하루 3~4개. 늘린 만큼은 쉬운 방식(제목만 넣는 영상, 리믹스)으로 채워요.</li>
+        <li>한번 늘린 개수는 <b>다시 줄이지 않아요.</b> 계속할 수 있을 때만 늘려요.</li>
+        <li>주제를 넓힐 때는 옆 칸으로 한 칸씩만: 살림 → 주방 → 요리.</li>
+      </ol>
+      <div class="box tip">수수료율, 정산일, 유튜브 쇼핑 조건 같은 숫자는 자주 바뀌어요. 책은 2026년 8월 기준이에요. 시작할 때 각 사이트에서 직접 확인하세요.</div>
+    </div>
+  </article>
+
+  <article class="step" data-step style="margin-top:36px">
+    <div class="num">⇄</div>
+    <div class="step-body">
+      <h3>다른 기기로 진도 옮기기</h3>
+      <p class="why">진도는 지금 보고 있는 기기에만 저장돼요. 휴대폰에서 하던 걸 노트북에서 이어 하려면 이렇게 하세요.</p>
+      <ol class="howto">
+        <li>하던 기기에서 <b>백업 만들기</b>를 누르고, 나온 글자를 전부 복사해요.</li>
+        <li>카톡 ‘나와의 채팅’ 같은 곳에 붙여 넣어 보내요.</li>
+        <li>새 기기에서 이 앱을 열고, 아래 칸에 붙여 넣은 다음 <b>불러오기</b>를 눌러요.</li>
+      </ol>
+      <div class="field"><label for="backupBox">백업 글자</label><textarea id="backupBox" style="min-height:90px;font-family:var(--mono);font-size:13px"></textarea></div>
+      <div class="copyline"><button class="btn ghost small" type="button" id="backupMake">백업 만들기</button><button class="btn small" type="button" id="backupLoad">불러오기</button></div>
+      <p class="why" id="backupMsg" aria-live="polite"></p>
+    </div>
+  </article>
+</section>
+
+</main>
+
+<script>
+(function(){
+  var KEY = "shortsWorkbook.v1";
+  var state = {c:{}, d:{}, log:{}, sc:{}, t:0};
+  try { var raw = localStorage.getItem(KEY); if (raw) { var s = JSON.parse(raw); if (s && typeof s === "object") state = Object.assign(state, s); } } catch(e){}
+
+  var docRef = null, writing = false, dirty = false, timer = null;
+  var saveEl = document.getElementById("saveState");
+
+  function persist(){
+    state.t = Date.now();
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
+    if (!docRef) return;
+    clearTimeout(timer);
+    timer = setTimeout(flush, 700);
+  }
+  function flush(){
+    if (!docRef) return;
+    if (writing) { dirty = true; return; }
+    writing = true; dirty = false;
+    saveEl.textContent = "저장하는 중…";
+    docRef.set({json: JSON.stringify(state), t: state.t}).then(function(){
+      saveEl.textContent = "내 계정에 저장됐어요. 다른 기기에서 열어도 이어서 할 수 있어요.";
+    }).catch(function(){
+      saveEl.textContent = "온라인 저장이 안 됐어요. 이 기기에는 저장돼 있어요.";
+    }).then(function(){ writing = false; if (dirty) flush(); });
+  }
+
+  /* ---------- 체크박스 ---------- */
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('input[type=checkbox][data-k]'));
+  var steps = Array.prototype.slice.call(document.querySelectorAll('[data-step]'));
+  boxes.forEach(function(b){
+    b.addEventListener("change", function(){
+      if (b.checked) state.c[b.dataset.k] = true; else delete state.c[b.dataset.k];
+      updateProgress(); persist();
+    });
+  });
+  function applyChecks(){ boxes.forEach(function(b){ b.checked = !!state.c[b.dataset.k]; }); }
+  function updateProgress(){
+    var done = boxes.filter(function(b){ return b.checked; }).length;
+    var pct = boxes.length ? Math.round(done / boxes.length * 100) : 0;
+    document.getElementById("pDone").textContent = done;
+    document.getElementById("pTotal").textContent = boxes.length;
+    document.getElementById("pPct").textContent = pct + "%";
+    document.getElementById("pBar").style.width = pct + "%";
+    steps.forEach(function(s){
+      var bs = s.querySelectorAll('input[type=checkbox][data-k]');
+      if (!bs.length) return;
+      var all = Array.prototype.every.call(bs, function(b){ return b.checked; });
+      s.classList.toggle("done", all);
+    });
+  }
+  document.getElementById("nextBtn").addEventListener("click", function(){
+    var first = boxes.filter(function(b){ return !b.checked; })[0];
+    if (!first) { document.getElementById("part3").scrollIntoView(); return; }
+    var step = first.closest("[data-step]") || first;
+    step.scrollIntoView({block:"start"});
+    setTimeout(function(){ first.focus({preventScroll:true}); }, 400);
+  });
+
+  /* ---------- 새 영상 시작 ---------- */
+  var ask = document.getElementById("resetAsk"), rb = document.getElementById("resetBtn");
+  rb.addEventListener("click", function(){ ask.hidden = false; rb.hidden = true; });
+  document.getElementById("resetNo").addEventListener("click", function(){ ask.hidden = true; rb.hidden = false; });
+  document.getElementById("resetYes").addEventListener("click", function(){
+    Object.keys(state.c).forEach(function(k){ if (k.indexOf("p2-") === 0) delete state.c[k]; });
+    ["hook","sit","belief","twist","feel","fix","result","cfirst"].forEach(function(f){ delete state.sc[f]; });
+    applyChecks(); applyScript(); updateProgress(); persist();
+    ask.hidden = true; rb.hidden = false;
+    document.getElementById("s2-a").scrollIntoView({block:"start"});
+  });
+
+  /* ---------- 대본·캡션 ---------- */
+  var scInputs = Array.prototype.slice.call(document.querySelectorAll("[data-sc]"));
+  scInputs.forEach(function(el){
+    el.addEventListener("input", function(){ state.sc[el.dataset.sc] = el.value; renderScript(); persist(); });
+  });
+  function v(k){ return (state.sc[k] || "").trim(); }
+  function applyScript(){ scInputs.forEach(function(el){ el.value = state.sc[el.dataset.sc] || ""; }); renderScript(); }
+  function renderScript(){
+    var key = v("key") || "○○", gift = v("gift") || "꿀팁";
+    var cta = "댓글에 '" + key + "' 남겨주시면 제품이랑 " + gift + " 바로 보내드릴게요.";
+    var parts = ["hook","sit","belief","twist","feel","fix","result"].map(v).filter(Boolean);
+    var body = parts.join(" ");
+    var out = document.getElementById("scOut");
+    out.textContent = body ? body + " " + cta : "위 빈칸을 채우면 여기에 대본이 만들어져요.";
+    var syl = body ? (body + cta).replace(/[^가-힣A-Za-z0-9]/g, "").length : 0;
+    var sec = Math.round(syl / 6.5);
+    var len = document.getElementById("scLen");
+    len.textContent = "";
+    if (body) {
+      var t = document.createElement("span"); t.textContent = syl + "글자 · 1.1~1.2배속 기준 약 " + sec + "초 ";
+      var p = document.createElement("span"); p.className = "pill " + (sec <= 22 ? "ok" : "long");
+      p.textContent = sec <= 22 ? "20초 안쪽이에요" : "길어요. 줄여보세요";
+      len.appendChild(t); len.appendChild(p);
+    }
+    var first = v("cfirst") || "(캡션 첫 줄)";
+    var tags = v("tags");
+    document.getElementById("cpOut").textContent = "[광고]\n" + first + "\n\n댓글에 '" + key + "' 남겨주시면 제품이랑 " + gift + " DM으로 바로 보내드려요." + (tags ? "\n\n" + tags : "");
+    document.getElementById("pinOut").textContent = "댓글에 '" + key + "' 남겨주시면 바로 보내드려요!";
+    document.getElementById("dmOut").textContent = "요청하신 제품이에요!\n(여기에 쿠팡 링크)\n\n" + gift + "도 같이 보내드려요.\n(여기에 정보)\n\n이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.";
+  }
+
+  /* ---------- 복사 ---------- */
+  document.addEventListener("click", function(e){
+    var btn = e.target.closest("[data-copy]");
+    if (!btn) return;
+    var el = document.getElementById(btn.dataset.copy);
+    var text = el.textContent;
+    function done(){ var o = btn.textContent; btn.textContent = "복사됨"; setTimeout(function(){ btn.textContent = o; }, 1400); }
+    function fallback(){
+      var r = document.createRange(); r.selectNodeContents(el);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      btn.textContent = "선택됨 · 길게 눌러 복사";
+      setTimeout(function(){ btn.textContent = "복사"; }, 2200);
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+      else fallback();
+    } catch(err){ fallback(); }
+  });
+
+  /* ---------- 30일 ---------- */
+  var daysEl = document.getElementById("days"), logBody = document.getElementById("logBody");
+  var cols = [["item","text"],["views","num"],["avg","num"],["cm","num"],["ck","num"],["sales","num"]];
+  for (var i = 1; i <= 30; i++) {
+    var b = document.createElement("button"); b.type = "button"; b.className = "day"; b.dataset.day = i;
+    var bb = document.createElement("b"); bb.textContent = i; var sm = document.createElement("small"); sm.textContent = "일째";
+    b.appendChild(bb); b.appendChild(sm); b.setAttribute("aria-pressed","false");
+    daysEl.appendChild(b);
+    var tr = document.createElement("tr"); var td0 = document.createElement("td"); td0.textContent = i; tr.appendChild(td0);
+    cols.forEach(function(c){
+      var td = document.createElement("td"); var inp = document.createElement("input");
+      inp.id = "log-" + i + "-" + c[0]; inp.dataset.day = i; inp.dataset.col = c[0];
+      if (c[1] === "num") { inp.inputMode = "numeric"; }
+      inp.setAttribute("aria-label", i + "일째 " + c[0]);
+      td.appendChild(inp); tr.appendChild(td);
+    });
+    logBody.appendChild(tr);
+  }
+  daysEl.addEventListener("click", function(e){
+    var b = e.target.closest(".day"); if (!b) return;
+    var d = b.dataset.day;
+    if (state.d[d]) delete state.d[d]; else state.d[d] = true;
+    renderDays(); persist();
+  });
+  logBody.addEventListener("input", function(e){
+    var inp = e.target; if (!inp.dataset.col) return;
+    var d = inp.dataset.day;
+    state.log[d] = state.log[d] || {};
+    state.log[d][inp.dataset.col] = inp.value;
+    if (inp.dataset.col === "sales") renderMoney();
+    persist();
+  });
+  function renderDays(){
+    var n = 0;
+    Array.prototype.forEach.call(daysEl.children, function(b){
+      var on = !!state.d[b.dataset.day]; if (on) n++;
+      b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    document.getElementById("dCount").textContent = n;
+  }
+  function applyLog(){
+    Array.prototype.forEach.call(logBody.querySelectorAll("input"), function(inp){
+      var r = state.log[inp.dataset.day]; inp.value = (r && r[inp.dataset.col]) || "";
+    });
+    renderMoney();
+  }
+  function renderMoney(){
+    var sum = 0;
+    Object.keys(state.log).forEach(function(d){
+      var n = parseInt(String((state.log[d] && state.log[d].sales) || "").replace(/[^0-9]/g, ""), 10);
+      if (!isNaN(n)) sum += n;
+    });
+    document.getElementById("mSum").textContent = sum.toLocaleString("ko-KR");
+    document.getElementById("mBar").style.width = Math.min(100, sum / 150000 * 100) + "%";
+    document.getElementById("mMsg").textContent = sum >= 150000
+      ? "15만 원을 넘었어요! 쿠팡 파트너스에서 최종 승인을 확인해보세요."
+      : "15만 원까지 " + (150000 - sum).toLocaleString("ko-KR") + "원 남았어요. 쿠팡 대시보드의 누적 금액이 가장 정확해요.";
+  }
+
+  function renderAll(){ applyChecks(); applyScript(); renderDays(); applyLog(); updateProgress(); }
+  renderAll();
+
+  /* ---------- 진도 옮기기 ---------- */
+  var bx=document.getElementById("backupBox"), bmsg=document.getElementById("backupMsg");
+  document.getElementById("backupMake").addEventListener("click", function(){
+    bx.value = JSON.stringify(state); bx.focus(); bx.select();
+    bmsg.textContent = "위 글자를 전부 복사해서 다른 기기의 같은 칸에 붙여 넣고 ‘불러오기’를 누르세요.";
+  });
+  document.getElementById("backupLoad").addEventListener("click", function(){
+    try {
+      var s = JSON.parse(bx.value);
+      if (!s || typeof s !== "object" || !s.c) throw 0;
+      state = Object.assign({c:{}, d:{}, log:{}, sc:{}, t:0}, s);
+      persist(); renderAll();
+      bmsg.textContent = "불러왔어요.";
+    } catch(e) { bmsg.textContent = "불러오지 못했어요. 백업 글자를 처음부터 끝까지 빠짐없이 붙여 넣었는지 확인해 주세요."; }
+  });
+})();
+
+if ("serviceWorker" in navigator) { window.addEventListener("load", function(){ navigator.serviceWorker.register("/sw.js").catch(function(){}); }); }
+</script>
+
+</body>
+</html>
