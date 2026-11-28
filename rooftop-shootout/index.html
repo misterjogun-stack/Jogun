@@ -147,7 +147,7 @@ label.lbl{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.04em}
   </div>
   <div id="toast"><i></i><span id="toastTxt"></span></div>
   <div id="big"><b id="bigTxt"></b><small id="bigSub"></small></div>
-  <div id="hint" class="off"><div class="finger"></div><p>아래에서 위로 쓸어 올려 던지세요</p></div>
+  <div id="hint" class="off"><div class="finger"></div><p>골대 쪽으로 휙 쓸어 올리면 슛!</p></div>
 
   <section class="screen" id="scrTitle">
     <div class="logo">
@@ -441,18 +441,27 @@ function hoopXAt(rt) {
 const playing = () => S.mode === 'play';
 
 /* ---------- shooting ---------- */
+/* Power: any swipe from about a fifth to half the screen lands at the right
+   distance (the wide "good" band); only very short or very long ones fall
+   short or fly long. Direction: pulled strongly toward the hoop, so roughly
+   swiping at it is enough. */
+const POWER_LO = 0.55, POWER_HI = 1.7;
 function launchFromSwipe(dx, dy) {
-  const up = -dy; if (up < 28) return null;
-  let p = clamp(up / (H * 0.33), 0.35, 1.8);
-  if (Math.abs(p - 1) < 0.22) p = 1 + (p - 1) * 0.7; // gentle sweet spot
-  const d = (HZ - Z0) + 0.05 + (p - 1) * 1.0;
+  const up = -dy; if (up < 24) return null;
+  const p = clamp(up / (H * 0.26), 0.2, 2.6);
+  let de;
+  if (p < POWER_LO) de = (p - POWER_LO) * 2.2 - 0.04;
+  else if (p > POWER_HI) de = (p - POWER_HI) * 1.6 + 0.05;
+  else de = (p - 1) * 0.07;
+  const good = p >= POWER_LO && p <= POWER_HI;
+  const d = (HZ - Z0) + 0.05 + de;
   const b0 = proj(S.x0, Y0, Z0), rim = proj(0, RIM_Y, HZ);
   const t = (rim[1] - b0[1]) / dy;
   const rawX = (b0[0] + dx * t - W / 2) / rim[2];
-  const T = FLIGHT + (p - 1) * 0.12;
+  const T = FLIGHT + clamp(p - 1, -0.5, 0.8) * 0.08;
   const target = hoopXAt(S.roundT + T);
-  const aimX = target + (rawX - target) * 0.45;
-  return { x0: S.x0, vx: (aimX - S.x0) / T, vy: (RIM_Y - Y0 + 0.5 * G * T * T) / T, vz: d / T, T };
+  const aimX = target + (rawX - target) * 0.3;
+  return { x0: S.x0, vx: (aimX - S.x0) / T, vy: (RIM_Y - Y0 + 0.5 * G * T * T) / T, vz: d / T, T, good };
 }
 
 function spawnBall(owner, x0, vx, vy, vz) {
@@ -650,10 +659,11 @@ function drawNet() {
 function drawAim() {
   const d = S.drag; if (!d || !S.ready || !playing()) return;
   const L = launchFromSwipe(d.x - d.sx, d.y - d.sy); if (!L) return;
-  for (let i = 1; i <= 16; i++) {
-    const t = i / 16 * L.T * 0.5;
+  const col = L.good ? '255,177,59' : '255,246,228';
+  for (let i = 1; i <= 18; i++) {
+    const t = i / 18 * L.T * 0.6;
     const p = proj(L.x0 + L.vx * t, Y0 + L.vy * t - 0.5 * G * t * t, Z0 + L.vz * t);
-    ctx.fillStyle = `rgba(255,246,228,${0.85 * (1 - i / 17)})`;
+    ctx.fillStyle = `rgba(${col},${0.9 * (1 - i / 19)})`;
     ctx.beginPath(); ctx.arc(p[0], p[1], 1.2 + 2.6 * (1 - i / 16), 0, 7); ctx.fill();
   }
 }
