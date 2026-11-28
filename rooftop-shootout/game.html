@@ -15,6 +15,7 @@
   --me-deep:#c9621c;
   --rival:#4fd3ff;
   --heat:#ff5b3a;
+  --good:#8ee06b;
   --f-display:"Black Han Sans","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
 }
@@ -67,14 +68,31 @@ body{height:100%;margin:0;background:var(--night);color:var(--paper);font-family
 @keyframes bigin{0%{opacity:0;transform:scale(2.2)}25%{opacity:1;transform:scale(1)}75%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.9)}}
 @keyframes fadein{0%,10%{opacity:0}25%,80%{opacity:1}100%{opacity:0}}
 
-#hint{position:absolute;left:0;right:0;bottom:22px;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;transition:opacity .4s}
+#hint{position:absolute;left:0;right:0;bottom:200px;padding:0 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;transition:opacity .4s}
 #hint.off{opacity:0}
-#hint .finger{width:4px;height:70px;border-radius:4px;background:linear-gradient(to top,rgba(255,255,255,0),rgba(255,255,255,.8));animation:swipe 1.4s ease-in-out infinite;transform-origin:bottom}
-#hint p{margin:0;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;background:var(--glass)}
-@keyframes swipe{0%{transform:translateY(20px) scaleY(.2);opacity:0}30%{opacity:1}70%{transform:translateY(-10px) scaleY(1);opacity:1}100%{transform:translateY(-30px) scaleY(1);opacity:0}}
+#hint p{margin:0;font-size:13px;font-weight:700;line-height:1.5;padding:7px 14px;border-radius:14px;background:var(--glass)}
+#hint b{color:var(--good)}
 
 #mute{position:absolute;right:12px;bottom:12px;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--glass-line);background:var(--glass);color:var(--paper);display:grid;place-items:center;cursor:pointer;z-index:5}
 #mute svg{width:18px;height:18px}
+
+/* Play controls: aim keys bottom-left, hold-to-charge shoot button bottom-right */
+#pad{position:absolute;left:0;right:0;bottom:0;padding:0 14px 16px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none;transition:opacity .3s}
+#pad.off{opacity:0;visibility:hidden}
+#pad button{pointer-events:auto;touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.dir{display:flex;gap:10px}
+.key{width:66px;height:66px;border-radius:50%;border:2px solid var(--glass-line);background:var(--glass);color:var(--paper);display:grid;place-items:center;cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:background .1s,border-color .1s}
+.key svg{width:28px;height:28px}
+.key.on{background:rgba(79,211,255,.28);border-color:var(--rival)}
+.shoot-wrap{display:flex;align-items:flex-end;gap:10px}
+.gauge{position:relative;width:18px;height:150px;border-radius:10px;background:var(--glass);border:1.5px solid var(--glass-line);overflow:hidden}
+.gauge .zone{position:absolute;left:0;right:0;bottom:58%;height:20%;background:rgba(142,224,107,.28);border-top:2px solid var(--good);border-bottom:2px solid var(--good);transition:background .1s}
+.gauge.in .zone{background:rgba(142,224,107,.7)}
+.gauge .fill{position:absolute;left:0;right:0;bottom:0;height:100%;transform-origin:bottom;transform:scaleY(0);background:linear-gradient(to top,var(--me-deep),var(--me));opacity:.85}
+.gauge .mark{position:absolute;left:0;right:0;bottom:0;height:3px;margin-bottom:-1px;background:#fff;box-shadow:0 0 6px #fff}
+.shoot{width:94px;height:94px;border-radius:50%;border:0;background:radial-gradient(circle at 35% 30%,#ffd79a,#ef7a2c 55%,#8d3510);color:#2a1300;font:400 24px var(--f-display);box-shadow:0 5px 0 #6e2a0b,0 10px 24px rgba(0,0,0,.4);cursor:pointer;transition:transform .06s,box-shadow .06s}
+.shoot.held{transform:translateY(4px);box-shadow:0 1px 0 #6e2a0b,0 6px 16px rgba(0,0,0,.4)}
+.key:focus-visible,.shoot:focus-visible{outline:3px solid var(--rival);outline-offset:3px}
 #mute:focus-visible,.btn:focus-visible,.back:focus-visible,input:focus-visible{outline:3px solid var(--rival);outline-offset:2px}
 
 /* Screens */
@@ -136,11 +154,11 @@ label.lbl{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.04em}
 .stats dt{font-size:11px;color:var(--dim)}
 .stats dd{margin:2px 0 0;font-family:var(--f-display);font-size:19px;font-variant-numeric:tabular-nums}
 @media (max-height:720px){.screen{padding-top:18px;gap:12px}.logo h1{font-size:clamp(48px,14vw,64px)}.logo p{display:none}.panel{gap:8px}}
-@media (prefers-reduced-motion:reduce){#hint .finger,.status i{animation:none}#big.show b,#big.show small{animation-duration:1.6s}}
+@media (prefers-reduced-motion:reduce){.status i{animation:none}#big.show b,#big.show small{animation-duration:1.6s}}
 </style>
 
 <div id="stage">
-  <canvas id="cv" aria-label="옥상 농구 코트. 아래에서 위로 쓸어 올려 공을 던집니다."></canvas>
+  <canvas id="cv" aria-label="옥상 농구 코트. 방향 버튼으로 조준하고 슛 버튼을 누르고 있다가 떼서 던집니다."></canvas>
 
   <div id="hud" class="off" aria-live="polite">
     <div class="chip me" id="chipMe"><i class="mx" id="mxMe">×2</i><div class="who"><i class="dot"></i><span id="nmMe">나</span></div><b class="sc" id="scMe">0</b></div>
@@ -149,7 +167,17 @@ label.lbl{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.04em}
   </div>
   <div id="toast"><i></i><span id="toastTxt"></span></div>
   <div id="big"><b id="bigTxt"></b><small id="bigSub"></small></div>
-  <div id="hint" class="off"><div class="finger"></div><p>골대 쪽으로 휙 쓸어 올리면 슛!</p></div>
+  <div id="hint" class="off"><p>◀ ▶ 로 방향을 맞추고<br>슛 버튼을 누르고 있다가 게이지가 <b>초록 칸</b>일 때 떼세요</p></div>
+  <div id="pad" class="off">
+    <div class="dir">
+      <button class="key" id="kLeft" type="button" aria-label="왼쪽으로 조준"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button class="key" id="kRight" type="button" aria-label="오른쪽으로 조준"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <div class="shoot-wrap">
+      <div class="gauge" id="gauge" aria-hidden="true"><i class="zone"></i><i class="fill" id="gFill"></i><i class="mark" id="gMark"></i></div>
+      <button class="shoot" id="kShoot" type="button" aria-label="누르고 있다가 떼서 슛">슛</button>
+    </div>
+  </div>
 
   <section class="screen" id="scrTitle">
     <div class="logo">
@@ -435,7 +463,7 @@ const S = {
   me: null, op: null,
   balls: [], parts: [], texts: [],
   netKick: 0, boardFlash: 0, shake: 0,
-  ready: true, readyAt: 0, x0: 0, spawnAt: 0, drag: null,
+  ready: true, readyAt: 0, x0: 0, spawnAt: 0, drag: null, aimX: 0, aimDir: 0, hold: null, gauge: 0,
   cpuNext: 1.2, hinted: false
 };
 function freshStats() { return { score: 0, shown: 0, streak: 0, mult: 1, shots: 0, makes: 0, clean: 0, best: 0 }; }
@@ -449,27 +477,33 @@ function hoopXAt(rt) {
 const playing = () => S.mode === 'play';
 
 /* ---------- shooting ---------- */
-/* Power: any swipe from about a fifth to half the screen lands at the right
-   distance (the wide "good" band); only very short or very long ones fall
-   short or fly long. Direction: pulled strongly toward the hoop, so roughly
-   swiping at it is enough. */
-const POWER_LO = 0.55, POWER_HI = 1.7;
-function launchFromSwipe(dx, dy) {
-  const up = -dy; if (up < 24) return null;
-  const p = clamp(up / (H * 0.26), 0.2, 2.6);
+/* Shooting: aim is a spot on the rim line (world x), moved with the arrow keys.
+   Power comes from the gauge at the moment the shoot button is released:
+   inside the green band [GOOD_LO, GOOD_HI] the ball carries the right distance,
+   outside it falls short or flies long. */
+const GOOD_LO = 0.58, GOOD_HI = 0.78, GOOD_MID = 0.68, AIM_MAX = 1.1, AIM_SPEED = 0.65;
+function gaugePeriod() { return S.doubleTime ? 0.95 : 1.15; }
+function gaugeAt(t) { const ph = (t / gaugePeriod()) % 1; return ph < 0.5 ? ph * 2 : 2 - ph * 2; }
+function launch(aimX, g) {
+  const off = g - GOOD_MID, a = Math.abs(off);
   let de;
-  if (p < POWER_LO) de = (p - POWER_LO) * 2.2 - 0.04;
-  else if (p > POWER_HI) de = (p - POWER_HI) * 1.6 + 0.05;
-  else de = (p - 1) * 0.07;
-  const good = p >= POWER_LO && p <= POWER_HI;
+  if (a <= 0.1) de = off * 0.6;
+  else if (off < 0) de = -(0.06 + (a - 0.1) * 3.0);          // short: front rim, then air ball
+  else if (a <= 0.14) de = 0.06 + (a - 0.1) * 9.75;           // a touch strong: back rim / board
+  else de = 1.6 + (a - 0.14) * 3.0;                            // too strong: sails over the board
   const d = (HZ - Z0) + 0.05 + de;
-  const b0 = proj(S.x0, Y0, Z0), rim = proj(0, RIM_Y, HZ);
-  const t = (rim[1] - b0[1]) / dy;
-  const rawX = (b0[0] + dx * t - W / 2) / rim[2];
-  const T = FLIGHT + clamp(p - 1, -0.5, 0.8) * 0.08;
-  const target = hoopXAt(S.roundT + T);
-  const aimX = target + (rawX - target) * 0.3;
-  return { x0: S.x0, vx: (aimX - S.x0) / T, vy: (RIM_Y - Y0 + 0.5 * G * T * T) / T, vz: d / T, T, good };
+  const T = FLIGHT + clamp(off, -0.4, 0.4) * 0.15;
+  return { x0: S.x0, vx: (aimX - S.x0) / T, vy: (RIM_Y - Y0 + 0.5 * G * T * T) / T, vz: d / T, T, good: a <= 0.1 };
+}
+function fire(g) {
+  if (!playing() || !S.ready) return null;
+  const L = launch(S.aimX, g);
+  spawnBall('me', L.x0, L.vx, L.vy, L.vz);
+  S.me.shots++; S.ready = false; S.readyAt = S.t + 0.35;
+  Sound.shoot(); buzz(8);
+  if (!S.hinted) { S.hinted = true; $('hint').classList.add('off'); }
+  sendShot(L);
+  return L;
 }
 
 function spawnBall(owner, x0, vx, vy, vz) {
@@ -673,15 +707,27 @@ function drawNet() {
   ctx.stroke();
 }
 function drawAim() {
-  const d = S.drag; if (!d || !S.ready || !playing()) return;
-  const L = launchFromSwipe(d.x - d.sx, d.y - d.sy); if (!L) return;
-  const col = L.good ? '255,177,59' : '255,246,228';
-  for (let i = 1; i <= 18; i++) {
-    const t = i / 18 * L.T * 0.6;
+  if (!(S.mode === 'play' || S.mode === 'count') || !S.ready) return;
+  const L = launch(S.aimX, GOOD_MID);
+  const k = clamp((S.t - S.spawnAt) / 0.25, 0, 1);
+  const onHoop = Math.abs(S.aimX - S.hx) < 0.1;
+  const N = 22;
+  for (let i = 2; i <= N; i++) {
+    const t = i / N * L.T;
     const p = proj(L.x0 + L.vx * t, Y0 + L.vy * t - 0.5 * G * t * t, Z0 + L.vz * t);
-    ctx.fillStyle = `rgba(${col},${0.9 * (1 - i / 19)})`;
-    ctx.beginPath(); ctx.arc(p[0], p[1], 1.2 + 2.6 * (1 - i / 16), 0, 7); ctx.fill();
+    const r = Math.max(1.8, 4 * p[2] / 285);
+    ctx.fillStyle = `rgba(10,14,30,${0.35 * k})`;
+    ctx.beginPath(); ctx.arc(p[0], p[1], r + 1.2, 0, 7); ctx.fill();
+    ctx.fillStyle = `rgba(255,248,232,${(0.6 + 0.35 * (1 - i / N)) * k})`;
+    ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 7); ctx.fill();
   }
+  // target ring on the rim line
+  const c = proj(S.aimX, RIM_Y, HZ), rx = RIM_R * 0.75 * c[2];
+  ctx.save(); ctx.globalAlpha = k;
+  ctx.strokeStyle = onHoop ? '#8ee06b' : 'rgba(255,246,228,.85)'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.ellipse(c[0], c[1], rx, rx * 0.32, 0, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(c[0], c[1] - rx * 0.9); ctx.lineTo(c[0], c[1] - rx * 0.45); ctx.stroke();
+  ctx.restore();
 }
 
 function draw() {
@@ -704,10 +750,9 @@ function draw() {
   drawRim(true);
   // idle balls on the free-throw line
   const showRack = S.mode === 'play' || S.mode === 'count';
-  if (showRack && S.vs) { const ob = { x: RACK_X, y: Y0 + Math.sin(S.t * 2.6 + 1) * 0.02, z: Z0 + 0.35 }; drawShadow(ob); drawBall(ob.x, ob.y, ob.z, 0.6, 'op', 0.85); }
   if (showRack && S.ready) {
     const k = clamp((S.t - S.spawnAt) / 0.22, 0, 1);
-    const lift = S.drag ? 0.06 : 0;
+    const lift = S.hold ? 0.03 + S.gauge * 0.05 : 0;
     const ib = { x: S.x0, y: Y0 - (1 - k) * 0.6 + Math.sin(S.t * 3) * 0.02 + lift, z: Z0 };
     drawShadow(ib); drawBall(ib.x, ib.y, ib.z, S.t * 0.4, 'me', k);
     if (S.me.streak >= 2 && !reduceMotion) { const p = proj(ib.x, ib.y, ib.z); if (Math.random() < 0.6) ember(p[0], p[1] - BR * p[2] * 0.6); }
@@ -759,7 +804,9 @@ function update(dt) {
   for (const t of S.texts) t.age += dt;
   S.texts = S.texts.filter(t => t.age < t.life);
   S.netKick *= Math.exp(-dt * 3.2); S.boardFlash *= Math.exp(-dt * 6); S.shake *= Math.exp(-dt * 12);
-  if (!S.ready && S.t >= S.readyAt) { S.ready = true; S.spawnAt = S.t; S.x0 = pick([-0.5, -0.2, 0.1]); }
+  if (S.mode === 'play' || S.mode === 'count') S.aimX = clamp(S.aimX + S.aimDir * AIM_SPEED * dt, -AIM_MAX, AIM_MAX);
+  if (S.hold && playing()) { if (!S.ready) S.hold.t0 = S.t; S.gauge = gaugeAt(S.t - S.hold.t0); } else S.gauge = 0;
+  if (!S.ready && S.t >= S.readyAt) { S.ready = true; S.spawnAt = S.t; S.x0 = pick([-0.35, -0.1, 0.15]); }
   if (S.vs === 'friend') syncFriend();
   renderHud(dt);
 }
@@ -770,7 +817,7 @@ function frame(now) {
 }
 
 /* ---------- HUD ---------- */
-const hud = { me: -1, op: -1, mm: 0, om: 0, clock: '', hot: null };
+const hud = { me: -1, op: -1, mm: 0, om: 0, clock: '', hot: null, g: -1 };
 function renderHud(dt) {
   for (const P of [S.me, S.op]) { const d = P.score - P.shown; P.shown = Math.abs(d) < 1 ? P.score : P.shown + d * Math.min(1, dt * 12); }
   const me = Math.round(S.me.shown), op = Math.round(S.op.shown);
@@ -788,6 +835,12 @@ function renderHud(dt) {
     $('clock').classList.toggle('urgent', S.mode === 'play' && ROUND - S.roundT <= 5);
   }
   $('ring').style.strokeDashoffset = String(144.5 * (1 - frac));
+  if (S.gauge !== hud.g) {
+    hud.g = S.gauge;
+    $('gFill').style.transform = `scaleY(${S.gauge.toFixed(3)})`;
+    $('gMark').style.bottom = (S.gauge * 100).toFixed(1) + '%';
+    $('gauge').classList.toggle('in', S.gauge >= GOOD_LO && S.gauge <= GOOD_HI);
+  }
 }
 function bumpChip(id) { const el = $(id); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
 let toastTimer = 0;
@@ -798,7 +851,7 @@ function bigText(main, sub, hot) {
 }
 
 /* ---------- flow ---------- */
-function show(id) { for (const s of ['scrTitle', 'scrFriend', 'scrResult']) $(s).hidden = s !== id; }
+function show(id) { for (const s of ['scrTitle', 'scrFriend', 'scrResult']) $(s).hidden = s !== id; $('mute').hidden = !id; }
 function myName() { return cleanNick($('nick').value) || '나'; }
 
 function startCountdown() {
@@ -808,10 +861,10 @@ function startCountdown() {
   S.balls = S.balls.filter(b => b.owner === 'op');
   S.doubleTime = false; S.roundT = 0; S.hx = 0;
   S.mode = 'count'; S.countEnd = S.t + 3; S.countShown = -1;
-  S.ready = true; S.spawnAt = S.t; S.x0 = 0;
+  S.ready = true; S.spawnAt = S.t; S.x0 = 0; S.aimX = 0; S.aimDir = 0; S.hold = null;
   show(null);
   $('nmMe').textContent = myName(); $('nmOp').textContent = S.op.name;
-  $('hud').classList.remove('off');
+  $('hud').classList.remove('off'); $('pad').classList.remove('off');
   $('hint').classList.add('off');
 }
 function startPlay() {
@@ -822,7 +875,8 @@ function startPlay() {
   sendState({ phase: 'play' });
 }
 function endRound() {
-  S.mode = 'buzz'; S.buzzEnd = S.t + 1.7; S.drag = null;
+  S.mode = 'buzz'; S.buzzEnd = S.t + 1.7; S.drag = null; S.hold = null; S.aimDir = 0;
+  $('pad').classList.add('off'); keysOff();
   bigText('종료'); Sound.buzzer(); buzz(60);
   $('hint').classList.add('off');
 }
@@ -858,34 +912,47 @@ function paintResult() {
 function goTitle() {
   leaveFriend();
   S.mode = 'title'; S.vs = 'cpu'; S.cpuNext = S.t + 0.8; S.roundT = 0; S.doubleTime = false;
-  $('hud').classList.add('off'); $('hint').classList.add('off');
+  $('hud').classList.add('off'); $('hint').classList.add('off'); $('pad').classList.add('off');
   show('scrTitle');
 }
 function updateBestNote() { const best = store.get('best', 0); $('bestNote').textContent = best ? `내 최고 기록 ${best.toLocaleString('ko-KR')}점` : ''; }
 
-/* ---------- input ---------- */
-function localXY(e) { const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
-cv.addEventListener('pointerdown', e => {
-  Sound.ensure();
-  if (!playing() || !S.ready) return;
-  const [x, y] = localXY(e);
-  S.drag = { id: e.pointerId, sx: x, sy: y, x, y };
-  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
-});
-cv.addEventListener('pointermove', e => { if (!S.drag || S.drag.id !== e.pointerId) return; const [x, y] = localXY(e); S.drag.x = x; S.drag.y = y; });
-function release(e) {
-  const d = S.drag; if (!d || d.id !== e.pointerId) return; S.drag = null;
-  if (!playing() || !S.ready) return;
-  const [x, y] = localXY(e);
-  const L = launchFromSwipe(x - d.sx, y - d.sy); if (!L) return;
-  spawnBall('me', L.x0, L.vx, L.vy, L.vz);
-  S.me.shots++; S.ready = false; S.readyAt = S.t + 0.28;
-  Sound.shoot(); buzz(8);
-  if (!S.hinted) { S.hinted = true; $('hint').classList.add('off'); }
-  sendShot(L);
+/* ---------- input: aim keys, hold-to-charge shoot button, keyboard ---------- */
+function keysOff() { $('kLeft').classList.remove('on'); $('kRight').classList.remove('on'); $('kShoot').classList.remove('held'); }
+function bindAim(id, dir) {
+  const el = $(id);
+  const down = e => {
+    e.preventDefault(); Sound.ensure();
+    if (!(S.mode === 'play' || S.mode === 'count')) return;
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    S.aimX = clamp(S.aimX + dir * 0.04, -AIM_MAX, AIM_MAX);
+    S.aimDir = dir; el.classList.add('on');
+  };
+  const up = () => { if (S.aimDir === dir) S.aimDir = 0; el.classList.remove('on'); };
+  el.addEventListener('pointerdown', down);
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, up);
 }
-cv.addEventListener('pointerup', release);
-cv.addEventListener('pointercancel', e => { if (S.drag && S.drag.id === e.pointerId) S.drag = null; });
+bindAim('kLeft', -1); bindAim('kRight', 1);
+function holdStart() { if (!playing() || S.hold) return; S.hold = { t0: S.t }; $('kShoot').classList.add('held'); }
+function holdEnd() { if (!S.hold) return; const g = S.gauge; S.hold = null; $('kShoot').classList.remove('held'); fire(g); }
+const shootBtn = $('kShoot');
+shootBtn.addEventListener('pointerdown', e => { e.preventDefault(); Sound.ensure(); try { shootBtn.setPointerCapture(e.pointerId); } catch (err) {} holdStart(); });
+shootBtn.addEventListener('pointerup', holdEnd);
+shootBtn.addEventListener('pointercancel', () => { S.hold = null; shootBtn.classList.remove('held'); });
+for (const el of [$('kLeft'), $('kRight'), shootBtn]) el.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('keydown', e => {
+  if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if (!(S.mode === 'play' || S.mode === 'count')) return;
+  if (e.key === 'ArrowLeft') { S.aimDir = -1; e.preventDefault(); }
+  else if (e.key === 'ArrowRight') { S.aimDir = 1; e.preventDefault(); }
+  else if ((e.key === ' ' || e.key === 'ArrowUp') && !e.repeat) { Sound.ensure(); holdStart(); e.preventDefault(); }
+});
+window.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft' && S.aimDir === -1) S.aimDir = 0;
+  else if (e.key === 'ArrowRight' && S.aimDir === 1) S.aimDir = 0;
+  else if (e.key === ' ' || e.key === 'ArrowUp') holdEnd();
+});
+window.addEventListener('blur', () => { S.aimDir = 0; S.hold = null; keysOff(); });
 
 $('btnCpu').addEventListener('click', () => { Sound.ensure(); saveNick(); S.vs = 'cpu'; S.op.name = LEVELS[level].name; startCountdown(); });
 for (const r of document.querySelectorAll('#levels input')) {
@@ -1174,6 +1241,6 @@ if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
 resize();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => buildBg()).catch(() => {});
 requestAnimationFrame(frame);
-window.__shootout = { S, launchFromSwipe, proj, hoopXAt, stepBall, cpuShoot };
+window.__shootout = { S, launch, fire, gaugeAt, proj, hoopXAt, stepBall, cpuShoot, GOOD_LO, GOOD_HI };
 })();
 </script>
