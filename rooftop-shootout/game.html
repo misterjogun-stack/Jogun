@@ -96,6 +96,14 @@ label.lbl{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.04em}
 .btn.ghost:active{transform:translateY(2px)}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
 .note{margin:0;font-size:12.5px;line-height:1.55;color:var(--dim)}
+.levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0;padding:0;border:0}
+.levels legend{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.04em;margin-bottom:6px;padding:0}
+.levels label{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 4px;border-radius:12px;background:rgba(255,255,255,.05);border:1.5px solid transparent;cursor:pointer;text-align:center}
+.levels input{position:absolute;opacity:0;pointer-events:none}
+.levels b{font-size:14px}
+.levels small{font-size:11px;color:var(--dim)}
+.levels label:has(input:checked){border-color:var(--rival);background:rgba(79,211,255,.12)}
+.levels label:has(input:focus-visible){outline:3px solid var(--rival);outline-offset:2px}
 .rules{list-style:none;margin:4px 0 0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .rules li{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border-radius:12px;background:rgba(255,255,255,.05);font-size:11px;color:var(--dim);text-align:center}
 .rules b{font-family:var(--f-display);font-weight:400;font-size:18px;color:var(--paper)}
@@ -127,6 +135,7 @@ label.lbl{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.04em}
 .stats div{padding:9px 4px;border-radius:12px;background:rgba(255,255,255,.05);text-align:center}
 .stats dt{font-size:11px;color:var(--dim)}
 .stats dd{margin:2px 0 0;font-family:var(--f-display);font-size:19px;font-variant-numeric:tabular-nums}
+@media (max-height:720px){.screen{padding-top:18px;gap:12px}.logo h1{font-size:clamp(48px,14vw,64px)}.logo p{display:none}.panel{gap:8px}}
 @media (prefers-reduced-motion:reduce){#hint .finger,.status i{animation:none}#big.show b,#big.show small{animation-duration:1.6s}}
 </style>
 
@@ -154,6 +163,12 @@ label.lbl{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.04em}
       <button class="btn primary" id="btnFriend" type="button">친구랑 대결</button>
       <p class="note" id="friendNote" hidden></p>
       <button class="btn ghost" id="btnCpu" type="button">연습 상대와 한 판</button>
+      <fieldset class="levels" id="levels">
+        <legend>연습 상대 실력</legend>
+        <label><input type="radio" name="lv" value="0"><b>쉬움</b><small>옆집 꼬마</small></label>
+        <label><input type="radio" name="lv" value="1"><b>보통</b><small>동네 형</small></label>
+        <label><input type="radio" name="lv" value="2"><b>어려움</b><small>농구부 주장</small></label>
+      </fieldset>
       <ul class="rules">
         <li><b>100</b>골</li>
         <li><b>150</b>클린슛</li>
@@ -465,12 +480,20 @@ function spawnBall(owner, x0, vx, vy, vz) {
   return b;
 }
 
+/* practice rival levels: aim spread (m) and seconds between shots */
+const LEVELS = [
+  { name: '옆집 꼬마', spread: 0.17, gap: [1.7, 2.5] },
+  { name: '동네 형', spread: 0.125, gap: [1.3, 2.0] },
+  { name: '농구부 주장', spread: 0.095, gap: [0.95, 1.6] }
+];
+let level = clamp(Number(store.get('level', 1)) | 0, 0, 2);
 function cpuShoot() {
   const title = S.mode === 'title';
   const x0 = title ? pick([-0.4, 0, 0.4]) : RACK_X;
   const T = FLIGHT + gauss() * 0.03;
   const hxPred = hoopXAt(S.roundT + T);
-  const dErr = gauss() * (title ? 0.06 : 0.095), xErr = gauss() * (title ? 0.06 : 0.1);
+  const sp = title ? 0.06 : LEVELS[level].spread * (S.doubleTime ? 1.25 : 1);
+  const dErr = gauss() * sp, xErr = gauss() * sp * 1.05;
   const d = (HZ - Z0) + 0.05 + dErr, aimX = hxPred + xErr;
   spawnBall(title ? 'demo' : 'cpu', x0, (aimX - x0) / T, (RIM_Y - Y0 + 0.5 * G * T * T) / T, d / T);
 }
@@ -725,7 +748,7 @@ function update(dt) {
   else S.hx += (0 - S.hx) * Math.min(1, dt * 2.5);
   // practice rival / title demo
   if ((S.mode === 'play' && S.vs === 'cpu') || S.mode === 'title') {
-    if (S.t >= S.cpuNext) { cpuShoot(); S.cpuNext = S.t + (S.mode === 'title' ? rand(1.4, 2.4) : rand(0.95, 1.7)); }
+    if (S.t >= S.cpuNext) { cpuShoot(); S.cpuNext = S.t + (S.mode === 'title' ? rand(1.4, 2.4) : rand(LEVELS[level].gap[0], LEVELS[level].gap[1])); }
   }
   const sub = 4, h = dt / sub;
   for (let i = 0; i < sub; i++) for (const b of S.balls) stepBall(b, h);
@@ -827,7 +850,7 @@ function paintResult() {
   const res = me > op ? 'win' : me < op ? 'lose' : 'draw';
   $('resHead').className = 'res-head ' + res;
   $('resTitle').textContent = res === 'win' ? '승리!' : res === 'lose' ? '아쉽다' : '무승부';
-  $('resEyebrow').textContent = res === 'win' ? (S.vs === 'friend' ? '친구를 이겼어요' : '동네 형을 이겼어요') : res === 'lose' ? '한 판 더?' : '막상막하';
+  $('resEyebrow').textContent = res === 'win' ? (S.vs === 'friend' ? '친구를 이겼어요' : S.op.name + ' 상대로 이겼어요') : res === 'lose' ? '한 판 더?' : '막상막하';
   $('resOpName').textContent = S.op.name;
   $('resMe').textContent = me.toLocaleString('ko-KR'); $('resOp').textContent = op.toLocaleString('ko-KR');
   return res;
@@ -864,7 +887,11 @@ function release(e) {
 cv.addEventListener('pointerup', release);
 cv.addEventListener('pointercancel', e => { if (S.drag && S.drag.id === e.pointerId) S.drag = null; });
 
-$('btnCpu').addEventListener('click', () => { Sound.ensure(); saveNick(); S.vs = 'cpu'; S.op.name = '동네 형'; startCountdown(); });
+$('btnCpu').addEventListener('click', () => { Sound.ensure(); saveNick(); S.vs = 'cpu'; S.op.name = LEVELS[level].name; startCountdown(); });
+for (const r of document.querySelectorAll('#levels input')) {
+  r.checked = Number(r.value) === level;
+  r.addEventListener('change', () => { if (r.checked) { level = Number(r.value); store.set('level', level); } });
+}
 $('btnFriend').addEventListener('click', () => { Sound.ensure(); saveNick(); enterFriend(); });
 window.addEventListener('hashchange', () => { const m = /^#([A-Za-z0-9]{4})$/.exec(location.hash || ''); if (room && m && S.mode !== 'play' && S.mode !== 'count') { leaveFriend(); enterFriend(m[1].toUpperCase()); } });
 $('btnBack').addEventListener('click', goTitle);
